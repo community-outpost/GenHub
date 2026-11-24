@@ -25,6 +25,8 @@ namespace GenHub.Features.GameProfiles.ViewModels;
 [SuppressMessage("Minor Code Smell", "S1075:URIs should not be hardcoded", Justification = "Centralized URI constants / mock demo paths")]
 public partial class DemoGameProfileSettingsViewModel : GameProfileSettingsViewModel
 {
+    private bool _isSyncingFromSection;
+
     /// <summary>
     /// Initializes a new instance of the <see cref="DemoGameProfileSettingsViewModel"/> class.
     /// </summary>
@@ -81,14 +83,27 @@ public partial class DemoGameProfileSettingsViewModel : GameProfileSettingsViewM
             }
         };
 
-        // Base SelectTabCommand invokes virtual OnTabSelected to route demo tabs to Info section navigation
-
         // Initialize with default mock data AFTER base class initialization
         InitializeMockMetadata();
 
         // No need to call async methods in constructor anymore as InitializeMockMetadata handles it synchronously
         // This avoids potential deadlocks and exception swallowing in the factory
     }
+
+    private static int GetSectionTabIndex(string sectionId) => sectionId switch
+    {
+        InfoConstants.SectionGameProfileContent => 0,
+        InfoConstants.SectionGameProfileSettings => 1,
+        InfoConstants.SectionGameSettings => 2,
+        _ => -1,
+    };
+
+    private static string GetPageSection(ProfileSettingsPage page) => page switch
+    {
+        ProfileSettingsPage.Game or ProfileSettingsPage.Content => InfoConstants.SectionGameProfileContent,
+        ProfileSettingsPage.General or ProfileSettingsPage.Appearance => InfoConstants.SectionGameProfileSettings,
+        _ => InfoConstants.SectionGameSettings,
+    };
 
     private void InitializeMockMetadata()
     {
@@ -289,28 +304,39 @@ public partial class DemoGameProfileSettingsViewModel : GameProfileSettingsViewM
     }
 
     /// <summary>
-    /// Gets or sets an action invoked when tab selection in demo mode requests section navigation.
+    /// Gets or sets an action invoked when a sidebar page in demo mode requests Info section navigation.
+    /// It receives the target section ID and the page that was chosen.
     /// </summary>
-    public Action<string>? NavigationRequested { get; set; }
+    public Action<string, ProfileSettingsPage>? NavigationRequested { get; set; }
 
     /// <summary>
-    /// Synchronizes the active tab with the given info section ID.
+    /// Synchronizes the active page with the given info section ID.
     /// </summary>
     /// <param name="sectionId">The target info section ID.</param>
-    [SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Mutates observable instance property SelectedTabIndex")]
-    public void SyncTabToSection(string sectionId)
+    /// <param name="page">The page to show when it belongs to the section; ignored otherwise.</param>
+    public void SyncTabToSection(string sectionId, ProfileSettingsPage? page = null)
     {
-        int targetIndex = sectionId switch
+        int targetIndex = GetSectionTabIndex(sectionId);
+        if (targetIndex < 0)
         {
-            InfoConstants.SectionGameProfileContent => 0,
-            InfoConstants.SectionGameProfileSettings => 1,
-            InfoConstants.SectionGameSettings => 2,
-            _ => -1,
-        };
+            return;
+        }
 
-        if (targetIndex >= 0 && SelectedTabIndex != targetIndex)
+        _isSyncingFromSection = true;
+        try
         {
-            SelectedTabIndex = targetIndex;
+            if (page.HasValue && GetSectionTabIndex(GetPageSection(page.Value)) == targetIndex)
+            {
+                SelectedPage = page.Value;
+            }
+            else
+            {
+                SelectedTabIndex = targetIndex;
+            }
+        }
+        finally
+        {
+            _isSyncingFromSection = false;
         }
     }
 
@@ -371,19 +397,14 @@ public partial class DemoGameProfileSettingsViewModel : GameProfileSettingsViewM
     protected override void OnTabSelected(int tabIndex)
     {
         base.OnTabSelected(tabIndex);
-
-        string? targetSection = tabIndex switch
+        if (_isSyncingFromSection)
         {
-            0 => InfoConstants.SectionGameProfileContent,
-            1 => InfoConstants.SectionGameProfileSettings,
-            2 => InfoConstants.SectionGameSettings,
-            _ => null,
-        };
-
-        if (targetSection != null)
-        {
-            Avalonia.Threading.Dispatcher.UIThread.Post(() => NavigationRequested?.Invoke(targetSection));
+            return;
         }
+
+        var page = SelectedPage;
+        var targetSection = GetPageSection(page);
+        Avalonia.Threading.Dispatcher.UIThread.Post(() => NavigationRequested?.Invoke(targetSection, page));
     }
 
     /// <summary>

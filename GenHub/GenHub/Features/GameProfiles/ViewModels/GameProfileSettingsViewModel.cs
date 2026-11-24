@@ -98,6 +98,7 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
     private UpdateProfileRequest? _originalGameSettings; // skipcq: CS-R1137
     private bool _originalUseSteamLaunch = true; // skipcq: CS-R1137
     private bool _isContentReloadInProgress; // skipcq: CS-R1137
+    private bool _isContentReloadPending;
     private int _loadContentVersion; // skipcq: CS-R1137
     private bool _isSynchronizingEnabledContent;
     private string? _currentProfileId;
@@ -182,6 +183,7 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
             NullLogger<NotificationItemViewModel>.Instance);
 
         GameSettingsViewModel = new GameSettingsViewModel(gameSettingsService!, gameSettingsLogger!, notificationService, localizationService);
+        GameSettingsViewModel.PropertyChanged += OnGameSettingsPropertyChanged;
 
         WeakReferenceMessenger.Default.Register<Core.Models.Content.ContentAcquiredMessage>(this);
         WeakReferenceMessenger.Default.Register<ManifestReplacedMessage>(this);
@@ -275,14 +277,21 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
         {
             if (_isContentReloadInProgress)
             {
+                _isContentReloadPending = true;
                 return;
             }
 
             _isContentReloadInProgress = true;
             try
             {
-                await Task.Delay(75).ConfigureAwait(true);
-                await LoadAvailableContentAsync().ConfigureAwait(true);
+                do
+                {
+                    _isContentReloadPending = false;
+                    await Task.Delay(75).ConfigureAwait(true);
+                    await LoadAvailableContentAsync().ConfigureAwait(true);
+                    await LoadProfileContentCandidatesAsync().ConfigureAwait(true);
+                }
+                while (_isContentReloadPending);
             }
             finally
             {
@@ -452,6 +461,7 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
         await RefreshVisibleFiltersAsync();
         await LoadAvailableContentAsync();
         LoadAvailableIconsAndCovers(GameTypeFilter.ToString());
+        await LoadProfileContentCandidatesAsync();
     }
 
     /// <summary>Replaces only matching manifest components, retaining any unsaved selection differences.</summary>
@@ -949,12 +959,15 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
         var hotswapMode = IsHotswapMode;
         UpdateContentItemsHotswapState(EnabledContent, hotswapMode);
         UpdateContentItemsHotswapState(AvailableContent, hotswapMode);
+        UpdateContentItemsHotswapState(_profileContentCandidates, hotswapMode);
 
         foreach (var item in AvailableGameInstallations)
         {
             item.IsLocked = hotswapMode;
             item.CanToggle = !hotswapMode;
         }
+
+        RebuildProfileContentRows();
     }
 
     private void OnEnabledContentCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
@@ -984,6 +997,7 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
         {
             _isSynchronizingEnabledContent = false;
             OnPropertyChanged(nameof(IsSteamLaunchSupported));
+            RebuildProfileContentRows();
         }
     }
 
@@ -1049,6 +1063,8 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
         {
             ClearInstallationSelection();
         }
+
+        RebuildProfileContentRows();
     }
 
     /// <summary>
@@ -1056,6 +1072,7 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
     /// </summary>
     partial void OnGameTypeFilterChanged(GameType value)
     {
+        RebuildProfileContentRows();
         if (IsInitializing)
         {
             return;

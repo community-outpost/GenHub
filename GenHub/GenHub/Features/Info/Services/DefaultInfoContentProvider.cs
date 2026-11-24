@@ -519,15 +519,14 @@ public class DefaultInfoContentProvider : IInfoContentProvider
                 {
                     Id = InfoConstants.CardContentDemo,
                     Title = "Interactive Demo: Content Editor",
-                    Content = "Live interactive content manager showing mod selection and priority ordering.",
+                    Content = "Live interactive content manager showing mod selection.",
                     Type = InfoCardType.Example,
                     IsExpandable = true,
                     DetailedContent = """
                     **Live Content Manager Demo:**
-                    Explore how mods, maps, game clients, and tools are structured and ordered inside a profile.
+                    Explore how mods, maps, game clients, and tools are structured inside a profile.
                     * Browse active mods and toggle addons on or off.
-                    * Reorder items to establish load priority for overriding INI files or Big archives.
-                    * Switch between Content, Profile Settings, and Game Settings using the tabs above.
+                    * Switch between the General, Game, Content and game settings pages using the sidebar.
                     """,
                 },
                 new InfoCard
@@ -590,15 +589,17 @@ public class DefaultInfoContentProvider : IInfoContentProvider
                 {
                     Id = InfoConstants.CardProfilesEditor,
                     Title = "Content Editor",
-                    Content = "Adding and ordering content in a profile.",
+                    Content = "Choosing the content a profile uses.",
                     Type = InfoCardType.HowTo,
                     IsExpandable = true,
                     DetailedContent = """
                     **Content Workflow:**
-                    1. **Available Content (Bottom):** Shows installed mods, maps, and patches you can add to this profile.
-                    2. **Enabled Content (Top):** Shows content currently active for this profile.
-                    3. **Load Priority:** Content is applied from top to bottom. Items higher in the list take priority if two packages contain conflicting files.
+                    1. **Checklist:** The Content page lists the mods, maps, patches, add-ons and tools installed for the profile's game. Checked items are part of the profile.
+                    2. **Removing:** Unchecking an item removes it from this profile only. It stays in your library.
+                    3. **Filter and Refresh:** Narrow the list to one content type, or refresh it after installing something new.
                     4. **Add Local:** Link external folders or archives without copying them into GenHub.
+
+                    The game installation and game client are chosen on the Game page.
                     """,
                 },
                 new InfoCard
@@ -847,11 +848,10 @@ public class DefaultInfoContentProvider : IInfoContentProvider
                     IsExpandable = true,
                     DetailedContent = """
                     **Linking content to game profiles**
-                    After registering a local content item, open any profile in **Profile Settings** and navigate to the **Content** tab:
+                    After registering a local content item, open any profile in **Profile Settings** and navigate to the **Content** page:
 
                     * Enable the checkbox next to any mod, addon, tool, or map pack to attach it to that profile.
-                    * Reorder items in the list to configure load priority when multiple items override the same INI settings or art assets.
-                    * Assign custom game clients (such as a test build from TheSuperHackers) in the Client selector.
+                    * Assign custom game clients (such as a test build from TheSuperHackers) on the **Game** page.
 
                     **Workspace isolation**
                     GenHub never writes modded files into your original Command & Conquer installation directory. When launching a profile, GenHub creates an isolated workspace using symbolic links or hardlinks to combine your base game with the specific content items assigned to that profile. Your base game files remain untouched, and profiles run independently without file conflicts.

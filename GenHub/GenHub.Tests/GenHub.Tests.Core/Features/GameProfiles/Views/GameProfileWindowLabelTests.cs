@@ -32,51 +32,92 @@ public class GameProfileWindowLabelTests
 {
     private delegate bool TryGetStringCallback(string key, out string? value, object?[] arguments);
 
-    private const double MinimumWindowWidth = 600;
+    private const double SidebarWidth = 240;
 
     private static readonly ResourceManager Resources =
         new(LocalizationConstants.StringResourceBaseName, typeof(LocalizationService).Assembly);
 
     /// <summary>
-    /// Verifies each top tab shows its translated label inside the navigation bar at the window's minimum width.
+    /// Verifies the embedded settings host renders the view model's own toasts.
+    /// </summary>
+    [AvaloniaFact]
+    public void EmbeddedHost_RendersViewModelNotifications()
+    {
+        var viewModel = CreateViewModel();
+        var view = new GameProfileSettingsContentView { DataContext = viewModel };
+        var window = new Window { Width = 1100, Height = 800, Content = view };
+        window.Show();
+
+        try
+        {
+            Dispatcher.UIThread.RunJobs();
+
+            var container = Assert.Single(view.GetVisualDescendants().OfType<GenHub.Features.Notifications.Views.NotificationContainerView>());
+            Assert.Same(viewModel.NotificationManager, container.DataContext);
+        }
+        finally
+        {
+            window.Close();
+        }
+    }
+
+    /// <summary>
+    /// Verifies each sidebar page shows its translated label within the sidebar width.
     /// </summary>
     /// <param name="cultureName">The shipped culture to render.</param>
     [AvaloniaTheory]
     [InlineData("")]
     [InlineData("ar")]
     [InlineData("ru")]
-    public void NavigationTabs_ShowTranslatedLabelsWithinBarAtMinimumWidth(string cultureName)
+    public void SidebarPages_ShowTranslatedLabelsWithinSidebar(string cultureName)
     {
         var resourceSet = Resources.GetResourceSet(CultureInfo.GetCultureInfo(cultureName), createIfNotExists: true, tryParents: false)!;
         var localization = new Mock<ILocalizationService>();
         localization.Setup(service => service[It.IsAny<string>()]).Returns((string key) => resourceSet.GetString(key) ?? key);
-        string[] keys = ["GameProfiles.Navigation.Content", "GameProfiles.Navigation.ProfileSettings", "GameProfiles.Navigation.GameSettings"];
+        string[] keys =
+        [
+            "GameProfiles.Navigation.General",
+            "GameProfiles.Navigation.Game",
+            "GameProfiles.Navigation.Content",
+            "GameProfiles.General.TabAppearance",
+            "GameSettings.Category.Video",
+            "GameSettings.Category.Audio",
+            "GameSettings.Category.Controls",
+            "GameSettings.Category.TheSuperHackers",
+            "GameSettings.Category.GeneralsOnline",
+        ];
 
         WithLocalization(localization.Object, () =>
         {
-            var view = new GameProfileNavigationView { DataContext = CreateViewModel(), Margin = new Thickness(24, 0, 24, 12) };
-            var window = new Window { Width = MinimumWindowWidth, Height = 200, Content = view };
+            var viewModel = CreateViewModel();
+            viewModel.GameSettingsViewModel.UpdateApplicableClientVisibility(isTheSuperHackers: true, isGeneralsOnline: true);
+            var view = new GameProfileSettingsSidebarView { DataContext = viewModel };
+            var window = new Window { Width = SidebarWidth, Height = 700, Content = view };
             window.Show();
             Dispatcher.UIThread.RunJobs();
 
             try
             {
-                var tabs = view.GetLogicalDescendants().OfType<Button>().ToList();
-                var labels = tabs.Select(tab =>
-                {
-                    Assert.Contains(tab.GetLogicalDescendants(), node => node is PathIcon);
-                    return Assert.Single(tab.GetLogicalDescendants().OfType<TextBlock>());
-                }).ToList();
+                var pages = view.GetLogicalDescendants().OfType<Button>().Where(button => button.IsVisible).ToList();
+                var labels = pages.Select(page => Assert.Single(page.GetLogicalDescendants().OfType<TextBlock>())).ToList();
 
                 Assert.Equal(keys.Select(resourceSet.GetString), labels.Select(label => label.Text));
-                Assert.Equal(keys.Select(resourceSet.GetString), tabs.Select(AutomationProperties.GetName));
-                Assert.All(tabs, tab =>
+                Assert.Equal(keys.Select(resourceSet.GetString), pages.Select(AutomationProperties.GetName));
+                Assert.All(pages, page =>
                 {
-                    var origin = tab.TranslatePoint(default, view);
-                    Assert.NotNull(origin);
-                    Assert.InRange(origin.Value.X, 0, view.Bounds.Width - tab.Bounds.Width);
+                    var label = Assert.Single(page.GetLogicalDescendants().OfType<TextBlock>());
+                    Assert.True(label.IsEffectivelyVisible);
+                    var natural = new TextBlock
+                    {
+                        Text = label.Text,
+                        FontSize = label.FontSize,
+                        FontWeight = label.FontWeight,
+                        FontFamily = label.FontFamily,
+                    };
+                    natural.Measure(Size.Infinity);
+                    var available = page.Bounds.Width - page.Padding.Left - page.Padding.Right;
+                    Assert.True(natural.DesiredSize.Width <= available, $"'{label.Text}' needs {natural.DesiredSize.Width} but the page row offers {available}");
                 });
-                Assert.All(labels, label => Assert.True(label.IsEffectivelyVisible));
             }
             finally
             {

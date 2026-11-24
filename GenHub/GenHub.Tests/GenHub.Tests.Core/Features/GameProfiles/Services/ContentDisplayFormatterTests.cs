@@ -204,7 +204,36 @@ public class ContentDisplayFormatterTests
 
         var result = _formatter.GetPublisherFromManifest(manifest);
 
-        Assert.Equal(PublisherInfoConstants.Retail.Name, result);
+        Assert.Equal(string.Empty, result);
+    }
+
+    /// <summary>
+    /// Tests that content without a publisher shows no publisher instead of the retail installation name,
+    /// while a game installation without one still falls back to its installation type.
+    /// </summary>
+    /// <param name="contentType">The content type of the manifest.</param>
+    /// <param name="expectedPublisher">The expected publisher text.</param>
+    [Theory]
+    [InlineData(ContentType.Mod, "")]
+    [InlineData(ContentType.Map, "")]
+    [InlineData(ContentType.Patch, "")]
+    [InlineData(ContentType.GameClient, "")]
+    [InlineData(ContentType.GameInstallation, "Retail Installation")]
+    public void GetPublisherFromManifest_WithoutPublisher_OnlyInstallationFallsBackToRetail(ContentType contentType, string expectedPublisher)
+    {
+        var manifest = new ContentManifest
+        {
+            Id = ManifestId.Create("1.0.local.mod.shocktestmod"),
+            Name = "Shock Test Mod",
+            Version = "1.0",
+            ContentType = contentType,
+            TargetGame = GameType.ZeroHour,
+            Publisher = new PublisherInfo { Name = string.Empty },
+            Files = [],
+        };
+
+        Assert.Equal(expectedPublisher, _formatter.GetPublisherFromManifest(manifest));
+        Assert.Equal(expectedPublisher, _formatter.CreateDisplayItem(manifest).Publisher);
     }
 
     /// <summary>

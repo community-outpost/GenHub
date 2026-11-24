@@ -3,7 +3,6 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:vm="clr-namespace:GenHub.Features.GameProfiles.ViewModels"
-             xmlns:views="clr-namespace:GenHub.Features.GameProfiles.Views"
              xmlns:conv="clr-namespace:GenHub.Infrastructure.Converters"
              xmlns:converters="clr-namespace:Avalonia.Data.Converters;assembly=Avalonia.Base"
              xmlns:localization="clr-namespace:GenHub.Common.Markup;assembly=GenHub"
@@ -23,221 +22,233 @@
     </UserControl.Resources>
 
     <UserControl.Styles>
-        <!-- Reading panels are not interactive, so hover keeps their border. -->
+        <Style Selector="Border.settings-card">
+            <Setter Property="Margin" Value="0,0,0,8" />
+            <Setter Property="Padding" Value="20,16" />
+            <Setter Property="CornerRadius" Value="{DynamicResource CardCornerRadius}" />
+            <Setter Property="BorderThickness" Value="0" />
+        </Style>
         <Style Selector="Border.settings-card:pointerover">
             <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
         </Style>
+        <Style Selector="Button.color-btn">
+            <Setter Property="Width" Value="{DynamicResource ColorSwatchSize}" />
+            <Setter Property="Height" Value="{DynamicResource ColorSwatchSize}" />
+            <Setter Property="Margin" Value="0,0,6,6" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="CornerRadius" Value="14" />
+            <Setter Property="Cursor" Value="Hand" />
+        </Style>
+        <Style Selector="TextBlock.row-label">
+            <Setter Property="FontSize" Value="15" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+        <Style Selector="TextBlock.row-hint">
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Foreground" Value="{DynamicResource TextSecondary}" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+            <Setter Property="Margin" Value="0,4,0,0" />
+        </Style>
+        <Style Selector="TextBlock.group-header">
+            <Setter Property="FontSize" Value="18" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
+            <Setter Property="Margin" Value="0,24,0,6" />
+        </Style>
+        <Style Selector=":is(Control).row-control">
+            <Setter Property="HorizontalAlignment" Value="Stretch" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="Margin" Value="24,0,0,0" />
+        </Style>
     </UserControl.Styles>
 
-    <Grid x:Name="RootGrid">
-        <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="Auto" MinWidth="58" MaxWidth="350" />
-            <ColumnDefinition Width="4" />
-            <ColumnDefinition Width="*" MinWidth="250" />
-        </Grid.ColumnDefinitions>
-        <!-- Sidebar Navigation -->
-        <Border Grid.Column="0"
-                Background="{DynamicResource CardBackground}"
-                BorderBrush="{DynamicResource BorderBrush}"
-                BorderThickness="0,0,1,0"
-                Padding="12,24"
-                ClipToBounds="True">
-            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-                <StackPanel Spacing="2">
-                    <Button Classes="sidebar-btn"
-                            Classes.selected="{Binding SelectedGeneralCategory, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static vm:GeneralSettingsCategory.Identity}}"
-                            Command="{Binding SelectGeneralCategoryCommand}"
-                            CommandParameter="{x:Static vm:GeneralSettingsCategory.Identity}"
-                            ToolTip.Tip="{localization:Localize GameProfiles.General.TabIdentity}" AutomationProperties.Name="{localization:Localize GameProfiles.General.TabIdentity}">
-                        <StackPanel Orientation="Horizontal">
-                            <PathIcon Data="M12,4A4,4 0 0,1 16,8A4,4 0 0,1 12,12A4,4 0 0,1 8,8A4,4 0 0,1 12,4M12,14C16.42,14 20,15.79 20,18V20H4V18C4,15.79 7.58,14 12,14Z" />
-                            <TextBlock Text="{localization:Localize GameProfiles.General.TabIdentity}" VerticalAlignment="Center" />
-                        </StackPanel>
-                    </Button>
-
-                    <Button Classes="sidebar-btn"
-                            Classes.selected="{Binding SelectedGeneralCategory, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static vm:GeneralSettingsCategory.Appearance}}"
-                            Command="{Binding SelectGeneralCategoryCommand}"
-                            CommandParameter="{x:Static vm:GeneralSettingsCategory.Appearance}"
-                            ToolTip.Tip="{localization:Localize GameProfiles.General.TabAppearance}" AutomationProperties.Name="{localization:Localize GameProfiles.General.TabAppearance}">
-                        <StackPanel Orientation="Horizontal">
-                            <PathIcon Data="M19,3H5C3.89,3 3,3.89 3,5V19C3,20.11 3.89,21 5,21H19C20.11,21 21,20.11 21,19V5C21,3.89 20.11,3 19,3M19,19H5V5H19V19M13.96,12.29L11.21,15.83L9.25,13.47L6.5,17H17.5L13.96,12.29Z" />
-                            <TextBlock Text="{localization:Localize GameProfiles.General.TabAppearance}" VerticalAlignment="Center" />
-                        </StackPanel>
-                    </Button>
-
-                    <Button Classes="sidebar-btn"
-                            Classes.selected="{Binding SelectedGeneralCategory, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static vm:GeneralSettingsCategory.Launch}}"
-                            Command="{Binding SelectGeneralCategoryCommand}"
-                            CommandParameter="{x:Static vm:GeneralSettingsCategory.Launch}"
-                            ToolTip.Tip="{localization:Localize GameProfiles.General.TabLaunch}" AutomationProperties.Name="{localization:Localize GameProfiles.General.TabLaunch}">
-                        <StackPanel Orientation="Horizontal">
-                            <PathIcon Data="M21,16.5C21,16.88 20.79,17.21 20.47,17.38L12.57,21.82C12.41,21.94 12.21,22 12,22C11.79,22 11.59,21.94 11.43,21.82L3.53,17.38C3.21,17.21 3,16.88 3,16.5V7.5C3,7.12 3.21,6.79 3.53,6.62L11.43,2.18C11.59,2.06 11.79,2 12,2C12.21,2 12.41,2.06 12.57,2.18L20.47,6.62C20.79,6.79 21,7.12 21,7.5V16.5Z" />
-                            <TextBlock Text="{localization:Localize GameProfiles.General.TabLaunch}" VerticalAlignment="Center" />
-                        </StackPanel>
-                    </Button>
-
-                    <Button Classes="sidebar-btn"
-                            Classes.selected="{Binding SelectedGeneralCategory, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static vm:GeneralSettingsCategory.Theme}}"
-                            Command="{Binding SelectGeneralCategoryCommand}"
-                            CommandParameter="{x:Static vm:GeneralSettingsCategory.Theme}"
-                            ToolTip.Tip="{localization:Localize GameProfiles.General.TabTheme}" AutomationProperties.Name="{localization:Localize GameProfiles.General.TabTheme}">
-                        <StackPanel Orientation="Horizontal">
-                            <PathIcon Data="M17.5,12A1.5,1.5 0 0,1 16,10.5A1.5,1.5 0 0,1 17.5,9A1.5,1.5 0 0,1 19,10.5A1.5,1.5 0 0,1 17.5,12M14.5,8A1.5,1.5 0 0,1 13,6.5A1.5,1.5 0 0,1 14.5,5A1.5,1.5 0 0,1 16,6.5A1.5,1.5 0 0,1 14.5,8M9.5,8A1.5,1.5 0 0,1 8,6.5A1.5,1.5 0 0,1 9.5,5A1.5,1.5 0 0,1 11,6.5A1.5,1.5 0 0,1 9.5,8M6.5,12A1.5,1.5 0 0,1 5,10.5A1.5,1.5 0 0,1 6.5,9A1.5,1.5 0 0,1 8,10.5A1.5,1.5 0 0,1 6.5,12M12,3A9,9 0 0,0 3,12A9,9 0 0,0 12,21A1.5,1.5 0 0,0 13.5,19.5C13.5,19.11 13.35,18.76 13.11,18.5C12.88,18.23 12.73,17.88 12.73,17.5A1.5,1.5 0 0,1 14.23,16H16A5,5 0 0,0 21,11C21,6.58 16.97,3 12,3Z" />
-                            <TextBlock Text="{localization:Localize GameProfiles.General.TabTheme}" VerticalAlignment="Center" />
-                        </StackPanel>
-                    </Button>
-                </StackPanel>
-            </ScrollViewer>
-        </Border>
-
-        <!-- Resizer -->
-        <GridSplitter Grid.Column="1" Background="Transparent" ResizeDirection="Columns" />
-
-        <!-- Content Area -->
-        <ScrollViewer x:Name="GeneralSettingsScrollViewer" Grid.Column="2" Padding="0,24,0,80" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" BringIntoViewOnFocusChange="False">
-            <StackPanel Spacing="0">
-                <!-- Identity Section -->
-                <Control x:Name="IdentitySection" Height="1" Margin="0,-1,0,0" />
+    <ScrollViewer x:Name="GeneralSettingsScrollViewer"
+                  VerticalScrollBarVisibility="Auto"
+                  HorizontalScrollBarVisibility="Disabled">
+        <Panel Margin="32,0,32,24">
+            <StackPanel x:Name="GeneralPage"
+                        IsVisible="{Binding SelectedPage, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static vm:ProfileSettingsPage.General}}">
                 <Border Classes="settings-card">
-                    <StackPanel Spacing="16">
-                        <TextBlock Classes="section-header" Text="{localization:Localize GameProfiles.General.BasicInformation}" />
-                        <StackPanel Spacing="8">
-                            <TextBlock Classes="form-label" Text="{localization:Localize GameProfiles.General.ProfileName}" />
-                            <TextBox Classes="form-field" Text="{Binding Name, Mode=TwoWay}" Watermark="{localization:Localize GameProfiles.General.ProfileNameWatermark}" />
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" MinWidth="140" />
+                            <ColumnDefinition Width="2*" MaxWidth="324" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Classes="row-label" Text="{localization:Localize GameProfiles.General.ProfileName}" />
+                        <TextBox Grid.Column="1" Classes="form-field row-control"
+                                 Text="{Binding Name, Mode=TwoWay}"
+                                 Watermark="{localization:Localize GameProfiles.General.ProfileNameWatermark}" />
+                    </Grid>
+                </Border>
+
+                <Border Classes="settings-card">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" MinWidth="140" />
+                            <ColumnDefinition Width="2*" MaxWidth="324" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Classes="row-label" VerticalAlignment="Top" Margin="0,8,0,0" Text="{localization:Localize GameProfiles.General.Description}" />
+                        <TextBox Grid.Column="1" Classes="form-field row-control"
+                                 Text="{Binding Description, Mode=TwoWay}"
+                                 Watermark="{localization:Localize GameProfiles.General.DescriptionWatermark}"
+                                 Height="72"
+                                 AcceptsReturn="True"
+                                 TextWrapping="Wrap" />
+                    </Grid>
+                </Border>
+
+                <Border Classes="settings-card" IsVisible="{Binding IsSteamLaunchSupported}">
+                    <Grid ColumnDefinitions="*,80">
+                        <StackPanel VerticalAlignment="Center">
+                            <TextBlock Classes="row-label" Text="{localization:Localize GameProfiles.General.SteamLaunch}" />
+                            <TextBlock Classes="row-hint" Text="{localization:Localize GameProfiles.General.SteamLaunchDescription}" />
                         </StackPanel>
-                        <StackPanel Spacing="8">
-                            <TextBlock Classes="form-label" Text="{localization:Localize GameProfiles.General.Description}" />
-                            <TextBox Classes="form-field" Text="{Binding Description, Mode=TwoWay}" Watermark="{localization:Localize GameProfiles.General.DescriptionWatermark}" Height="80" AcceptsReturn="True" TextWrapping="Wrap" />
+                        <ToggleSwitch Grid.Column="1"
+                                      x:Name="SteamLaunchToggle"
+                                      IsChecked="{Binding UseSteamLaunch}"
+                                      IsEnabled="{Binding CanEditImmutableMetadata}"
+                                      OnContent="{x:Null}"
+                                      OffContent="{x:Null}"
+                                      HorizontalAlignment="Right"
+                                      VerticalAlignment="Center"
+                                      AutomationProperties.Name="{localization:Localize GameProfiles.General.SteamLaunch}" />
+                    </Grid>
+                </Border>
+
+                <Border Classes="settings-card">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" MinWidth="140" />
+                            <ColumnDefinition Width="2*" MaxWidth="324" />
+                        </Grid.ColumnDefinitions>
+                        <StackPanel VerticalAlignment="Center">
+                            <TextBlock Classes="row-label" Text="{localization:Localize GameProfiles.General.WorkspaceStrategy}" />
+                            <TextBlock Classes="row-hint">
+                                <TextBlock.Text>
+                                    <MultiBinding Converter="{x:Static conv:WorkspaceStrategyDisplayConverter.Description}">
+                                        <Binding Path="SelectedWorkspaceStrategy" />
+                                        <Binding Path="CurrentCulture" Source="{x:Static conv:WorkspaceStrategyDisplayConverter.LocalizationSource}" />
+                                    </MultiBinding>
+                                </TextBlock.Text>
+                            </TextBlock>
                         </StackPanel>
+                        <ComboBox Grid.Column="1"
+                                  Classes="workspace-strategy form-field row-control"
+                                  ItemsSource="{x:Static vm:GameProfileSettingsViewModel.AvailableWorkspaceStrategies}"
+                                  SelectedItem="{Binding SelectedWorkspaceStrategy}"
+                                  IsEnabled="{Binding CanEditImmutableMetadata}"
+                                  AutomationProperties.Name="{localization:Localize GameProfiles.General.WorkspaceStrategy}" />
+                    </Grid>
+                </Border>
+
+                <TextBlock x:Name="LaunchConfigurationLockedReason"
+                           Text="{localization:Localize GameProfiles.General.LaunchConfigurationLocked}"
+                           IsVisible="{Binding IsHotswapMode}"
+                           Foreground="{DynamicResource WarningBrush}"
+                           FontSize="12"
+                           Margin="0,4,0,0"
+                           TextWrapping="Wrap" />
+
+                <TextBlock Classes="group-header" Text="{localization:Localize Profiles.Settings.LaunchOptions}" />
+                <TextBlock Classes="row-hint" Margin="0,0,0,10" Text="{localization:Localize Profiles.Settings.CommandLineArgumentsHint}" />
+                <TextBox Classes="form-field"
+                         Text="{Binding CommandLineArguments, Mode=TwoWay}"
+                         IsEnabled="{Binding CanEditImmutableMetadata}"
+                         Watermark="{localization:Localize GameProfiles.General.CommandLineArgumentsWatermark}"
+                         AutomationProperties.Name="{localization:Localize GameProfiles.General.CommandLineArguments}" />
+            </StackPanel>
+
+            <StackPanel x:Name="AppearancePage"
+                        IsVisible="{Binding SelectedPage, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static vm:ProfileSettingsPage.Appearance}}">
+                <Border Classes="settings-card">
+                    <StackPanel Spacing="12">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <TextBlock Grid.Column="0" Classes="row-label" Text="{localization:Localize GameProfiles.General.ProfileIcon}" />
+                            <Button
+                                    Grid.Column="1"
+                                    Content="{localization:Localize Common.BrowseEllipsis}"
+                                    Command="{Binding BrowseForCustomIconCommand}"
+                                    Classes="action-secondary"/>
+                        </Grid>
+                        <ItemsControl ItemsSource="{Binding AvailableIcons}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <WrapPanel Orientation="Horizontal" HorizontalAlignment="Left" />
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Width="50" Height="50" Margin="0,0,8,8" CornerRadius="8" Classes="selectable-tile" ToolTip.Tip="{Binding DisplayName}"
+                                            Classes.selected="{Binding Path, Converter={StaticResource EqualityConverter}, ConverterParameter={Binding $parent[ItemsControl].((vm:GameProfileSettingsViewModel)DataContext).IconPath}}">
+                                        <Border.Styles>
+                                            <Style Selector="Border.selectable-tile">
+                                                <Setter Property="Background" Value="#15FFFFFF" />
+                                                <Setter Property="BorderBrush" Value="#30FFFFFF" />
+                                                <Setter Property="BorderThickness" Value="1" />
+                                            </Style>
+                                            <Style Selector="Border.selectable-tile.selected">
+                                                <Setter Property="Background" Value="{DynamicResource AccentBadgeBackgroundBrush}" />
+                                                <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+                                                <Setter Property="BorderThickness" Value="2" />
+                                            </Style>
+                                        </Border.Styles>
+                                        <Button Background="Transparent" Command="{Binding $parent[ItemsControl].((vm:GameProfileSettingsViewModel)DataContext).SelectIconCommand}" CommandParameter="{Binding}" Padding="4">
+                                            <Image Source="{Binding Path, Converter={StaticResource StringToImageConverter}}" Stretch="Uniform" />
+                                        </Button>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
                     </StackPanel>
                 </Border>
 
-                <!-- Appearance Section -->
-                <Control x:Name="AppearanceSection" Height="1" Margin="0,-1,0,0" />
                 <Border Classes="settings-card">
-                    <StackPanel Spacing="20">
-                        <TextBlock Classes="section-header" Text="{localization:Localize GameProfiles.General.IconAndCover}" />
-
-                        <!-- Icon Selection -->
-                        <StackPanel Spacing="12">
-                            <Grid ColumnDefinitions="*,Auto">
-                                <TextBlock Grid.Column="0" Classes="form-label" Text="{localization:Localize GameProfiles.General.ProfileIcon}" />
-                                <Button
-                                        Grid.Column="1"
-                                        Content="{localization:Localize Common.BrowseEllipsis}"
-                                        Command="{Binding BrowseForCustomIconCommand}"
-                                        Classes="action-secondary"/>
-                            </Grid>
-                            <ItemsControl ItemsSource="{Binding AvailableIcons}">
-                                <ItemsControl.ItemsPanel>
-                                    <ItemsPanelTemplate>
-                                        <WrapPanel Orientation="Horizontal" HorizontalAlignment="Left" />
-                                    </ItemsPanelTemplate>
-                                </ItemsControl.ItemsPanel>
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate>
-                                        <Border Width="50" Height="50" Margin="0,0,8,8" CornerRadius="8" Classes="selectable-tile" ToolTip.Tip="{Binding DisplayName}"
-                                                Classes.selected="{Binding Path, Converter={StaticResource EqualityConverter}, ConverterParameter={Binding $parent[ItemsControl].((vm:GameProfileSettingsViewModel)DataContext).IconPath}}">
-                                            <Border.Styles>
-                                                <Style Selector="Border.selectable-tile">
-                                                    <Setter Property="Background" Value="#15FFFFFF" />
-                                                    <Setter Property="BorderBrush" Value="#30FFFFFF" />
-                                                    <Setter Property="BorderThickness" Value="1" />
-                                                </Style>
-                                                <Style Selector="Border.selectable-tile.selected">
-                                                    <Setter Property="Background" Value="{DynamicResource AccentBadgeBackgroundBrush}" />
-                                                    <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
-                                                    <Setter Property="BorderThickness" Value="2" />
-                                                </Style>
-                                            </Border.Styles>
-                                            <Button Background="Transparent" Command="{Binding $parent[ItemsControl].((vm:GameProfileSettingsViewModel)DataContext).SelectIconCommand}" CommandParameter="{Binding}" Padding="4">
-                                                <Image Source="{Binding Path, Converter={StaticResource StringToImageConverter}}" Stretch="Uniform" />
-                                            </Button>
-                                        </Border>
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
-                        </StackPanel>
-
-                        <Separator Background="#15FFFFFF" Height="1" />
-
-                        <!-- Cover Selection -->
-                        <StackPanel Spacing="12">
-                            <Grid ColumnDefinitions="*,Auto">
-                                <TextBlock Grid.Column="0" Classes="form-label" Text="{localization:Localize GameProfiles.General.ProfileCover}" />
-                                <Button
-                                        Grid.Column="1"
-                                        Content="{localization:Localize Common.BrowseEllipsis}"
-                                        Command="{Binding BrowseForCustomCoverCommand}"
-                                        Classes="action-secondary"/>
-                            </Grid>
-                            <ItemsControl ItemsSource="{Binding AvailableCoversForSelection}">
-                                <ItemsControl.ItemsPanel>
-                                    <ItemsPanelTemplate>
-                                        <WrapPanel Orientation="Horizontal" HorizontalAlignment="Left" />
-                                    </ItemsPanelTemplate>
-                                </ItemsControl.ItemsPanel>
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate>
-                                        <Border Width="140" Height="80" Margin="0,0,12,8" CornerRadius="8" Classes="selectable-tile" ToolTip.Tip="{Binding DisplayName}"
-                                                Classes.selected="{Binding Path, Converter={StaticResource EqualityConverter}, ConverterParameter={Binding $parent[ItemsControl].((vm:GameProfileSettingsViewModel)DataContext).CoverPath}}">
-                                            <Border.Styles>
-                                                <Style Selector="Border.selectable-tile">
-                                                    <Setter Property="Background" Value="#15FFFFFF" />
-                                                    <Setter Property="BorderBrush" Value="#30FFFFFF" />
-                                                    <Setter Property="BorderThickness" Value="1" />
-                                                </Style>
-                                                <Style Selector="Border.selectable-tile.selected">
-                                                    <Setter Property="Background" Value="{DynamicResource AccentBadgeBackgroundBrush}" />
-                                                    <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
-                                                    <Setter Property="BorderThickness" Value="2" />
-                                                </Style>
-                                            </Border.Styles>
-                                            <Button Background="Transparent" Command="{Binding $parent[ItemsControl].((vm:GameProfileSettingsViewModel)DataContext).SelectCoverCommand}" CommandParameter="{Binding}" Padding="4">
-                                                <Image Source="{Binding Path, Converter={StaticResource StringToImageConverter}}" Stretch="UniformToFill" />
-                                            </Button>
-                                        </Border>
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
-                        </StackPanel>
+                    <StackPanel Spacing="12">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <TextBlock Grid.Column="0" Classes="row-label" Text="{localization:Localize GameProfiles.General.ProfileCover}" />
+                            <Button
+                                    Grid.Column="1"
+                                    Content="{localization:Localize Common.BrowseEllipsis}"
+                                    Command="{Binding BrowseForCustomCoverCommand}"
+                                    Classes="action-secondary"/>
+                        </Grid>
+                        <ItemsControl ItemsSource="{Binding AvailableCoversForSelection}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <WrapPanel Orientation="Horizontal" HorizontalAlignment="Left" />
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Width="140" Height="80" Margin="0,0,12,8" CornerRadius="8" Classes="selectable-tile" ToolTip.Tip="{Binding DisplayName}"
+                                            Classes.selected="{Binding Path, Converter={StaticResource EqualityConverter}, ConverterParameter={Binding $parent[ItemsControl].((vm:GameProfileSettingsViewModel)DataContext).CoverPath}}">
+                                        <Border.Styles>
+                                            <Style Selector="Border.selectable-tile">
+                                                <Setter Property="Background" Value="#15FFFFFF" />
+                                                <Setter Property="BorderBrush" Value="#30FFFFFF" />
+                                                <Setter Property="BorderThickness" Value="1" />
+                                            </Style>
+                                            <Style Selector="Border.selectable-tile.selected">
+                                                <Setter Property="Background" Value="{DynamicResource AccentBadgeBackgroundBrush}" />
+                                                <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+                                                <Setter Property="BorderThickness" Value="2" />
+                                            </Style>
+                                        </Border.Styles>
+                                        <Button Background="Transparent" Command="{Binding $parent[ItemsControl].((vm:GameProfileSettingsViewModel)DataContext).SelectCoverCommand}" CommandParameter="{Binding}" Padding="4">
+                                            <Image Source="{Binding Path, Converter={StaticResource StringToImageConverter}}" Stretch="UniformToFill" />
+                                        </Button>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
                     </StackPanel>
                 </Border>
 
-                <!-- Launch Options Section -->
-                <Control x:Name="LaunchSection" Height="1" Margin="0,-1,0,0" />
                 <Border Classes="settings-card">
-                    <StackPanel Spacing="16">
-                        <TextBlock Classes="section-header" Text="{localization:Localize GameProfiles.General.LaunchConfiguration}" />
-                        <TextBlock x:Name="LaunchConfigurationLockedReason"
-                                   Text="{localization:Localize GameProfiles.General.LaunchConfigurationLocked}"
-                                   IsVisible="{Binding IsHotswapMode}"
-                                   Foreground="{DynamicResource WarningBrush}"
-                                   FontSize="12"
-                                   TextWrapping="Wrap" />
-                        <StackPanel Spacing="8">
-                            <TextBlock Classes="form-label" Text="{localization:Localize GameProfiles.General.WorkspaceStrategy}" />
-                            <ComboBox Classes="workspace-strategy form-field" ItemsSource="{x:Static vm:GameProfileSettingsViewModel.AvailableWorkspaceStrategies}" SelectedItem="{Binding SelectedWorkspaceStrategy}" IsEnabled="{Binding CanEditImmutableMetadata}" HorizontalAlignment="Stretch" />
-                            <TextBlock Text="{localization:Localize GameProfiles.General.WorkspaceStrategyDescription}" FontSize="11" Opacity="0.5" />
-                        </StackPanel>
-                        <StackPanel Spacing="8">
-                            <TextBlock Classes="form-label" Text="{localization:Localize GameProfiles.General.CommandLineArguments}" />
-                            <TextBox Classes="form-field" Text="{Binding CommandLineArguments, Mode=TwoWay}" IsEnabled="{Binding CanEditImmutableMetadata}" Watermark="{localization:Localize GameProfiles.General.CommandLineArgumentsWatermark}" />
-                        </StackPanel>
-                        <StackPanel Spacing="8" IsVisible="{Binding IsSteamLaunchSupported}">
-                            <CheckBox Content="{localization:Localize GameProfiles.General.SteamLaunch}" IsChecked="{Binding UseSteamLaunch}" IsEnabled="{Binding CanEditImmutableMetadata}" />
-                            <TextBlock Text="{localization:Localize GameProfiles.General.SteamLaunchDescription}" FontSize="11" Opacity="0.5" TextWrapping="Wrap" />
-                        </StackPanel>
-                    </StackPanel>
-                </Border>
-
-                <!-- Theme Section -->
-                <Control x:Name="ThemeSection" Height="1" Margin="0,-1,0,0" />
-                <Border Classes="settings-card">
-                    <StackPanel Spacing="16">
-                        <TextBlock Classes="section-header" Text="{localization:Localize GameProfiles.General.ThemeCustomization}" />
-                        <TextBlock Classes="form-label" Text="{localization:Localize GameProfiles.General.PrimaryColor}" />
+                    <StackPanel Spacing="12">
+                        <TextBlock Classes="row-label" Text="{localization:Localize GameProfiles.General.PrimaryColor}" />
                         <WrapPanel HorizontalAlignment="Left">
                             <Button Classes="color-btn" Background="#D32F2F" Command="{Binding SelectThemeColorCommand}" CommandParameter="#D32F2F" ToolTip.Tip="{localization:Localize Theme.Color.Red}" AutomationProperties.Name="{localization:Localize Theme.Color.Red}"/>
                             <Button Classes="color-btn" Background="#E91E63" Command="{Binding SelectThemeColorCommand}" CommandParameter="#E91E63" ToolTip.Tip="{localization:Localize Theme.Color.Pink}" AutomationProperties.Name="{localization:Localize Theme.Color.Pink}"/>
@@ -274,9 +285,7 @@
                         </WrapPanel>
                     </StackPanel>
                 </Border>
-
-                <Panel Height="200" /> <!-- Bottom Spacer -->
             </StackPanel>
-        </ScrollViewer>
-    </Grid>
+        </Panel>
+    </ScrollViewer>
 </UserControl>

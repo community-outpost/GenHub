@@ -184,6 +184,20 @@ public partial class GenHubInfoSectionViewModel(
     }
 
     /// <summary>
+    /// Navigates to the info section that shows a demo profile settings page and opens that page there.
+    /// </summary>
+    /// <param name="sectionId">The target section ID.</param>
+    /// <param name="page">The profile settings page chosen in the demo.</param>
+    public void NavigateToDemoPage(string sectionId, ProfileSettingsPage page)
+    {
+        NavigateToSectionById(sectionId);
+        foreach (var demo in new[] { DemoGameSettings_ContentTab, DemoGameSettings_ProfileTab, DemoGameSettings_SettingsTab }.OfType<DemoGameProfileSettingsViewModel>())
+        {
+            demo.SyncTabToSection(sectionId, page);
+        }
+    }
+
+    /// <summary>
     /// Gets the icon key.
     /// </summary>
     public static string IconKey => "InformationOutline";
@@ -691,7 +705,7 @@ public partial class GenHubInfoSectionViewModel(
 
         if (DemoGameSettings_ContentTab is DemoGameProfileSettingsViewModel cTab)
         {
-            cTab.NavigationRequested = NavigateToSectionById;
+            cTab.NavigationRequested = NavigateToDemoPage;
         }
 
         if (DemoGameSettings_ProfileTab == null)
@@ -702,7 +716,7 @@ public partial class GenHubInfoSectionViewModel(
 
         if (DemoGameSettings_ProfileTab is DemoGameProfileSettingsViewModel pTab)
         {
-            pTab.NavigationRequested = NavigateToSectionById;
+            pTab.NavigationRequested = NavigateToDemoPage;
         }
 
         if (DemoGameSettings_SettingsTab == null)
@@ -713,7 +727,7 @@ public partial class GenHubInfoSectionViewModel(
 
         if (DemoGameSettings_SettingsTab is DemoGameProfileSettingsViewModel sTab)
         {
-            sTab.NavigationRequested = NavigateToSectionById;
+            sTab.NavigationRequested = NavigateToDemoPage;
         }
 
         if (DemoReplayManager == null)

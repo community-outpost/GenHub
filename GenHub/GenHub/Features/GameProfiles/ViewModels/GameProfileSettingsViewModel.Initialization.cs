@@ -88,6 +88,7 @@ public partial class GameProfileSettingsViewModel
 
             await GameSettingsViewModel.InitializeForProfileAsync(null, null, SelectedGameInstallation?.GameType);
             UpdateApplicableClientVisibility();
+            await LoadProfileContentCandidatesAsync();
 
             StatusMessage = string.Empty;
         }
@@ -188,6 +189,7 @@ public partial class GameProfileSettingsViewModel
             SelectInitialGameInstallation(profile);
             UpdateApplicableClientVisibility();
             CaptureLoadedClientSelection();
+            await LoadProfileContentCandidatesAsync();
 
             StatusMessage = string.Empty;
         }

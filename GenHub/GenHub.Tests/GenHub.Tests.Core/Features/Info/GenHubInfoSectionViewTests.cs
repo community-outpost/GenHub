@@ -28,11 +28,11 @@ namespace GenHub.Tests.Core.Features.Info;
 public sealed class GenHubInfoSectionViewTests
 {
     /// <summary>
-    /// Verifies that clicking a profile settings demo tab navigates to the mapped info section without crashing.
+    /// Verifies that choosing a demo sidebar page opens the mapped info section on that same page.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [AvaloniaFact]
-    public async Task DemoSettingsTabClick_NavigatesToSectionAsync()
+    public async Task DemoSettingsPageClick_NavigatesToSectionAndPageAsync()
     {
         var vm = await CreateInitializedViewModelAsync();
         var view = new GenHubInfoSectionView { DataContext = vm };
@@ -47,20 +47,30 @@ public sealed class GenHubInfoSectionViewTests
             var contentDemo = vm.DemoGameSettings_ContentTab.Should().BeOfType<DemoGameProfileSettingsViewModel>().Subject;
             var profileDemo = vm.DemoGameSettings_ProfileTab.Should().BeOfType<DemoGameProfileSettingsViewModel>().Subject;
 
-            foreach (var (demo, tab, section) in new[]
+            var sectionDemos = new Dictionary<string, DemoGameProfileSettingsViewModel>
             {
-                (settingsDemo, "0", InfoConstants.SectionGameProfileContent),
-                (settingsDemo, "1", InfoConstants.SectionGameProfileSettings),
-                (settingsDemo, "2", InfoConstants.SectionGameSettings),
-                (contentDemo, "2", InfoConstants.SectionGameSettings),
-                (contentDemo, "1", InfoConstants.SectionGameProfileSettings),
-                (contentDemo, "0", InfoConstants.SectionGameProfileContent),
-                (profileDemo, "0", InfoConstants.SectionGameProfileContent),
-                (profileDemo, "2", InfoConstants.SectionGameSettings),
-                (profileDemo, "1", InfoConstants.SectionGameProfileSettings),
+                [InfoConstants.SectionGameProfileContent] = contentDemo,
+                [InfoConstants.SectionGameProfileSettings] = profileDemo,
+                [InfoConstants.SectionGameSettings] = settingsDemo,
+            };
+
+            foreach (var (demo, page, section) in new[]
+            {
+                (settingsDemo, ProfileSettingsPage.Content, InfoConstants.SectionGameProfileContent),
+                (settingsDemo, ProfileSettingsPage.General, InfoConstants.SectionGameProfileSettings),
+                (settingsDemo, ProfileSettingsPage.Video, InfoConstants.SectionGameSettings),
+                (contentDemo, ProfileSettingsPage.Video, InfoConstants.SectionGameSettings),
+                (contentDemo, ProfileSettingsPage.General, InfoConstants.SectionGameProfileSettings),
+                (contentDemo, ProfileSettingsPage.Content, InfoConstants.SectionGameProfileContent),
+                (profileDemo, ProfileSettingsPage.Content, InfoConstants.SectionGameProfileContent),
+                (profileDemo, ProfileSettingsPage.Video, InfoConstants.SectionGameSettings),
+                (profileDemo, ProfileSettingsPage.General, InfoConstants.SectionGameProfileSettings),
+                (profileDemo, ProfileSettingsPage.Game, InfoConstants.SectionGameProfileContent),
+                (contentDemo, ProfileSettingsPage.Appearance, InfoConstants.SectionGameProfileSettings),
+                (profileDemo, ProfileSettingsPage.Audio, InfoConstants.SectionGameSettings),
             })
             {
-                demo.SelectTabCommand.Execute(tab);
+                demo.SelectPageCommand.Execute(page);
                 window.UpdateLayout();
                 Dispatcher.UIThread.RunJobs();
                 await Task.Delay(400);
@@ -68,6 +78,7 @@ public sealed class GenHubInfoSectionViewTests
 
                 vm.SelectedSection.Should().NotBeNull();
                 vm.SelectedSection!.Id.Should().Be(section);
+                sectionDemos[section].SelectedPage.Should().Be(page);
             }
         }
         finally
@@ -169,13 +180,13 @@ public sealed class GenHubInfoSectionViewTests
     }
 
     /// <summary>
-    /// Verifies that quick successive clicks on the visible demo panel tab buttons navigate
+    /// Verifies that quick successive clicks on the visible demo panel sidebar pages navigate
     /// across profile sections without crashing. Rapid section switches used to overflow the
     /// stack through brush transitions fed by converters that minted a new brush per evaluation.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [AvaloniaFact]
-    public async Task VisibleDemoTabClicks_QuickSuccession_NavigatesWithoutCrashAsync()
+    public async Task VisibleDemoPageClicks_QuickSuccession_NavigatesWithoutCrashAsync()
     {
         var vm = await CreateInitializedViewModelAsync();
         var view = new GenHubInfoSectionView { DataContext = vm };
@@ -192,11 +203,11 @@ public sealed class GenHubInfoSectionViewTests
 
             // Clicks on the VISIBLE demo panel's tab buttons (production click path),
             // pumping layout between clicks but without settling delays.
-            foreach (var tabParameter in new[] { "0", "1", "2" })
+            foreach (var page in new[] { ProfileSettingsPage.Content, ProfileSettingsPage.General, ProfileSettingsPage.Video })
             {
-                var button = FindVisibleDemoTabButton(view, tabParameter);
-                button.Should().NotBeNull("tab button {0} must resolve in the visible demo panel", tabParameter);
-                button!.Command.Should().NotBeNull("tab button command binding must resolve");
+                var button = FindVisibleDemoPageButton(view, page);
+                button.Should().NotBeNull("page button {0} must resolve in the visible demo panel", page);
+                button!.Command.Should().NotBeNull("page button command binding must resolve");
                 button.Command!.Execute(button.CommandParameter);
                 window.UpdateLayout();
                 Dispatcher.UIThread.RunJobs();
@@ -212,7 +223,7 @@ public sealed class GenHubInfoSectionViewTests
         }
     }
 
-    private static Button? FindVisibleDemoTabButton(GenHubInfoSectionView view, string tabParameter)
+    private static Button? FindVisibleDemoPageButton(GenHubInfoSectionView view, ProfileSettingsPage page)
     {
         foreach (var mock in view.GetLogicalDescendants().OfType<DemoGameProfileSettingsWindowMock>())
         {
@@ -223,7 +234,7 @@ public sealed class GenHubInfoSectionViewTests
 
             var button = mock.GetLogicalDescendants()
                 .OfType<Button>()
-                .FirstOrDefault(b => ReferenceEquals(b.Command, demo.SelectTabCommand) && Equals(b.CommandParameter?.ToString(), tabParameter));
+                .FirstOrDefault(b => ReferenceEquals(b.Command, demo.SelectPageCommand) && Equals(b.CommandParameter, page));
             if (button != null)
             {
                 return button;

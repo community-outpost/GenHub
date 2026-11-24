@@ -33,18 +33,6 @@ public class UserSettings
     /// <summary>Gets or sets a value indicating whether the profile settings window is maximized.</summary>
     public bool? ProfileSettingsWindowIsMaximized { get; set; }
 
-    /// <summary>Gets or sets the profile settings sidebar width in pixels.</summary>
-    public double? ProfileSettingsSidebarWidth { get; set; }
-
-    /// <summary>Gets or sets the content editor tab sidebar width in pixels.</summary>
-    public double? ProfileSettingsContentSidebarWidth { get; set; }
-
-    /// <summary>Gets or sets the general settings tab sidebar width in pixels.</summary>
-    public double? ProfileSettingsGeneralSidebarWidth { get; set; }
-
-    /// <summary>Gets or sets the game settings tab sidebar width in pixels.</summary>
-    public double? ProfileSettingsGameSidebarWidth { get; set; }
-
     /// <summary>Gets or sets the workspace path where all game files are stored.</summary>
     public string? WorkspacePath { get; set; }
 
@@ -256,10 +244,6 @@ public class UserSettings
             ProfileSettingsWindowWidth = ProfileSettingsWindowWidth,
             ProfileSettingsWindowHeight = ProfileSettingsWindowHeight,
             ProfileSettingsWindowIsMaximized = ProfileSettingsWindowIsMaximized,
-            ProfileSettingsSidebarWidth = ProfileSettingsSidebarWidth,
-            ProfileSettingsContentSidebarWidth = ProfileSettingsContentSidebarWidth,
-            ProfileSettingsGeneralSidebarWidth = ProfileSettingsGeneralSidebarWidth,
-            ProfileSettingsGameSidebarWidth = ProfileSettingsGameSidebarWidth,
             WorkspacePath = WorkspacePath,
             LastUsedProfileId = LastUsedProfileId,
             ProfileSortMode = ProfileSortMode,

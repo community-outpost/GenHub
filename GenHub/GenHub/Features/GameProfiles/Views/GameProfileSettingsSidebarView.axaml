@@ -1,0 +1,140 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="clr-namespace:GenHub.Features.GameProfiles.ViewModels"
+             xmlns:conv="clr-namespace:GenHub.Infrastructure.Converters"
+             xmlns:localization="clr-namespace:GenHub.Common.Markup;assembly=GenHub"
+             mc:Ignorable="d" d:DesignWidth="240" d:DesignHeight="600"
+             x:Class="GenHub.Features.GameProfiles.Views.GameProfileSettingsSidebarView"
+             x:DataType="vm:GameProfileSettingsViewModel">
+
+    <UserControl.Resources>
+        <conv:StringToImageConverter x:Key="StringToImageConverter" />
+        <conv:ColorToBrushConverter x:Key="ColorToBrushConverter" />
+        <conv:EqualityConverter x:Key="EqualityConverter" />
+    </UserControl.Resources>
+
+    <UserControl.Styles>
+        <Style Selector="Button.sidebar-btn">
+            <Setter Property="MinHeight" Value="44" />
+            <Setter Property="Padding" Value="12,0" />
+            <Setter Property="HorizontalContentAlignment" Value="Left" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+        </Style>
+        <Style Selector="Button.sidebar-btn TextBlock">
+            <Setter Property="FontSize" Value="15" />
+        </Style>
+    </UserControl.Styles>
+
+    <Border x:Name="SidebarSurface"
+            Background="{DynamicResource CardBackground}"
+            BorderBrush="{DynamicResource BorderBrush}"
+            BorderThickness="0,0,1,0">
+        <DockPanel>
+            <StackPanel DockPanel.Dock="Top" Margin="24,28,24,24" Spacing="12">
+                <Border x:Name="ProfileIconRing"
+                        Width="56" Height="56"
+                        HorizontalAlignment="Left"
+                        CornerRadius="28"
+                        ClipToBounds="True"
+                        Background="{DynamicResource SurfaceHoverBrush}"
+                        BorderBrush="{Binding ColorValue, Converter={StaticResource ColorToBrushConverter}}"
+                        BorderThickness="2">
+                    <Image Source="{Binding IconPath, Mode=OneWay, Converter={StaticResource StringToImageConverter}}"
+                           Stretch="UniformToFill" />
+                </Border>
+                <TextBlock x:Name="ProfileNameHeader"
+                           Text="{Binding Name, Mode=OneWay}"
+                           FontSize="20"
+                           FontWeight="Bold"
+                           Foreground="{DynamicResource TextPrimary}"
+                           TextWrapping="Wrap"
+                           MaxLines="3"
+                           TextTrimming="CharacterEllipsis" />
+                <Border IsVisible="{Binding IsHotswapMode}"
+                        HorizontalAlignment="Left"
+                        Background="{DynamicResource AccentBadgeBackgroundBrush}"
+                        BorderBrush="{DynamicResource SuccessBrush}"
+                        BorderThickness="1"
+                        CornerRadius="4"
+                        Padding="6,2">
+                    <TextBlock Text="{localization:Localize GameProfiles.Window.HotswapMode}"
+                               Foreground="{DynamicResource SuccessBrush}"
+                               FontSize="10"
+                               FontWeight="Bold" />
+                </Border>
+            </StackPanel>
+
+            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                <StackPanel Margin="12,0">
+                    <Button Classes="sidebar-btn"
+                            Classes.selected="{Binding SelectedPage, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static vm:ProfileSettingsPage.General}}"
+                            Command="{Binding SelectPageCommand}"
+                            CommandParameter="{x:Static vm:ProfileSettingsPage.General}"
+                            AutomationProperties.Name="{localization:Localize GameProfiles.Navigation.General}">
+                        <TextBlock Text="{localization:Localize GameProfiles.Navigation.General}" />
+                    </Button>
+                    <Button Classes="sidebar-btn"
+                            Classes.selected="{Binding SelectedPage, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static vm:ProfileSettingsPage.Game}}"
+                            Command="{Binding SelectPageCommand}"
+                            CommandParameter="{x:Static vm:ProfileSettingsPage.Game}"
+                            AutomationProperties.Name="{localization:Localize GameProfiles.Navigation.Game}">
+                        <TextBlock Text="{localization:Localize GameProfiles.Navigation.Game}" />
+                    </Button>
+                    <Button Classes="sidebar-btn"
+                            Classes.selected="{Binding SelectedPage, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static vm:ProfileSettingsPage.Content}}"
+                            Command="{Binding SelectPageCommand}"
+                            CommandParameter="{x:Static vm:ProfileSettingsPage.Content}"
+                            AutomationProperties.Name="{localization:Localize GameProfiles.Navigation.Content}">
+                        <TextBlock Text="{localization:Localize GameProfiles.Navigation.Content}" />
+                    </Button>
+                    <Button Classes="sidebar-btn"
+                            Classes.selected="{Binding SelectedPage, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static vm:ProfileSettingsPage.Appearance}}"
+                            Command="{Binding SelectPageCommand}"
+                            CommandParameter="{x:Static vm:ProfileSettingsPage.Appearance}"
+                            AutomationProperties.Name="{localization:Localize GameProfiles.General.TabAppearance}">
+                        <TextBlock Text="{localization:Localize GameProfiles.General.TabAppearance}" />
+                    </Button>
+                    <Button Classes="sidebar-btn"
+                            Classes.selected="{Binding SelectedPage, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static vm:ProfileSettingsPage.Video}}"
+                            Command="{Binding SelectPageCommand}"
+                            CommandParameter="{x:Static vm:ProfileSettingsPage.Video}"
+                            AutomationProperties.Name="{localization:Localize GameSettings.Category.Video}">
+                        <TextBlock Text="{localization:Localize GameSettings.Category.Video}" />
+                    </Button>
+                    <Button Classes="sidebar-btn"
+                            Classes.selected="{Binding SelectedPage, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static vm:ProfileSettingsPage.Audio}}"
+                            Command="{Binding SelectPageCommand}"
+                            CommandParameter="{x:Static vm:ProfileSettingsPage.Audio}"
+                            AutomationProperties.Name="{localization:Localize GameSettings.Category.Audio}">
+                        <TextBlock Text="{localization:Localize GameSettings.Category.Audio}" />
+                    </Button>
+                    <Button Classes="sidebar-btn"
+                            Classes.selected="{Binding SelectedPage, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static vm:ProfileSettingsPage.Controls}}"
+                            Command="{Binding SelectPageCommand}"
+                            CommandParameter="{x:Static vm:ProfileSettingsPage.Controls}"
+                            AutomationProperties.Name="{localization:Localize GameSettings.Category.Controls}">
+                        <TextBlock Text="{localization:Localize GameSettings.Category.Controls}" />
+                    </Button>
+                    <Button Classes="sidebar-btn"
+                            Classes.selected="{Binding SelectedPage, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static vm:ProfileSettingsPage.TheSuperHackers}}"
+                            Command="{Binding SelectPageCommand}"
+                            CommandParameter="{x:Static vm:ProfileSettingsPage.TheSuperHackers}"
+                            IsVisible="{Binding GameSettingsViewModel.IsTheSuperHackersVisible}"
+                            AutomationProperties.Name="{localization:Localize GameSettings.Category.TheSuperHackers}">
+                        <TextBlock Text="{localization:Localize GameSettings.Category.TheSuperHackers}" />
+                    </Button>
+                    <Button Classes="sidebar-btn"
+                            Classes.selected="{Binding SelectedPage, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static vm:ProfileSettingsPage.GeneralsOnline}}"
+                            Command="{Binding SelectPageCommand}"
+                            CommandParameter="{x:Static vm:ProfileSettingsPage.GeneralsOnline}"
+                            IsVisible="{Binding GameSettingsViewModel.IsGeneralsOnlineVisible}"
+                            AutomationProperties.Name="{localization:Localize GameSettings.Category.GeneralsOnline}">
+                        <TextBlock Text="{localization:Localize GameSettings.Category.GeneralsOnline}" />
+                    </Button>
+                </StackPanel>
+            </ScrollViewer>
+        </DockPanel>
+    </Border>
+</UserControl>

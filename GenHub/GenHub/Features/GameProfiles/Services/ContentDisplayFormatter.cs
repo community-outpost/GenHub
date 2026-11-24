@@ -259,8 +259,8 @@ public sealed class ContentDisplayFormatter(IGameClientHashRegistry hashRegistry
         if (lowerName.Contains("cnclabs")) return Publisher.CncLabs.GetDisplayName();
         if (lowerName.Contains("genhublocal") || lowerName.Contains("genhub local")) return Publisher.GenHubLocal.GetDisplayName();
 
-        // Priority 4: Default to installation type display name (handles Retail and Unknown)
-        return installationType.GetDisplayName();
+        // Only a game installation can fall back to its installation type; other content with no publisher shows none.
+        return manifest.ContentType == ContentType.GameInstallation ? installationType.GetDisplayName() : string.Empty;
     }
 
     /// <inheritdoc/>
