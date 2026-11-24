@@ -589,15 +589,17 @@ public class DefaultInfoContentProvider : IInfoContentProvider
                 {
                     Id = InfoConstants.CardProfilesEditor,
                     Title = "Content Editor",
-                    Content = "Adding and ordering content in a profile.",
+                    Content = "Choosing the content a profile uses.",
                     Type = InfoCardType.HowTo,
                     IsExpandable = true,
                     DetailedContent = """
                     **Content Workflow:**
-                    1. **Available Content (Bottom):** Shows installed mods, maps, and patches you can add to this profile.
-                    2. **Enabled Content (Top):** Shows content currently active for this profile.
-                    3. **Load Priority:** Content is applied from top to bottom. Items higher in the list take priority if two packages contain conflicting files.
+                    1. **Checklist:** The Content page lists the mods, maps, patches, add-ons and tools installed for the profile's game. Checked items are part of the profile.
+                    2. **Removing:** Unchecking an item removes it from this profile only. It stays in your library.
+                    3. **Filter and Refresh:** Narrow the list to one content type, or refresh it after installing something new.
                     4. **Add Local:** Link external folders or archives without copying them into GenHub.
+
+                    The game installation and game client are chosen on the Game page.
                     """,
                 },
                 new InfoCard
