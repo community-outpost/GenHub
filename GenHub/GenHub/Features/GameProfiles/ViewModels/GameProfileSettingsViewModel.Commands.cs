@@ -524,6 +524,16 @@ public partial class GameProfileSettingsViewModel
             return;
         }
 
+        if (_dialogService != null)
+        {
+            var confirmed = await _dialogService.ShowConfirmationAsync(
+                "Delete local content?",
+                $"'{contentItem.DisplayName}' will be permanently deleted from this library. This cannot be undone.",
+                "Delete",
+                "Cancel");
+            if (!confirmed) return;
+        }
+
         _logger?.LogInformation(
             "DeleteContent called for: {DisplayName} (ManifestId: {ManifestId})",
             contentItem.DisplayName,
