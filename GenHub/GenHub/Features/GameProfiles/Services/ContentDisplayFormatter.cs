@@ -12,6 +12,7 @@ using GenHub.Core.Models.GameInstallations;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Services.Content;
 using System;
+using System.Linq;
 
 namespace GenHub.Features.GameProfiles.Services;
 
@@ -23,6 +24,8 @@ public sealed class ContentDisplayFormatter(IGameClientHashRegistry hashRegistry
 {
     private const string CommunityPatchIdentifier = "CommunityPatch";
     private const string VersionPrefix = "v";
+
+    private static readonly char[] NameWordSeparators = [' ', '-', '_', '.', ',', ':', '/', '(', ')', '[', ']'];
 
     /// <inheritdoc/>
     public ContentDisplayItem CreateDisplayItem(ContentManifest manifest, bool isEnabled = false)
@@ -250,7 +253,7 @@ public sealed class ContentDisplayFormatter(IGameClientHashRegistry hashRegistry
         var lowerName = manifest.Name.ToLowerInvariant();
 
         if (lowerName.Contains("steam")) return Publisher.Steam.GetDisplayName();
-        if (lowerName.Contains("ea") || lowerName.Contains("origin")) return Publisher.EaApp.GetDisplayName();
+        if (IsEaAppName(lowerName)) return Publisher.EaApp.GetDisplayName();
         if (lowerName.Contains("generalsonline")) return Publisher.GeneralsOnline.GetDisplayName();
         if (lowerName.Contains("thesuperhackers") || lowerName.Contains("superhacker")) return Publisher.SuperHackers.GetDisplayName();
         if (lowerName.Contains("cnclabs")) return Publisher.CncLabs.GetDisplayName();
@@ -271,12 +274,24 @@ public sealed class ContentDisplayFormatter(IGameClientHashRegistry hashRegistry
         var lowerName = manifest.Name.ToLowerInvariant();
 
         if (lowerName.Contains("steam")) return GameInstallationType.Steam;
-        if (lowerName.Contains("ea") || lowerName.Contains("origin")) return GameInstallationType.EaApp;
-        if (lowerName.Contains("tfd") || lowerName.Contains("firstdecade")) return GameInstallationType.TheFirstDecade;
+        if (IsEaAppName(lowerName)) return GameInstallationType.EaApp;
+        if (HasWord(lowerName, "tfd") || lowerName.Contains("firstdecade")) return GameInstallationType.TheFirstDecade;
         if (lowerName.Contains("wine") || lowerName.Contains("proton")) return GameInstallationType.Wine;
         if (lowerName.Contains("genhublocal") || lowerName.Contains("genhub local")) return GameInstallationType.Custom;
 
         return GameInstallationType.Retail;
+    }
+
+    private static bool IsEaAppName(string lowerName)
+    {
+        return HasWord(lowerName, "ea") || HasWord(lowerName, "eaapp") || lowerName.Contains("origin");
+    }
+
+    private static bool HasWord(string lowerName, string word)
+    {
+        return lowerName
+            .Split(NameWordSeparators, StringSplitOptions.RemoveEmptyEntries)
+            .Contains(word, StringComparer.Ordinal);
     }
 
     private static bool IsCommunityVersion(string version)
