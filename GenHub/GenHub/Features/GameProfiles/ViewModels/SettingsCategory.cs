@@ -1,7 +1,7 @@
 namespace GenHub.Features.GameProfiles.ViewModels;
 
 /// <summary>
-/// Categories for the settings sidebar, mapping exactly to the VM property groups.
+/// Topic sections used to track the visible game settings page.
 /// </summary>
 public enum SettingsCategory
 {

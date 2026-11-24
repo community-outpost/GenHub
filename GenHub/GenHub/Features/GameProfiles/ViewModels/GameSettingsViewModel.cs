@@ -140,6 +140,13 @@ public partial class GameSettingsViewModel(
     }
 
     /// <summary>
+    /// Gets a value indicating whether first-release setting badges should be shown.
+    /// The badge is limited to the initial 0.0.1 release and automatically disappears
+    /// once the application version advances.
+    /// </summary>
+    public bool ShowFirstReleaseNewBadges => AppConstants.AppVersion.Split('+', '-')[0] == "0.0.1";
+
+    /// <summary>
     /// Gets or sets the action triggered when the view needs to scroll to a specific section.
     /// </summary>
     public Action<string>? ScrollToSectionRequested { get; set; }

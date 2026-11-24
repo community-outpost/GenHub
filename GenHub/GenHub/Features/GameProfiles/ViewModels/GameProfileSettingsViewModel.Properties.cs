@@ -157,16 +157,20 @@ public partial class GameProfileSettingsViewModel
     [NotifyPropertyChangedFor(nameof(IsContentTabVisible))]
     [NotifyPropertyChangedFor(nameof(IsProfileSettingsTabVisible))]
     [NotifyPropertyChangedFor(nameof(IsGameSettingsTabVisible))]
+    [NotifyPropertyChangedFor(nameof(IsGameTabVisible))]
     private int _selectedTabIndex;
 
     /// <summary>Gets a value indicating whether the content tab is visible.</summary>
-    public bool IsContentTabVisible => SelectedTabIndex == 0;
+    public bool IsContentTabVisible => SelectedTabIndex == 1;
 
     /// <summary>Gets a value indicating whether the profile settings tab is visible.</summary>
-    public bool IsProfileSettingsTabVisible => SelectedTabIndex == 1;
+    public bool IsProfileSettingsTabVisible => SelectedTabIndex == 2;
 
     /// <summary>Gets a value indicating whether the game settings tab is visible.</summary>
-    public bool IsGameSettingsTabVisible => SelectedTabIndex == 2;
+    public bool IsGameSettingsTabVisible => SelectedTabIndex == 3;
+
+    /// <summary>Gets a value indicating whether the game selection tab is visible.</summary>
+    public bool IsGameTabVisible => SelectedTabIndex == 0;
 
     [ObservableProperty]
     private ObservableCollection<ContentDisplayItem> _availableContent = [];
@@ -182,6 +186,15 @@ public partial class GameProfileSettingsViewModel
 
     [ObservableProperty]
     private ObservableCollection<ContentDisplayItem> _enabledContent = [];
+
+    [ObservableProperty]
+    private ObservableCollection<ContentDisplayItem> _profileContentItems = [];
+
+    [ObservableProperty]
+    private ObservableCollection<ContentDisplayItem> _gameClientItems = [];
+
+    [ObservableProperty]
+    private ObservableCollection<ContentDisplayItem> _gameInstallationItems = [];
 
     [ObservableProperty]
     private ObservableCollection<FilterTypeInfo> _visibleFilters = [];

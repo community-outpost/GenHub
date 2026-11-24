@@ -13,7 +13,7 @@
 <rect width="290" height="1000" rx="20" fill="#111119"/><path d="M290 0v1000" stroke="#343341"/>
 <circle cx="73" cy="72" r="34" fill="#161622" stroke="#148be5" stroke-width="3"/><path d="M73 46l8 17 17 4-13 11 4 18-16-9-16 9 4-18-13-11 17-4z" fill="#cbdcf4" stroke="#4b9be1"/>
 <text x="38" y="147" font-size="28" font-weight="700">New Profile</text>
-<text x="42" y="222" font-size="17" class="muted">General</text>
+<text x="42" y="222" font-size="17" class="muted">Profile</text>
 <rect x="20" y="250" width="250" height="56" rx="12" fill="#211b2e"/><text x="42" y="286" font-size="17" class="muted">Game</text>
 <rect x="20" y="316" width="250" height="56" rx="12" fill="#30203d"/><rect x="20" y="316" width="4" height="56" rx="2" fill="#078fe8"/><text x="42" y="352" font-size="17" font-weight="700">Content</text>
 <text x="42" y="418" font-size="17" class="muted">Settings</text>

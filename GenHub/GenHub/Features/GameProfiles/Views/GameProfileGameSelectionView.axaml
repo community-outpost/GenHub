@@ -1,0 +1,92 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="clr-namespace:GenHub.Features.GameProfiles.ViewModels"
+             xmlns:models="clr-namespace:GenHub.Core.Models.Enums;assembly=GenHub.Core"
+             xmlns:conv="clr-namespace:GenHub.Infrastructure.Converters"
+             x:Class="GenHub.Features.GameProfiles.Views.GameProfileGameSelectionView"
+             x:DataType="vm:GameProfileSettingsViewModel">
+    <UserControl.Resources>
+        <conv:EqualityConverter x:Key="EqualityConverter" />
+        <conv:InvertedBoolToVisibilityConverter x:Key="InvertedBoolToVisibilityConverter" />
+    </UserControl.Resources>
+    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+        <StackPanel Spacing="14" Margin="4,4,14,12">
+            <StackPanel Spacing="4">
+                <TextBlock Text="Game" FontSize="24" FontWeight="Bold" />
+                <TextBlock Text="Choose the game and client this profile will launch." FontSize="13" Opacity="0.72" />
+            </StackPanel>
+
+            <Border Classes="section-card">
+                <StackPanel Spacing="10">
+                    <TextBlock Classes="section-title" Text="Game" Margin="0" />
+                    <TextBlock Text="This filters the installations and clients below." FontSize="12" Opacity="0.72" />
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <Button Content="Generals" Classes="filter-pill"
+                                Classes.selected="{Binding GameTypeFilter, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static models:GameType.Generals}}"
+                                Command="{Binding SelectGameTypeFilterCommand}"
+                                CommandParameter="{x:Static models:GameType.Generals}" />
+                        <Button Content="Zero Hour" Classes="filter-pill"
+                                Classes.selected="{Binding GameTypeFilter, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static models:GameType.ZeroHour}}"
+                                Command="{Binding SelectGameTypeFilterCommand}"
+                                CommandParameter="{x:Static models:GameType.ZeroHour}" />
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <Border Classes="section-card">
+                <StackPanel Spacing="8">
+                    <TextBlock Classes="section-title" Text="Game installation" Margin="0" />
+                    <TextBlock Text="Choose the installed copy of the game for this profile." FontSize="12" Opacity="0.72" />
+                    <ItemsControl ItemsSource="{Binding GameInstallationItems}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="vm:ContentDisplayItem">
+                                <Border Background="#08FFFFFF" BorderBrush="#25FFFFFF" BorderThickness="1" CornerRadius="8" Padding="12" Margin="0,2">
+                                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                                        <StackPanel Spacing="4">
+                                            <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold" />
+                                            <TextBlock Text="{Binding InstallationType}" FontSize="12" Opacity="0.68" />
+                                        </StackPanel>
+                                        <Button Grid.Column="1" Content="In this profile" IsEnabled="False" IsVisible="{Binding IsEnabled}" Classes="btn-secondary" />
+                                        <Button Grid.Column="1" Content="Use this installation" IsVisible="{Binding IsEnabled, Converter={StaticResource InvertedBoolToVisibilityConverter}}"
+                                                Command="{Binding $parent[ItemsControl].((vm:GameProfileSettingsViewModel)DataContext).EnableContentCommand}"
+                                                CommandParameter="{Binding}" Classes="btn-add" />
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                    <TextBlock Text="No matching game installations found." IsVisible="{Binding GameInstallationItems.Count, Converter={x:Static ObjectConverters.Equal}, ConverterParameter=0}" FontSize="12" Opacity="0.68" />
+                </StackPanel>
+            </Border>
+
+            <Border Classes="section-card">
+                <StackPanel Spacing="8">
+                    <TextBlock Classes="section-title" Text="Game client" Margin="0" />
+                    <TextBlock Text="Choose one client. Selecting another replaces the client for this profile." FontSize="12" Opacity="0.72" />
+                    <ItemsControl ItemsSource="{Binding GameClientItems}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="vm:ContentDisplayItem">
+                                <Border Background="#08FFFFFF" BorderBrush="#25FFFFFF" BorderThickness="1" CornerRadius="8" Padding="12" Margin="0,2">
+                                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                                        <StackPanel Spacing="4">
+                                            <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold" />
+                                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                                <TextBlock Text="{Binding Publisher}" FontSize="12" Opacity="0.68" IsVisible="{Binding Publisher, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                                                <TextBlock Text="{Binding Version}" FontSize="12" Opacity="0.68" IsVisible="{Binding Version, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                                            </StackPanel>
+                                        </StackPanel>
+                                        <Button Grid.Column="1" Content="Selected" IsEnabled="False" IsVisible="{Binding IsEnabled}" Classes="btn-secondary" />
+                                        <Button Grid.Column="1" Content="Use this client" IsVisible="{Binding IsEnabled, Converter={StaticResource InvertedBoolToVisibilityConverter}}"
+                                                Command="{Binding $parent[ItemsControl].((vm:GameProfileSettingsViewModel)DataContext).EnableContentCommand}"
+                                                CommandParameter="{Binding}" Classes="btn-add" />
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                    <TextBlock Text="No matching game clients found." IsVisible="{Binding GameClientItems.Count, Converter={x:Static ObjectConverters.Equal}, ConverterParameter=0}" FontSize="12" Opacity="0.68" />
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>
