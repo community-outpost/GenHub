@@ -222,6 +222,9 @@ public partial class GameProfileSettingsViewModel
                 AvailableContent.Add(item);
             }
 
+            RefreshProfileContentItems();
+            RefreshGameSelectionItems();
+
             StatusMessage = string.Empty;
             _logger?.LogInformation("Loaded {Count} content items for content type {ContentType}", AvailableContent.Count, SelectedContentType);
         }
@@ -343,6 +346,8 @@ public partial class GameProfileSettingsViewModel
     private async Task EnableContentAsync(ContentDisplayItem? contentItem)
     {
         await EnableContentInternal(contentItem, bypassLoadingGuard: false);
+        RefreshProfileContentItems();
+        RefreshGameSelectionItems();
     }
 
     private async Task<bool> ValidateInstallationRemovalAsync(
@@ -453,6 +458,76 @@ public partial class GameProfileSettingsViewModel
         }
 
         await Task.CompletedTask;
+        RefreshProfileContentItems();
+        RefreshGameSelectionItems();
+    }
+
+    /// <summary>Toggles whether a content item is included in this profile.</summary>
+    [RelayCommand]
+    private async Task ToggleProfileContentAsync(ContentDisplayItem? contentItem)
+    {
+        if (contentItem == null)
+        {
+            return;
+        }
+
+        if (contentItem.IsEnabled || EnabledContent.Any(item => item.ManifestId.Value == contentItem.ManifestId.Value))
+        {
+            await DisableContentAsync(contentItem);
+        }
+        else
+        {
+            await EnableContentInternal(contentItem);
+        }
+
+        RefreshProfileContentItems();
+        RefreshGameSelectionItems();
+    }
+
+    private void RefreshProfileContentItems()
+    {
+        var visibleTypes = SelectedContentType switch
+        {
+            ContentType.Mod => new[] { ContentType.Mod, ContentType.Patch },
+            ContentType.Map => new[] { ContentType.Map, ContentType.MapPack, ContentType.Mission },
+            ContentType.Addon => new[] { ContentType.Addon, ContentType.LanguagePack, ContentType.Skin },
+            _ => new[] { SelectedContentType },
+        };
+        var items = EnabledContent.Concat(AvailableContent)
+            .Where(item => visibleTypes.Contains(item.ContentType))
+            .Where(item => item.GameType == GameTypeFilter || item.GameType == Core.Models.Enums.GameType.Unknown)
+            .GroupBy(item => item.ManifestId.Value, StringComparer.OrdinalIgnoreCase)
+            .Select(group => group.FirstOrDefault(item => item.IsEnabled) ?? group.First())
+            .OrderBy(item => item.DisplayName, StringComparer.CurrentCultureIgnoreCase)
+            .ToList();
+        ProfileContentItems.Clear();
+        foreach (var item in items)
+        {
+            item.IsEnabled = EnabledContent.Any(enabled => enabled.ManifestId.Value == item.ManifestId.Value);
+            ProfileContentItems.Add(item);
+        }
+    }
+
+    private void RefreshGameSelectionItems()
+    {
+        GameInstallationItems.Clear();
+        foreach (var item in AvailableGameInstallations.Where(item => item.GameType == GameTypeFilter))
+        {
+            item.IsEnabled = SelectedGameInstallation?.ManifestId.Value == item.ManifestId.Value;
+            GameInstallationItems.Add(item);
+        }
+
+        var clients = EnabledContent.Concat(AvailableContent).Concat(GameClientItems)
+            .Where(item => item.ContentType == ContentType.GameClient && (item.GameType == GameTypeFilter || item.GameType == Core.Models.Enums.GameType.Unknown))
+            .GroupBy(item => item.ManifestId.Value, StringComparer.OrdinalIgnoreCase)
+            .Select(group => group.FirstOrDefault(candidate => candidate.IsEnabled) ?? group.First())
+            .ToList();
+        GameClientItems.Clear();
+        foreach (var item in clients)
+        {
+            item.IsEnabled = EnabledContent.Any(enabled => enabled.ManifestId.Value == item.ManifestId.Value);
+            GameClientItems.Add(item);
+        }
     }
 
     private void UpdateAvailableContentOnDisable(ContentDisplayItem itemToRemove)
@@ -1656,19 +1731,48 @@ public partial class GameProfileSettingsViewModel
     {
         if (gameType != GameTypeFilter)
         {
-            GameTypeFilter = gameType;
+            var incompatible = EnabledContent.Any(item => item.GameType != Core.Models.Enums.GameType.Unknown && item.GameType != gameType);
+            if (incompatible && _dialogService != null)
+            {
+                _ = ConfirmGameTypeChangeAsync(gameType);
+                return;
+            }
+
+            SwitchGameType(gameType);
             _logger?.LogInformation("Game type filter changed to {GameType}", gameType);
         }
     }
 
+    private async Task ConfirmGameTypeChangeAsync(GameType gameType)
+    {
+        var confirmed = await _dialogService!.ShowConfirmationAsync(
+            "Switch this profile's game?",
+            "Content selected for the current game will be removed from this profile. Continue?",
+            "Switch game",
+            "Cancel");
+        if (confirmed)
+        {
+            SwitchGameType(gameType);
+        }
+    }
+
     [RelayCommand]
-    private void SelectTab(string? tabIndexStr)
+    private async Task SelectTab(string? tabIndexStr)
     {
         if (int.TryParse(tabIndexStr, out var tabIndex))
         {
             SelectedTabIndex = tabIndex;
             _logger?.LogDebug("Tab selected: {TabIndex}", tabIndex);
             OnTabSelected(tabIndex);
+            if (tabIndex == 0 && SelectedContentType != ContentType.GameClient)
+            {
+                var previousType = SelectedContentType;
+                SelectedContentType = ContentType.GameClient;
+                await LoadAvailableContentAsync();
+                SelectedContentType = previousType;
+                RefreshProfileContentItems();
+                RefreshGameSelectionItems();
+            }
         }
     }
 

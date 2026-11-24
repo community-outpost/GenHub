@@ -88,6 +88,8 @@ public partial class GameProfileSettingsViewModel
 
             await GameSettingsViewModel.InitializeForProfileAsync(null, null, SelectedGameInstallation?.GameType);
             UpdateApplicableClientVisibility();
+            RefreshGameSelectionItems();
+            RefreshProfileContentItems();
 
             StatusMessage = string.Empty;
         }

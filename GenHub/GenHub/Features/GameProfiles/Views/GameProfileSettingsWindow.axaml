@@ -353,14 +353,17 @@
 
                 <!-- Tab Content Panels -->
                 <Grid Grid.Row="2" Margin="12,0,12,12" ClipToBounds="True">
-                    <!-- Content Tab Panel (Index 0) -->
-                    <views:GameProfileContentEditorView IsVisible="{Binding SelectedTabIndex, Converter={StaticResource TabIndexToVisibilityConverter}, ConverterParameter=0}" />
+                    <!-- Game selection panel (Index 0) -->
+                    <views:GameProfileGameSelectionView IsVisible="{Binding SelectedTabIndex, Converter={StaticResource TabIndexToVisibilityConverter}, ConverterParameter=0}" />
 
-                    <!-- Profile Settings Panel (Index 1) -->
-                    <views:GameProfileGeneralSettingsView IsVisible="{Binding SelectedTabIndex, Converter={StaticResource TabIndexToVisibilityConverter}, ConverterParameter=1}" />
+                    <!-- Content Tab Panel (Index 1) -->
+                    <views:GameProfileContentEditorView IsVisible="{Binding SelectedTabIndex, Converter={StaticResource TabIndexToVisibilityConverter}, ConverterParameter=1}" />
 
-                    <!-- Game Settings Panel (Index 2) -->
-                    <Panel IsVisible="{Binding SelectedTabIndex, Converter={StaticResource TabIndexToVisibilityConverter}, ConverterParameter=2}">
+                    <!-- Profile Settings Panel (Index 2) -->
+                    <views:GameProfileGeneralSettingsView IsVisible="{Binding SelectedTabIndex, Converter={StaticResource TabIndexToVisibilityConverter}, ConverterParameter=2}" />
+
+                    <!-- All game settings grouped on one page (Index 3) -->
+                    <Panel IsVisible="{Binding SelectedTabIndex, Converter={StaticResource TabIndexToVisibilityConverter}, ConverterParameter=3}">
                         <views:GameSettingsView DataContext="{Binding GameSettingsViewModel}" />
                     </Panel>
                 </Grid>

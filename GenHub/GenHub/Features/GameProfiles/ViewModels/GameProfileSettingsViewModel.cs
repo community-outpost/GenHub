@@ -1062,6 +1062,7 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
         }
 
         _ = RefreshFiltersAndContentAsync();
+        RefreshGameSelectionItems();
     }
 
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Mutates instance collections in partial view model")]
@@ -1334,6 +1335,25 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
             return;
         }
 
+        if (isRootOperation && _dialogService != null)
+        {
+            var replacesClient = contentItem.ContentType == ContentType.GameClient &&
+                EnabledContent.Any(item => item.ContentType == ContentType.GameClient && item.ManifestId.Value != contentItem.ManifestId.Value);
+            var switchesGame = contentItem.GameType != Core.Models.Enums.GameType.Unknown && contentItem.GameType != GameTypeFilter;
+            if (replacesClient || switchesGame)
+            {
+                var effects = new List<string>();
+                if (replacesClient) effects.Add("replace the current game client");
+                if (switchesGame) effects.Add("switch games and remove content for the current game");
+                var confirmed = await _dialogService.ShowConfirmationAsync(
+                    "Change this profile's game setup?",
+                    $"Adding '{contentItem.DisplayName}' will {string.Join(" and ", effects)}. Continue?",
+                    "Continue",
+                    "Cancel");
+                if (!confirmed) return;
+            }
+        }
+
         ReplaceConflictingEnabledContent(contentItem);
         ActivateContentItem(contentItem);
 
@@ -1425,6 +1445,7 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
         }
 
         ApplyPrimaryBranding();
+        RefreshGameSelectionItems();
     }
 
     private void ReplaceConflictingEnabledContent(ContentDisplayItem contentItem)
