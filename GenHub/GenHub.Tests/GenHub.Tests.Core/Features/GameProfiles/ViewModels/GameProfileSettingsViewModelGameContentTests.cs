@@ -266,11 +266,11 @@ public class GameProfileSettingsViewModelGameContentTests
     }
 
     /// <summary>
-    /// Verifies included content is listed first, then by name, and the profile's game installations come first.
+    /// Verifies content stays in name order when an item is checked, and the profile's game installations come first.
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task Rows_AreOrderedForReadingAsync()
+    public async Task Rows_StayInNameOrderWhenToggledAsync()
     {
         AddCandidate(ContentType.Mod, ZeroHourModId, GameType.ZeroHour, "B mod");
         AddCandidate(ContentType.Map, MapId, GameType.ZeroHour, "C map");
@@ -279,10 +279,12 @@ public class GameProfileSettingsViewModelGameContentTests
         viewModel.AvailableGameInstallations.Add(CreateItem(ContentType.GameInstallation, GeneralsInstallId, GameType.Generals));
         viewModel.AvailableGameInstallations.Add(CreateItem(ContentType.GameInstallation, ZeroHourInstallId, GameType.ZeroHour));
         await viewModel.RefreshProfileContentCommand.ExecuteAsync(null);
+        Assert.Equal([PatchId, ZeroHourModId, MapId], RowIds(viewModel.ProfileContentRows));
 
         await viewModel.ToggleProfileContentCommand.ExecuteAsync(viewModel.ProfileContentRows.Single(row => row.Item.ManifestId.Value == MapId).Item);
 
-        Assert.Equal([MapId, PatchId, ZeroHourModId], RowIds(viewModel.ProfileContentRows));
+        Assert.Equal([PatchId, ZeroHourModId, MapId], RowIds(viewModel.ProfileContentRows));
+        Assert.True(viewModel.ProfileContentRows[2].IsIncluded);
         Assert.Equal([ZeroHourInstallId, GeneralsInstallId], RowIds(viewModel.GameInstallationRows));
     }
 

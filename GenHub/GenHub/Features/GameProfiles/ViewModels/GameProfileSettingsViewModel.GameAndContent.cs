@@ -180,8 +180,7 @@ public partial class GameProfileSettingsViewModel
                         (filter == null || item.ContentType == filter) &&
                         (enabledById.ContainsKey(item.ManifestId.Value) ||
                          (ProfileContentTypes.Contains(item.ContentType) && IsForGame(item, gameType))))
-            .OrderByDescending(row => row.IsIncluded)
-            .ThenBy(row => row.Item.DisplayName, StringComparer.CurrentCultureIgnoreCase));
+            .OrderBy(row => row.Item.DisplayName, StringComparer.CurrentCultureIgnoreCase));
         OnPropertyChanged(nameof(IsStandaloneToolProfile));
         OnPropertyChanged(nameof(CanSelectGameInstallation));
     }
