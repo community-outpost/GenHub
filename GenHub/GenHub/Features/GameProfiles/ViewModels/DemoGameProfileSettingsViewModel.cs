@@ -197,6 +197,50 @@ public partial class DemoGameProfileSettingsViewModel : GameProfileSettingsViewM
 
         // Populate Mock Content Synchronously
         PopulateMockContent();
+        SeedMockProfileSelection();
+
+        // The mock loader completes synchronously, so the checklist is filled before the demo is shown.
+        _ = LoadProfileContentCandidatesAsync();
+    }
+
+    private void SeedMockProfileSelection()
+    {
+        AvailableGameInstallations.Clear();
+        AvailableGameInstallations.Add(new ContentDisplayItem
+        {
+            DisplayName = "Zero Hour (EA App)",
+            ContentType = ContentType.GameInstallation,
+            GameType = Core.Models.Enums.GameType.ZeroHour,
+            Publisher = "EA",
+            Version = "1.04",
+            ManifestId = ManifestId.Create("1.0.ea.gameinstallation.zerohour"),
+            InstallationType = GameInstallationType.EaApp,
+        });
+        AvailableGameInstallations.Add(new ContentDisplayItem
+        {
+            DisplayName = "Generals (EA App)",
+            ContentType = ContentType.GameInstallation,
+            GameType = Core.Models.Enums.GameType.Generals,
+            Publisher = "EA",
+            Version = "1.08",
+            ManifestId = ManifestId.Create("1.0.ea.gameinstallation.generals"),
+            InstallationType = GameInstallationType.EaApp,
+        });
+
+        EnabledContent.Clear();
+        EnabledContent.Add(new ContentDisplayItem
+        {
+            DisplayName = "Zero Hour v1.04",
+            ContentType = ContentType.GameClient,
+            GameType = Core.Models.Enums.GameType.ZeroHour,
+            Publisher = "EA",
+            Version = "1.04",
+            ManifestId = ManifestId.Create("1.0.ea.gameclient.zerohour"),
+            InstallationType = GameInstallationType.Unknown,
+        });
+
+        SelectedGameInstallation = AvailableGameInstallations[0];
+        SelectedGameInstallation.IsEnabled = true;
     }
 
     private void PopulateMockContent()
@@ -282,25 +326,11 @@ public partial class DemoGameProfileSettingsViewModel : GameProfileSettingsViewM
         AvailableCoversForSelection.Add(new ProfileResourceItem { Path = "avares://GenHub/Assets/Covers/china-cover.jpg", DisplayName = "China" });
         AvailableCoversForSelection.Add(new ProfileResourceItem { Path = "avares://GenHub/Assets/Covers/gla-cover.jpg", DisplayName = "GLA" });
 
-        // 4. Default Enabled Content
-        EnabledContent.Clear();
-        EnabledContent.Add(new ContentDisplayItem
-        {
-            DisplayName = "Zero Hour v1.04",
-            ContentType = ContentType.GameClient,
-            GameType = Core.Models.Enums.GameType.ZeroHour,
-            Publisher = "EA",
-            Version = "1.04",
-            ManifestId = ManifestId.Create("1.0.ea.gameclient.zerohour"),
-            InstallationType = GameInstallationType.Unknown,
-        });
-
         // Notify UI about collection changes
         OnPropertyChanged(nameof(VisibleFilters));
         OnPropertyChanged(nameof(AvailableContent));
         OnPropertyChanged(nameof(AvailableIcons));
         OnPropertyChanged(nameof(AvailableCoversForSelection));
-        OnPropertyChanged(nameof(EnabledContent));
     }
 
     /// <summary>

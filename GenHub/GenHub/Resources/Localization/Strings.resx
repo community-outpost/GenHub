@@ -6069,7 +6069,7 @@ A profile is an independent configuration for your game. Instead of reinstalling
 The General page holds the fields that identify one profile on the Game Profiles list: a display name and a longer description shown on the profile card.
 
 **Game Installation:**
-The Game page selects which detected game the profile launches (Steam, EA App, or disc) and which game client it uses. A profile uses one installation and one client. Picking an installation of the other game asks first, then removes content that does not match the new game, so the profile can never launch with an incompatible mix.</value>
+The Game page selects which detected game the profile launches (Steam, EA App, or disc) and which game client it uses. A profile uses one installation and one client. If picking an installation of the other game would remove content made for the current game, GenHub asks first, then removes that content.</value>
   </data>
   <data name="Info.Card.game-profile-settings.profile-appearance.Title" xml:space="preserve">
     <value>Icons, Covers &amp; Theme Color</value>
@@ -6232,6 +6232,7 @@ After registering a local content item, open any profile in **Profile Settings**
 
 * Enable the checkbox next to any mod, addon, tool, or map pack to attach it to that profile.
 * Assign custom game clients (such as a test build from TheSuperHackers) on the **Game** page.
+* Click **Save** to keep the changes.
 
 **Workspace isolation**
 GenHub never writes modded files into your original Command &amp; Conquer installation directory. When launching a profile, GenHub creates an isolated workspace using symbolic links or hardlinks to combine your base game with the specific content items assigned to that profile. Your base game files remain untouched, and profiles run independently without file conflicts.</value>
@@ -6277,10 +6278,10 @@ Visit the **Downloads** tab to get recommended updates for modern hardware and o
     <value>**Adding Your Own Content:**
 Already have mods or maps on your PC? Import them directly into GenHub:
 
-1. In any profile editor, switch to the **Content** tab.
-2. Click **Add Local** in the bottom-right corner.
+1. In any profile editor, select **Content** in the sidebar.
+2. Click **Add Local Folder** above the content list.
 3. Choose a folder, ZIP archive, or executable to register.
-4. Check the box next to your imported item to enable it for that profile.</value>
+4. Check the box next to your imported item to enable it for that profile, then click **Save**.</value>
   </data>
   <data name="Info.Card.quickstart.welcome.DetailedContent" xml:space="preserve">
     <value>**Welcome to GenHub.**

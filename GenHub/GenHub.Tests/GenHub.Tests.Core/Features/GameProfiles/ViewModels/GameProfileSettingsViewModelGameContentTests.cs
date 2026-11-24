@@ -610,6 +610,26 @@ public class GameProfileSettingsViewModelGameContentTests
     }
 
     /// <summary>
+    /// Verifies replacing the manifest of an unchecked Content row that is only cached as a candidate reloads the row with the new ID.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [AvaloniaFact]
+    public async Task ManifestReplaced_ForCandidateOnly_ReloadsRowsAsync()
+    {
+        const string replacementId = "1.1.moddb.mod.zhmod";
+        AddCandidate(ContentType.Mod, ZeroHourModId, GameType.ZeroHour);
+        var viewModel = CreateViewModel(withDialog: false);
+        await viewModel.LoadProfileContentCandidatesAsync();
+        _candidates[ContentType.Mod].Clear();
+        AddCandidate(ContentType.Mod, replacementId, GameType.ZeroHour);
+
+        viewModel.Receive(new ManifestReplacedMessage(ZeroHourModId, replacementId));
+        await PumpUntilAsync(() => viewModel.ProfileContentRows.Any(row => row.Item.ManifestId.Value == replacementId));
+
+        Assert.Equal([replacementId], RowIds(viewModel.ProfileContentRows));
+    }
+
+    /// <summary>
     /// Verifies a game started while a replacement is being confirmed blocks the replacement.
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>

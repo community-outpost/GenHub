@@ -440,6 +440,11 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
                 }
             }
 
+            if (_profileContentCandidates.Any(c => c.ManifestId.Value == oldId))
+            {
+                affected = true;
+            }
+
             if (affected)
             {
                 // Refresh to ensure everything (filters, lists) is consistent

@@ -275,6 +275,28 @@ public class ToolDemoViewModelTests
     }
 
     /// <summary>
+    /// Verifies that the profile settings demo opens with installations and content to check, and keeps checked content across a refresh.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [AvaloniaFact]
+    public async Task DemoProfileSettings_OpensWithRowsAndKeepsCheckedContentOnRefresh()
+    {
+        var viewModel = (DemoGameProfileSettingsViewModel)DemoViewModelFactory.CreateDemoProfileSettingsViewModel_ContentTab();
+
+        viewModel.GameInstallationRows.Should().HaveCount(2);
+        viewModel.GameInstallationRows.Should().ContainSingle(row => row.IsIncluded);
+        viewModel.GameClientRows.Should().ContainSingle(row => row.IsIncluded);
+        viewModel.ProfileContentRows.Should().NotBeEmpty();
+
+        var mod = viewModel.ProfileContentRows.First(row => row.Item.ContentType == GenHub.Core.Models.Enums.ContentType.Mod).Item;
+        await viewModel.ToggleProfileContentCommand.ExecuteAsync(mod);
+        await viewModel.RefreshProfileContentCommand.ExecuteAsync(null);
+
+        viewModel.EnabledContent.Should().Contain(item => item.ManifestId.Value == mod.ManifestId.Value);
+        viewModel.ProfileContentRows.Should().Contain(row => row.Item.ManifestId.Value == mod.ManifestId.Value && row.IsIncluded);
+    }
+
+    /// <summary>
     /// Verifies that the overview card stays pinned above release tags in the changelog sidebar,
     /// and that the main column only renders guide cards.
     /// </summary>

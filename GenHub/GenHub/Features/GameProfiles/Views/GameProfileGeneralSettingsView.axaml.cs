@@ -1,3 +1,4 @@
+using Avalonia;
 using Avalonia.Controls;
 using GenHub.Features.GameProfiles.ViewModels;
 using System;
@@ -24,6 +25,20 @@ public partial class GameProfileGeneralSettingsView : UserControl
     protected override void OnDataContextChanged(EventArgs e)
     {
         base.OnDataContextChanged(e);
+        _scrollReset.Track(VisualRoot == null ? null : DataContext);
+    }
+
+    /// <inheritdoc/>
+    protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+    {
+        base.OnAttachedToVisualTree(e);
         _scrollReset.Track(DataContext);
+    }
+
+    /// <inheritdoc/>
+    protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
+    {
+        base.OnDetachedFromVisualTree(e);
+        _scrollReset.Track(null);
     }
 }
