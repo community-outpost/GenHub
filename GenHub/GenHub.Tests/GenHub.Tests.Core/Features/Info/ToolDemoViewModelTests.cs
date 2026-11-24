@@ -279,9 +279,13 @@ public class ToolDemoViewModelTests
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [AvaloniaFact]
-    public async Task DemoProfileSettings_OpensWithRowsAndKeepsCheckedContentOnRefresh()
+    public async Task DemoProfileSettings_OpensWithRowsAndKeepsCheckedContentOnRefreshAsync()
     {
         var viewModel = (DemoGameProfileSettingsViewModel)DemoViewModelFactory.CreateDemoProfileSettingsViewModel_ContentTab();
+
+        viewModel.GameSettingsViewModel.IsTheSuperHackersVisible.Should().BeTrue();
+        viewModel.GameSettingsViewModel.IsGeneralsOnlineVisible.Should().BeTrue();
+        viewModel.GameSettingsViewModel.CameraMaxHeight.Should().Be(850);
 
         viewModel.GameInstallationRows.Should().HaveCount(2);
         viewModel.GameInstallationRows.Should().ContainSingle(row => row.IsIncluded);

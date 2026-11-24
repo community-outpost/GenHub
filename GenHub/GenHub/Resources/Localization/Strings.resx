@@ -6281,7 +6281,7 @@ Already have mods or maps on your PC? Import them directly into GenHub:
 1. In any profile editor, select **Content** in the sidebar.
 2. Click **Add Local Folder** above the content list.
 3. Choose a folder, ZIP archive, or executable to register.
-4. Check the box next to your imported item to enable it for that profile, then click **Save**.</value>
+4. Check the box next to your imported item to enable it for that profile, then click **Save**. Imported game clients are listed on the **Game** page instead.</value>
   </data>
   <data name="Info.Card.quickstart.welcome.DetailedContent" xml:space="preserve">
     <value>**Welcome to GenHub.**

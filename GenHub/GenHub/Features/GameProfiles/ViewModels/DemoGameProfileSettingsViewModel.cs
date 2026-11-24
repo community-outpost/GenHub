@@ -170,12 +170,6 @@ public partial class DemoGameProfileSettingsViewModel : GameProfileSettingsViewM
         GameSettingsViewModel.GameTimeFontSize = 10;
         GameSettingsViewModel.LanguageFilter = false;
 
-        // Enable visibility for all extended client sections before assigning mock values:
-        // Generals Online visibility resets the camera bounds to their defaults.
-        GameSettingsViewModel.UpdateApplicableClientVisibility(true, true);
-        GameSettingsViewModel.CameraMinHeight = 200;
-        GameSettingsViewModel.CameraMaxHeight = 850;
-
         // TheSuperHackers extensions
         GameSettingsViewModel.TshArchiveReplays = true;
         GameSettingsViewModel.TshShowMoneyPerMinute = true;
@@ -198,6 +192,12 @@ public partial class DemoGameProfileSettingsViewModel : GameProfileSettingsViewM
         // Populate Mock Content Synchronously
         PopulateMockContent();
         SeedMockProfileSelection();
+
+        // Enable visibility for all extended client sections after the installation selection recomputes it:
+        // Generals Online visibility resets the camera bounds to their defaults.
+        GameSettingsViewModel.UpdateApplicableClientVisibility(true, true);
+        GameSettingsViewModel.CameraMinHeight = 200;
+        GameSettingsViewModel.CameraMaxHeight = 850;
 
         // The mock loader completes synchronously, so the checklist is filled before the demo is shown.
         _ = LoadProfileContentCandidatesAsync();
