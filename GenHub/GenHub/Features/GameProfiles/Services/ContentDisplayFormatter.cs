@@ -25,7 +25,7 @@ public sealed class ContentDisplayFormatter(IGameClientHashRegistry hashRegistry
     private const string CommunityPatchIdentifier = "CommunityPatch";
     private const string VersionPrefix = "v";
 
-    private static readonly char[] NameWordSeparators = [' ', '-', '_', '.', ',', ':', '/', '(', ')', '[', ']'];
+    private static readonly char[] NameWordSeparators = [' ', '\t', '-', '_', '.', ',', ':', ';', '!', '?', '\'', '"', '&', '+', '/', '\\', '(', ')', '[', ']', '{', '}'];
 
     /// <inheritdoc/>
     public ContentDisplayItem CreateDisplayItem(ContentManifest manifest, bool isEnabled = false)
@@ -284,7 +284,7 @@ public sealed class ContentDisplayFormatter(IGameClientHashRegistry hashRegistry
 
     private static bool IsEaAppName(string lowerName)
     {
-        return HasWord(lowerName, "ea") || HasWord(lowerName, "eaapp") || lowerName.Contains("origin");
+        return HasWord(lowerName, "ea") || HasWord(lowerName, "eaapp") || HasWord(lowerName, "origin");
     }
 
     private static bool HasWord(string lowerName, string word)

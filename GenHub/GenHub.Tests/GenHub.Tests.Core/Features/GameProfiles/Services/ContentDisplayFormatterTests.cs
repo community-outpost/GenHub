@@ -159,6 +159,7 @@ public class ContentDisplayFormatterTests
     [InlineData("GeneralsOnline Mod", "GeneralsOnline")]
     [InlineData("CNClabs Map Pack", "CNClabs")]
     [InlineData("EA-Origin Pack", "EA App")]
+    [InlineData("Generals (EA!)", "EA App")]
     public void GetPublisherFromManifest_InfersFromName(string manifestName, string expectedPublisher)
     {
         // Arrange
@@ -187,6 +188,8 @@ public class ContentDisplayFormatterTests
     [InlineData("Great Mod")]
     [InlineData("Real War Map")]
     [InlineData("Beach Assault")]
+    [InlineData("Original HUD")]
+    [InlineData("Desert Origins Map Pack")]
     public void GetPublisherFromManifest_EaInsideWord_IsNotEaApp(string manifestName)
     {
         var manifest = new ContentManifest
@@ -201,7 +204,7 @@ public class ContentDisplayFormatterTests
 
         var result = _formatter.GetPublisherFromManifest(manifest);
 
-        Assert.NotEqual("EA App", result);
+        Assert.Equal(PublisherInfoConstants.Retail.Name, result);
     }
 
     /// <summary>
@@ -222,6 +225,10 @@ public class ContentDisplayFormatterTests
     [InlineData("Generals (EA)", GameInstallationType.EaApp)]
     [InlineData("eaapp_zerohour", GameInstallationType.EaApp)]
     [InlineData("Zero Hour TFD", GameInstallationType.TheFirstDecade)]
+    [InlineData("Generals (EA!)", GameInstallationType.EaApp)]
+    [InlineData("Zero Hour TFD!", GameInstallationType.TheFirstDecade)]
+    [InlineData("Generals; EA", GameInstallationType.EaApp)]
+    [InlineData("Great!", GameInstallationType.Retail)]
     public void GetInstallationTypeFromManifest_InfersCorrectType(string manifestName, GameInstallationType expected)
     {
         // Arrange
