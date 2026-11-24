@@ -158,6 +158,8 @@ public class ContentDisplayFormatterTests
     [InlineData("Origin Content", "EA App")]
     [InlineData("GeneralsOnline Mod", "GeneralsOnline")]
     [InlineData("CNClabs Map Pack", "CNClabs")]
+    [InlineData("EA-Origin Pack", "EA App")]
+    [InlineData("Generals (EA!)", "EA App")]
     public void GetPublisherFromManifest_InfersFromName(string manifestName, string expectedPublisher)
     {
         // Arrange
@@ -179,6 +181,33 @@ public class ContentDisplayFormatterTests
     }
 
     /// <summary>
+    /// Tests that names containing "ea" inside another word are not labelled EA App.
+    /// </summary>
+    /// <param name="manifestName">The manifest name.</param>
+    [Theory]
+    [InlineData("Great Mod")]
+    [InlineData("Real War Map")]
+    [InlineData("Beach Assault")]
+    [InlineData("Original HUD")]
+    [InlineData("Desert Origins Map Pack")]
+    public void GetPublisherFromManifest_EaInsideWord_IsNotEaApp(string manifestName)
+    {
+        var manifest = new ContentManifest
+        {
+            Id = ManifestId.Create("1.0.genhub.mod.testcontent"),
+            Name = manifestName,
+            Version = "1.0",
+            ContentType = ContentType.Mod,
+            TargetGame = GameType.ZeroHour,
+            Files = [],
+        };
+
+        var result = _formatter.GetPublisherFromManifest(manifest);
+
+        Assert.Equal(PublisherInfoConstants.Retail.Name, result);
+    }
+
+    /// <summary>
     /// Tests that GetInstallationTypeFromManifest infers the correct installation type from the manifest name.
     /// </summary>
     /// <param name="manifestName">The manifest name.</param>
@@ -190,6 +219,16 @@ public class ContentDisplayFormatterTests
     [InlineData("TFD Edition", GameInstallationType.TheFirstDecade)]
     [InlineData("Wine Installation", GameInstallationType.Wine)]
     [InlineData("Random Content", GameInstallationType.Retail)]
+    [InlineData("Great Mod", GameInstallationType.Retail)]
+    [InlineData("Desert Map Pack", GameInstallationType.Retail)]
+    [InlineData("Tactical Team Fortress", GameInstallationType.Retail)]
+    [InlineData("Generals (EA)", GameInstallationType.EaApp)]
+    [InlineData("eaapp_zerohour", GameInstallationType.EaApp)]
+    [InlineData("Zero Hour TFD", GameInstallationType.TheFirstDecade)]
+    [InlineData("Generals (EA!)", GameInstallationType.EaApp)]
+    [InlineData("Zero Hour TFD!", GameInstallationType.TheFirstDecade)]
+    [InlineData("Generals; EA", GameInstallationType.EaApp)]
+    [InlineData("Great!", GameInstallationType.Retail)]
     public void GetInstallationTypeFromManifest_InfersCorrectType(string manifestName, GameInstallationType expected)
     {
         // Arrange
