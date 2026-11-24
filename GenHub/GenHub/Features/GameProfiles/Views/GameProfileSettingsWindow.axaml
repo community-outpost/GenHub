@@ -28,15 +28,6 @@
         <conv:EqualityConverter x:Key="EqualityConverter" />
     </Window.Resources>
 
-    <Window.Styles>
-        <Style Selector="TextBlock.page-title">
-            <Setter Property="FontSize" Value="26" />
-            <Setter Property="FontWeight" Value="Bold" />
-            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
-            <Setter Property="VerticalAlignment" Value="Bottom" />
-        </Style>
-    </Window.Styles>
-
     <Border Background="{DynamicResource SurfaceBackgroundBrush}"
             BorderBrush="{DynamicResource BorderBrush}"
             BorderThickness="1">
@@ -53,26 +44,7 @@
                           ColumnDefinitions="*,Auto"
                           MinHeight="88"
                           PointerPressed="OnHeaderPointerPressed">
-                        <Panel Grid.Column="0" Margin="32,0,0,12">
-                            <TextBlock Classes="page-title" Text="{localization:Localize GameProfiles.Navigation.General}"
-                                       IsVisible="{Binding SelectedPage, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static vm:ProfileSettingsPage.General}}" />
-                            <TextBlock Classes="page-title" Text="{localization:Localize GameProfiles.Navigation.Game}"
-                                       IsVisible="{Binding SelectedPage, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static vm:ProfileSettingsPage.Game}}" />
-                            <TextBlock Classes="page-title" Text="{localization:Localize GameProfiles.Navigation.Content}"
-                                       IsVisible="{Binding SelectedPage, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static vm:ProfileSettingsPage.Content}}" />
-                            <TextBlock Classes="page-title" Text="{localization:Localize GameProfiles.General.TabAppearance}"
-                                       IsVisible="{Binding SelectedPage, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static vm:ProfileSettingsPage.Appearance}}" />
-                            <TextBlock Classes="page-title" Text="{localization:Localize GameSettings.Category.Video}"
-                                       IsVisible="{Binding SelectedPage, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static vm:ProfileSettingsPage.Video}}" />
-                            <TextBlock Classes="page-title" Text="{localization:Localize GameSettings.Category.Audio}"
-                                       IsVisible="{Binding SelectedPage, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static vm:ProfileSettingsPage.Audio}}" />
-                            <TextBlock Classes="page-title" Text="{localization:Localize GameSettings.Category.Controls}"
-                                       IsVisible="{Binding SelectedPage, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static vm:ProfileSettingsPage.Controls}}" />
-                            <TextBlock Classes="page-title" Text="{localization:Localize GameSettings.Category.TheSuperHackers}"
-                                       IsVisible="{Binding SelectedPage, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static vm:ProfileSettingsPage.TheSuperHackers}}" />
-                            <TextBlock Classes="page-title" Text="{localization:Localize GameSettings.Category.GeneralsOnline}"
-                                       IsVisible="{Binding SelectedPage, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static vm:ProfileSettingsPage.GeneralsOnline}}" />
-                        </Panel>
+                        <views:GameProfileSettingsPageTitleView Grid.Column="0" Margin="32,0,0,12" VerticalAlignment="Bottom" />
 
                         <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4" VerticalAlignment="Top" Margin="0,12,12,0">
                             <Button Click="OnToggleFullscreenClick"
@@ -90,14 +62,7 @@
                         </StackPanel>
                     </Grid>
 
-                    <Panel Grid.Row="1" ClipToBounds="True">
-                        <views:GameProfileGameSelectionView IsVisible="{Binding SelectedPage, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static vm:ProfileSettingsPage.Game}}" />
-                        <views:GameProfileContentEditorView IsVisible="{Binding SelectedPage, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static vm:ProfileSettingsPage.Content}}" />
-                        <views:GameProfileGeneralSettingsView IsVisible="{Binding IsProfileSettingsTabVisible}" />
-                        <Panel IsVisible="{Binding IsGameSettingsTabVisible}">
-                            <views:GameSettingsView DataContext="{Binding GameSettingsViewModel}" />
-                        </Panel>
-                    </Panel>
+                    <views:GameProfileSettingsPagesView Grid.Row="1" />
 
                     <Border x:Name="FooterBar"
                             Grid.Row="2"

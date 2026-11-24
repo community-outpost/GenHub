@@ -99,8 +99,8 @@ public partial class GameProfileSettingsViewModel
 
         var page = SelectedTabIndex switch
         {
-            ContentTabIndex => _selectedPage == ProfileSettingsPage.Game ? ProfileSettingsPage.Game : ProfileSettingsPage.Content,
-            ProfileTabIndex => _selectedPage == ProfileSettingsPage.Appearance ? ProfileSettingsPage.Appearance : ProfileSettingsPage.General,
+            ContentTabIndex => ProfileSettingsPage.Content,
+            ProfileTabIndex => ProfileSettingsPage.General,
             _ => GetPage(GameSettingsViewModel.SelectedCategory),
         };
 

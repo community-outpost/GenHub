@@ -3463,6 +3463,12 @@
   <data name="GameProfiles.Content.IncludeToolTip" xml:space="preserve">
     <value>Включить в этот профиль</value>
   </data>
+  <data name="GameProfiles.Game.ToolProfile.Title" xml:space="preserve">
+    <value>Профиль инструмента</value>
+  </data>
+  <data name="GameProfiles.Game.ToolProfile.Message" xml:space="preserve">
+    <value>Автономные профили инструментов не используют установку игры.</value>
+  </data>
   <data name="GameProfiles.Navigation.Content" xml:space="preserve">
     <value>Контент</value>
   </data>

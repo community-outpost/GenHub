@@ -1,6 +1,7 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using GenHub.Core.Extensions;
+using GenHub.Core.Helpers;
 using GenHub.Core.Models.Enums;
 using Microsoft.Extensions.Logging;
 using System;
@@ -45,6 +46,8 @@ public partial class GameProfileSettingsViewModel
         ContentType.Mission,
         ContentType.LanguagePack,
         ContentType.Skin,
+        ContentType.ModdingTool,
+        ContentType.Executable,
     ];
 
     /// <summary>
@@ -67,6 +70,13 @@ public partial class GameProfileSettingsViewModel
     /// Gets a value indicating whether no game client was found for the profile's game.
     /// </summary>
     public bool IsGameClientListEmpty => GameClientRows.Count == 0;
+
+    /// <summary>
+    /// Gets a value indicating whether the profile is a standalone tool profile, which takes no game installation.
+    /// </summary>
+    public bool IsStandaloneToolProfile => ToolProfileHelper.IsToolProfile(EnabledContent
+        .Where(item => item.ContentType != ContentType.GameInstallation)
+        .Select(item => (item.ManifestId.Value, item.ContentType)));
 
     /// <summary>
     /// Loads every installation, client and content item the Game and Content pages can offer.
@@ -153,12 +163,17 @@ public partial class GameProfileSettingsViewModel
         var filter = SelectedProfileContentFilter?.ContentType;
         ProfileContentRows = new ObservableCollection<ProfileContentRow>(BuildRows(
                 enabledById,
-                item => ProfileContentTypes.Contains(item.ContentType) &&
-                        IsForGame(item, gameType) &&
-                        (filter == null || item.ContentType == filter))
+                item => item.ContentType is not (ContentType.GameInstallation or ContentType.GameClient) &&
+                        (filter == null || item.ContentType == filter) &&
+                        (enabledById.ContainsKey(item.ManifestId.Value) ||
+                         (ProfileContentTypes.Contains(item.ContentType) && IsForGame(item, gameType))))
             .OrderByDescending(row => row.IsIncluded)
             .ThenBy(row => row.Item.DisplayName, StringComparer.CurrentCultureIgnoreCase));
+        OnPropertyChanged(nameof(IsStandaloneToolProfile));
     }
+
+    private static string GetDisplayIdentity(ContentDisplayItem item) =>
+        string.Join('\u001F', item.ContentType, item.GameType, item.DisplayName, item.Publisher ?? string.Empty, item.Version ?? string.Empty);
 
     private static bool IsForGame(ContentDisplayItem item, Core.Models.Enums.GameType gameType) =>
         item.GameType == gameType || item.GameType == Core.Models.Enums.GameType.Unknown;
@@ -169,6 +184,7 @@ public partial class GameProfileSettingsViewModel
     {
         var rows = new List<ProfileContentRow>();
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var seenIdentities = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var item in enabledById.Values.Concat(_profileContentCandidates).Where(include))
         {
             if (!seen.Add(item.ManifestId.Value))
@@ -177,6 +193,11 @@ public partial class GameProfileSettingsViewModel
             }
 
             var isIncluded = enabledById.ContainsKey(item.ManifestId.Value);
+            if (!seenIdentities.Add(GetDisplayIdentity(item)) && !isIncluded)
+            {
+                continue;
+            }
+
             if (!isIncluded)
             {
                 item.IsEnabled = false;
@@ -246,6 +267,14 @@ public partial class GameProfileSettingsViewModel
         if (installation == null ||
             string.Equals(SelectedGameInstallation?.ManifestId.Value, installation.ManifestId.Value, StringComparison.OrdinalIgnoreCase))
         {
+            return;
+        }
+
+        if (IsStandaloneToolProfile)
+        {
+            _localNotificationService.ShowWarning(
+                _localizationService.GetLocalizedString("GameProfiles.Game.ToolProfile.Title", "Tool profile"),
+                _localizationService.GetLocalizedString("GameProfiles.Game.ToolProfile.Message", "Standalone tool profiles do not use a game installation."));
             return;
         }
 

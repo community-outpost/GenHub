@@ -59,12 +59,14 @@ public class GameProfileWindowLabelTests
             "GameSettings.Category.Video",
             "GameSettings.Category.Audio",
             "GameSettings.Category.Controls",
+            "GameSettings.Category.TheSuperHackers",
+            "GameSettings.Category.GeneralsOnline",
         ];
 
         WithLocalization(localization.Object, () =>
         {
             var viewModel = CreateViewModel();
-            viewModel.GameSettingsViewModel.UpdateApplicableClientVisibility(isTheSuperHackers: false, isGeneralsOnline: false);
+            viewModel.GameSettingsViewModel.UpdateApplicableClientVisibility(isTheSuperHackers: true, isGeneralsOnline: true);
             var view = new GameProfileSettingsSidebarView { DataContext = viewModel };
             var window = new Window { Width = SidebarWidth, Height = 700, Content = view };
             window.Show();
@@ -77,12 +79,20 @@ public class GameProfileWindowLabelTests
 
                 Assert.Equal(keys.Select(resourceSet.GetString), labels.Select(label => label.Text));
                 Assert.Equal(keys.Select(resourceSet.GetString), pages.Select(AutomationProperties.GetName));
-                Assert.All(labels, label =>
+                Assert.All(pages, page =>
                 {
+                    var label = Assert.Single(page.GetLogicalDescendants().OfType<TextBlock>());
                     Assert.True(label.IsEffectivelyVisible);
-                    var origin = label.TranslatePoint(default, view);
-                    Assert.NotNull(origin);
-                    Assert.InRange(origin.Value.X + label.Bounds.Width, 0, view.Bounds.Width);
+                    var natural = new TextBlock
+                    {
+                        Text = label.Text,
+                        FontSize = label.FontSize,
+                        FontWeight = label.FontWeight,
+                        FontFamily = label.FontFamily,
+                    };
+                    natural.Measure(Size.Infinity);
+                    var available = page.Bounds.Width - page.Padding.Left - page.Padding.Right;
+                    Assert.True(natural.DesiredSize.Width <= available, $"'{label.Text}' needs {natural.DesiredSize.Width} but the page row offers {available}");
                 });
             }
             finally

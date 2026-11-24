@@ -33,7 +33,8 @@
             BorderThickness="0,0,1,0">
         <DockPanel>
             <StackPanel DockPanel.Dock="Top" Margin="24,28,24,24" Spacing="12">
-                <Border Width="56" Height="56"
+                <Border x:Name="ProfileIconRing"
+                        Width="56" Height="56"
                         HorizontalAlignment="Left"
                         CornerRadius="28"
                         ClipToBounds="True"

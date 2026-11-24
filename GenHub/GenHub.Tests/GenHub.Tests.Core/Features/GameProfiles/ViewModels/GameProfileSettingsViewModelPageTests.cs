@@ -75,27 +75,12 @@ public class GameProfileSettingsViewModelPageTests
     public void SettingTabIndex_UpdatesSelectedPage(int tabIndex, ProfileSettingsPage expected)
     {
         var viewModel = CreateViewModel();
-        viewModel.SelectedTabIndex = 0;
+        viewModel.SelectedPage = tabIndex == 2 ? ProfileSettingsPage.Appearance : ProfileSettingsPage.Controls;
         viewModel.GameSettingsViewModel.SelectedCategory = SettingsCategory.Controls;
 
         viewModel.SelectedTabIndex = tabIndex;
 
         Assert.Equal(expected, viewModel.SelectedPage);
-    }
-
-    /// <summary>
-    /// Verifies the Game and Content pages share the content tab without losing which page is shown.
-    /// </summary>
-    [Fact]
-    public void GamePage_KeepsSelectionWhenContentTabIndexIsReapplied()
-    {
-        var viewModel = CreateViewModel();
-        viewModel.SelectedPage = ProfileSettingsPage.Game;
-
-        viewModel.SelectedTabIndex = 0;
-
-        Assert.Equal(ProfileSettingsPage.Game, viewModel.SelectedPage);
-        Assert.True(viewModel.IsContentTabVisible);
     }
 
     /// <summary>

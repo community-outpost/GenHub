@@ -952,12 +952,15 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
         var hotswapMode = IsHotswapMode;
         UpdateContentItemsHotswapState(EnabledContent, hotswapMode);
         UpdateContentItemsHotswapState(AvailableContent, hotswapMode);
+        UpdateContentItemsHotswapState(_profileContentCandidates, hotswapMode);
 
         foreach (var item in AvailableGameInstallations)
         {
             item.IsLocked = hotswapMode;
             item.CanToggle = !hotswapMode;
         }
+
+        RebuildProfileContentRows();
     }
 
     private void OnEnabledContentCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)

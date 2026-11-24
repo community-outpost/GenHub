@@ -1,0 +1,25 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="clr-namespace:GenHub.Features.GameProfiles.ViewModels"
+             xmlns:views="clr-namespace:GenHub.Features.GameProfiles.Views"
+             xmlns:conv="clr-namespace:GenHub.Infrastructure.Converters"
+             xmlns:localization="clr-namespace:GenHub.Common.Markup;assembly=GenHub"
+             mc:Ignorable="d" d:DesignWidth="760" d:DesignHeight="600"
+             x:Class="GenHub.Features.GameProfiles.Views.GameProfileSettingsPagesView"
+             x:DataType="vm:GameProfileSettingsViewModel">
+
+    <UserControl.Resources>
+        <conv:EqualityConverter x:Key="EqualityConverter" />
+    </UserControl.Resources>
+
+    <Panel ClipToBounds="True">
+        <views:GameProfileGameSelectionView IsVisible="{Binding SelectedPage, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static vm:ProfileSettingsPage.Game}}" />
+        <views:GameProfileContentEditorView IsVisible="{Binding SelectedPage, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static vm:ProfileSettingsPage.Content}}" />
+        <views:GameProfileGeneralSettingsView IsVisible="{Binding IsProfileSettingsTabVisible}" />
+        <Panel IsVisible="{Binding IsGameSettingsTabVisible}">
+            <views:GameSettingsView DataContext="{Binding GameSettingsViewModel}" />
+        </Panel>
+    </Panel>
+</UserControl>

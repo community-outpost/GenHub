@@ -15,31 +15,8 @@ namespace GenHub.Features.GameProfiles.ViewModels;
 /// </summary>
 public partial class GameProfileSettingsViewModel
 {
-    private Action<string>? _scrollToSectionRequested;
-
-    /// <summary>
-    /// Gets or sets the action triggered when the view needs to scroll to a specific section.
-    /// </summary>
-    public Action<string>? ScrollToSectionRequested
-    {
-        get => _scrollToSectionRequested;
-        set
-        {
-            var stackTrace = new System.Diagnostics.StackTrace(1, true);
-            var caller = stackTrace.GetFrame(0);
-            System.Diagnostics.Debug.WriteLine($"[ViewModel] ScrollToSectionRequested SET - Old: {_scrollToSectionRequested != null}, New: {value != null}, Caller: {caller?.GetMethod()?.DeclaringType?.Name}.{caller?.GetMethod()?.Name}");
-            _scrollToSectionRequested = value;
-        }
-    }
-
     [ObservableProperty]
     private GeneralSettingsCategory _selectedGeneralCategory = GeneralSettingsCategory.Identity;
-
-    [ObservableProperty]
-    private ContentSettingsCategory _selectedContentCategory = ContentSettingsCategory.Selection;
-
-    [ObservableProperty]
-    private ContentEditorCategory _selectedContentEditorCategory = ContentEditorCategory.EnabledContent;
 
     [ObservableProperty]
     private string _name = string.Empty;

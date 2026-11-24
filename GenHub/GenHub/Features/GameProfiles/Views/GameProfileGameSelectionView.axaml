@@ -56,6 +56,9 @@
             <Border x:Name="InstallationCard" Classes="section-card">
                 <StackPanel>
                     <TextBlock Classes="row-hint" Margin="20,16"
+                               Text="{localization:Localize GameProfiles.Game.ToolProfile.Message}"
+                               IsVisible="{Binding IsStandaloneToolProfile}" />
+                    <TextBlock Classes="row-hint" Margin="20,16"
                                Text="{localization:Localize GameProfiles.Game.NoInstallations}"
                                IsVisible="{Binding IsGameInstallationListEmpty}" />
                     <ItemsControl ItemsSource="{Binding GameInstallationRows}">
@@ -77,6 +80,7 @@
                                         <Button Grid.Column="1" Classes="action-secondary"
                                                 Content="{localization:Localize GameProfiles.Game.Select}"
                                                 IsVisible="{Binding !IsIncluded}"
+                                                IsEnabled="{Binding !$parent[ItemsControl].((vm:GameProfileSettingsViewModel)DataContext).IsStandaloneToolProfile}"
                                                 Command="{Binding $parent[ItemsControl].((vm:GameProfileSettingsViewModel)DataContext).SelectGameInstallationCommand}"
                                                 CommandParameter="{Binding Item}"
                                                 AutomationProperties.Name="{Binding Item.DisplayName}" />

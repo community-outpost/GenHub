@@ -1185,8 +1185,8 @@ User interface sizing, theme color, and display name constants.
 
 - `DefaultWindowWidth`: 1200
 - `DefaultWindowHeight`: 800
-- `DefaultProfileSettingsWidth`: 750
-- `DefaultProfileSettingsHeight`: 700
+- `DefaultProfileSettingsWidth`: 1000
+- `DefaultProfileSettingsHeight`: 760
 
 ### Status and Theme Colors
 

@@ -139,17 +139,6 @@ public partial class GameSettingsViewModel(
         return null;
     }
 
-    /// <summary>
-    /// Gets or sets the action triggered when the view needs to scroll to a specific section.
-    /// </summary>
-    public Action<string>? ScrollToSectionRequested { get; set; }
-
-    [RelayCommand]
-    private void ScrollToSection(string sectionName)
-    {
-        ScrollToSectionRequested?.Invoke(sectionName);
-    }
-
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsZeroHour))]
     private GameType _selectedGameType;
@@ -202,36 +191,12 @@ public partial class GameSettingsViewModel(
     private SettingsCategory _selectedCategory = SettingsCategory.Video;
 
     /// <summary>
-    /// Gets or sets the currently selected category in the sidebar.
+    /// Gets or sets the game settings category shown in the profile settings window.
     /// </summary>
     public SettingsCategory SelectedCategory
     {
         get => _selectedCategory;
-        set
-        {
-            if (SetProperty(ref _selectedCategory, value))
-            {
-                // Trigger scroll only if explicitly set (e.g. via UI click),
-                // but we need to distinguish between "User Clicked" and "Scroll Spy Updated".
-                // For now, the View will handle the distinction or we use a separate method for ScrollSpy updates.
-                ScrollToSectionRequested?.Invoke(value.ToString() + "Section");
-            }
-        }
-    }
-
-    /// <summary>
-    /// Updates the selected category from the scroll spy without triggering a scroll request.
-    /// </summary>
-    /// <param name="category">The new active category.</param>
-    public void UpdateCategoryFromScroll(SettingsCategory category)
-    {
-        SetProperty(ref _selectedCategory, category, nameof(SelectedCategory));
-    }
-
-    [RelayCommand]
-    private void SelectCategory(SettingsCategory category)
-    {
-        SelectedCategory = category;
+        set => SetProperty(ref _selectedCategory, value);
     }
 
     [ObservableProperty]

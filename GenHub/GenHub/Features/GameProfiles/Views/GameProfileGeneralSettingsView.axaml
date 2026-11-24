@@ -112,7 +112,14 @@
                     <Grid ColumnDefinitions="*,324">
                         <StackPanel VerticalAlignment="Center">
                             <TextBlock Classes="row-label" Text="{localization:Localize GameProfiles.General.WorkspaceStrategy}" />
-                            <TextBlock Classes="row-hint" Text="{localization:Localize GameProfiles.General.WorkspaceStrategyDescription}" />
+                            <TextBlock Classes="row-hint">
+                                <TextBlock.Text>
+                                    <MultiBinding Converter="{x:Static conv:WorkspaceStrategyDisplayConverter.Description}">
+                                        <Binding Path="SelectedWorkspaceStrategy" />
+                                        <Binding Path="CurrentCulture" Source="{x:Static conv:WorkspaceStrategyDisplayConverter.LocalizationSource}" />
+                                    </MultiBinding>
+                                </TextBlock.Text>
+                            </TextBlock>
                         </StackPanel>
                         <ComboBox Grid.Column="1"
                                   Classes="workspace-strategy form-field row-control"

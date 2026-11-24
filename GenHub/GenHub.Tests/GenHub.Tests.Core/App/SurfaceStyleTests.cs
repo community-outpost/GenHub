@@ -15,14 +15,14 @@ namespace GenHub.Tests.Core.App;
 /// <summary>Checks readable profile surfaces and bounded identity artwork.</summary>
 public class SurfaceStyleTests
 {
-    /// <summary>Changing profile identity colors cannot wash out the form's reading surface.</summary>
+    /// <summary>Changing profile identity colors cannot wash out the sidebar or the form's reading surface.</summary>
     /// <param name="accent">A profile color, including bright and dark extremes.</param>
     [AvaloniaTheory]
     [InlineData("#FFFFFF")]
     [InlineData("#FFFF00")]
     [InlineData("#000000")]
     [InlineData("#9C27B0")]
-    public void ProfileSections_KeepOpaqueNeutralSurfaceAndAccentIdentity(string accent)
+    public void ProfileSettings_KeepOpaqueNeutralSurfacesAndAccentIdentity(string accent)
     {
         var viewModel = DemoViewModelFactory.CreateDemoProfileSettingsViewModel_ProfileTab();
         var view = new GameProfileSettingsContentView { DataContext = viewModel };
@@ -32,27 +32,21 @@ public class SurfaceStyleTests
         {
             viewModel.ColorValue = accent;
             Dispatcher.UIThread.RunJobs();
-            var sections = view.GetVisualDescendants().OfType<Border>().Where(border => border.Classes.Contains("section-card")).ToArray();
-            Assert.NotEmpty(sections);
-            var expected = Assert.IsAssignableFrom<ISolidColorBrush>(Avalonia.Application.Current!.FindResource("CardBackground")).Color;
-            Assert.All(sections, section =>
+            var cardFill = ResourceColor("CardBackground");
+            Assert.Equal((byte)255, cardFill.A);
+
+            var sidebar = view.GetVisualDescendants().OfType<GameProfileSettingsSidebarView>().Single();
+            Assert.Equal(cardFill, BrushColor(sidebar.FindControl<Border>("SidebarSurface")!.Background));
+            Assert.Equal(Color.Parse(accent), BrushColor(sidebar.FindControl<Border>("ProfileIconRing")!.BorderBrush));
+
+            var cards = view.GetVisualDescendants().OfType<Border>().Where(border => border.Classes.Contains("settings-card") && border.IsEffectivelyVisible).ToArray();
+            Assert.NotEmpty(cards);
+            var cornerRadius = (CornerRadius)Avalonia.Application.Current!.FindResource("CardCornerRadius")!;
+            Assert.All(cards, card =>
             {
-                var fill = Assert.IsAssignableFrom<ISolidColorBrush>(section.Background).Color;
-                Assert.Equal((byte)255, fill.A);
-                Assert.Equal(expected, fill);
-                Assert.Equal(new CornerRadius(12), section.CornerRadius);
+                Assert.Equal(cardFill, BrushColor(card.Background));
+                Assert.Equal(cornerRadius, card.CornerRadius);
             });
-            Assert.All(sections.SelectMany(section => section.GetVisualDescendants().OfType<TextBlock>()).Where(label => label.Classes.Contains("form-label")), label => Assert.Equal(1, label.Opacity));
-            var header = view.FindControl<Border>("HeaderBorder")!;
-            Assert.Equal(1, header.Opacity);
-            var artwork = view.FindControl<Image>("ProfileHeaderArtwork")!;
-            Assert.True(artwork.Bounds.Height <= 70);
-            Assert.InRange(artwork.Opacity, 0.1, 0.25);
-            var headerInnerWidth = header.Bounds.Width - header.BorderThickness.Left - header.BorderThickness.Right;
-            Assert.Equal(headerInnerWidth, artwork.Bounds.Width, 1);
-            Assert.Equal(headerInnerWidth, view.FindControl<Border>("ProfileHeaderTint")!.Bounds.Width, 1);
-            Assert.Equal(Color.Parse(accent), Assert.IsAssignableFrom<ISolidColorBrush>(header.BorderBrush).Color);
-            Assert.Equal(new Thickness(4, 0, 0, 0), header.BorderThickness);
         }
         finally
         {
@@ -60,24 +54,26 @@ public class SurfaceStyleTests
         }
     }
 
-    /// <summary>A long editable description stays a short header preview without hiding the form.</summary>
+    /// <summary>A long description stays inside its field without pushing the launch options out of reach.</summary>
     [AvaloniaFact]
-    public void ProfileHeader_LongDescriptionLeavesFormVisible()
+    public void GeneralPage_LongDescriptionStaysInsideItsField()
     {
         var viewModel = DemoViewModelFactory.CreateDemoProfileSettingsViewModel_ProfileTab();
         viewModel.Description = string.Join("\n", Enumerable.Repeat("A long profile description line", 80));
-        var view = new GameProfileSettingsContentView { DataContext = viewModel };
-        var window = new Window { Width = 1400, Height = 900, Content = view };
+        var view = new GameProfileGeneralSettingsView { DataContext = viewModel };
+        var window = new Window { Width = 1100, Height = 800, Content = view };
         window.Show();
         try
         {
             Dispatcher.UIThread.RunJobs();
-            var header = view.FindControl<Border>("HeaderBorder")!;
-            Assert.InRange(header.Bounds.Height, 70, 100);
-            var section = view.GetVisualDescendants().OfType<Border>().First(border => border.Classes.Contains("section-card"));
-            var scroll = section.GetVisualAncestors().OfType<ScrollViewer>().First();
-            Assert.True(scroll.Bounds.Height > 400);
-            Assert.Equal(viewModel.Description, Assert.Single(section.GetVisualDescendants().OfType<TextBox>(), field => field.AcceptsReturn).Text);
+            var fields = view.GetVisualDescendants().OfType<TextBox>().Where(field => field.IsEffectivelyVisible).ToArray();
+            var description = Assert.Single(fields, field => field.AcceptsReturn);
+            Assert.Equal(viewModel.Description, description.Text);
+            Assert.InRange(description.Bounds.Height, 1, 80);
+            var arguments = fields.Last();
+            var origin = arguments.TranslatePoint(default, view);
+            Assert.NotNull(origin);
+            Assert.InRange(origin.Value.Y, 0, view.Bounds.Height - arguments.Bounds.Height);
         }
         finally
         {

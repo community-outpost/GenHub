@@ -129,33 +129,6 @@ public class NavigationStyleTests
         }
     }
 
-    /// <summary>Profile icon masks use effective ink, including their disabled state.</summary>
-    [AvaloniaFact]
-    public void ProfileIconMasks_InheritNavigationInk()
-    {
-        var profile = GenHub.Features.Info.ViewModels.DemoViewModelFactory.CreateDemoProfileSettingsViewModel_ProfileTab();
-        var view = new GameProfileSettingsContentView { DataContext = profile };
-        var window = new Window { Width = 1400, Height = 900, Content = view };
-        window.Show();
-        try
-        {
-            var button = view.GetVisualDescendants().OfType<Button>().First(item => item.Classes.Contains("tab-icon-btn") && item.Content is Panel);
-            button.Command = new RelayCommand(() => { });
-            button.IsEnabled = true;
-            button.Classes.Add("selected");
-            var mask = button.GetVisualDescendants().OfType<Border>().Single(item => item.OpacityMask is not null);
-            Dispatcher.UIThread.RunJobs();
-            Assert.Equal(BrushColor(button.Foreground), BrushColor(mask.Background));
-            button.IsEnabled = false;
-            Dispatcher.UIThread.RunJobs();
-            Assert.Equal(ResourceColor("NavDisabledInk"), BrushColor(mask.Background));
-        }
-        finally
-        {
-            window.Close();
-        }
-    }
-
     /// <summary>Mounted Studio selection follows live theme updates without replacing the view.</summary>
     [AvaloniaFact]
     public void StudioSelection_TracksLiveAccentTheme()

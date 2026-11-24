@@ -29,33 +29,6 @@ namespace GenHub.Features.GameProfiles.ViewModels;
 public partial class GameProfileSettingsViewModel
 {
     /// <summary>
-    /// Updates the selected general category from the scroll spy without triggering a scroll request.
-    /// </summary>
-    /// <param name="category">The new active category.</param>
-    public void UpdateGeneralCategoryFromScroll(GeneralSettingsCategory category)
-    {
-        SelectedGeneralCategory = category;
-    }
-
-    /// <summary>
-    /// Updates the selected content category from the scroll spy without triggering a scroll request.
-    /// </summary>
-    /// <param name="category">The new active category.</param>
-    public void UpdateContentCategoryFromScroll(ContentSettingsCategory category)
-    {
-        SelectedContentCategory = category;
-    }
-
-    /// <summary>
-    /// Updates the selected content editor category from the scroll spy without triggering a scroll request.
-    /// </summary>
-    /// <param name="category">The new active category.</param>
-    public void UpdateContentEditorCategoryFromScroll(ContentEditorCategory category)
-    {
-        SelectedContentEditorCategory = category;
-    }
-
-    /// <summary>
     /// Imports dropped files or directories directly into the Add Local Content flow.
     /// </summary>
     /// <param name="paths">The paths to the dropped files or directories.</param>
@@ -301,42 +274,6 @@ public partial class GameProfileSettingsViewModel
         }
 
         return newItems;
-    }
-
-    [RelayCommand]
-    private void SelectGeneralCategory(GeneralSettingsCategory category)
-    {
-        SelectedGeneralCategory = category;
-        ScrollToSectionRequested?.Invoke(category.ToString() + "Section");
-    }
-
-    [RelayCommand]
-    private void SelectContentCategory(ContentSettingsCategory category)
-    {
-        SelectedContentCategory = category;
-        ScrollToSectionRequested?.Invoke(category.ToString() + "Section");
-    }
-
-    [RelayCommand]
-    private void SelectContentEditorCategory(ContentEditorCategory category)
-    {
-        System.Diagnostics.Debug.WriteLine($"[ViewModel] SelectContentEditorCategory called with category: {category}");
-        System.Diagnostics.Debug.WriteLine($"[ViewModel] ScrollToSectionRequested is null: {ScrollToSectionRequested == null}");
-
-        SelectedContentEditorCategory = category;
-
-        var sectionName = category.ToString() + "Section";
-        System.Diagnostics.Debug.WriteLine($"[ViewModel] Invoking ScrollToSectionRequested with: {sectionName}");
-
-        ScrollToSectionRequested?.Invoke(sectionName);
-
-        System.Diagnostics.Debug.WriteLine("[ViewModel] ScrollToSectionRequested invoked");
-    }
-
-    [RelayCommand]
-    private void ScrollToSection(string sectionName)
-    {
-        ScrollToSectionRequested?.Invoke(sectionName);
     }
 
     [RelayCommand]

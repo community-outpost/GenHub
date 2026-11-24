@@ -169,13 +169,13 @@ public sealed class GenHubInfoSectionViewTests
     }
 
     /// <summary>
-    /// Verifies that quick successive clicks on the visible demo panel tab buttons navigate
+    /// Verifies that quick successive clicks on the visible demo panel sidebar pages navigate
     /// across profile sections without crashing. Rapid section switches used to overflow the
     /// stack through brush transitions fed by converters that minted a new brush per evaluation.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [AvaloniaFact]
-    public async Task VisibleDemoTabClicks_QuickSuccession_NavigatesWithoutCrashAsync()
+    public async Task VisibleDemoPageClicks_QuickSuccession_NavigatesWithoutCrashAsync()
     {
         var vm = await CreateInitializedViewModelAsync();
         var view = new GenHubInfoSectionView { DataContext = vm };
@@ -192,11 +192,11 @@ public sealed class GenHubInfoSectionViewTests
 
             // Clicks on the VISIBLE demo panel's tab buttons (production click path),
             // pumping layout between clicks but without settling delays.
-            foreach (var tabParameter in new[] { "0", "1", "2" })
+            foreach (var page in new[] { ProfileSettingsPage.Content, ProfileSettingsPage.General, ProfileSettingsPage.Video })
             {
-                var button = FindVisibleDemoTabButton(view, tabParameter);
-                button.Should().NotBeNull("tab button {0} must resolve in the visible demo panel", tabParameter);
-                button!.Command.Should().NotBeNull("tab button command binding must resolve");
+                var button = FindVisibleDemoPageButton(view, page);
+                button.Should().NotBeNull("page button {0} must resolve in the visible demo panel", page);
+                button!.Command.Should().NotBeNull("page button command binding must resolve");
                 button.Command!.Execute(button.CommandParameter);
                 window.UpdateLayout();
                 Dispatcher.UIThread.RunJobs();
@@ -212,7 +212,7 @@ public sealed class GenHubInfoSectionViewTests
         }
     }
 
-    private static Button? FindVisibleDemoTabButton(GenHubInfoSectionView view, string tabParameter)
+    private static Button? FindVisibleDemoPageButton(GenHubInfoSectionView view, ProfileSettingsPage page)
     {
         foreach (var mock in view.GetLogicalDescendants().OfType<DemoGameProfileSettingsWindowMock>())
         {
@@ -223,7 +223,7 @@ public sealed class GenHubInfoSectionViewTests
 
             var button = mock.GetLogicalDescendants()
                 .OfType<Button>()
-                .FirstOrDefault(b => ReferenceEquals(b.Command, demo.SelectTabCommand) && Equals(b.CommandParameter?.ToString(), tabParameter));
+                .FirstOrDefault(b => ReferenceEquals(b.Command, demo.SelectPageCommand) && Equals(b.CommandParameter, page));
             if (button != null)
             {
                 return button;
