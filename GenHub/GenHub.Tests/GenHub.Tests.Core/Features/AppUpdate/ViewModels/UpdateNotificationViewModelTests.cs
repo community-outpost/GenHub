@@ -3,6 +3,7 @@ using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GitHub;
 using GenHub.Core.Models.AppUpdate;
 using GenHub.Core.Models.Common;
+using GenHub.Core.Models.Providers;
 using GenHub.Features.AppUpdate.Interfaces;
 using GenHub.Features.AppUpdate.ViewModels;
 using Microsoft.Extensions.Logging;
@@ -318,12 +319,14 @@ public class UpdateNotificationViewModelTests
         var mockUserSettings = new Mock<IUserSettingsService>();
         mockUserSettings.Setup(x => x.Get()).Returns(new UserSettings());
 
-        var prTcs = new TaskCompletionSource<IReadOnlyList<ArtifactUpdateInfo>>();
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var prTcs = new TaskCompletionSource<IReadOnlyList<ArtifactUpdateInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
         mockVelopack.Setup(x => x.GetArtifactsForPullRequestAsync(391, It.IsAny<CancellationToken>()))
-            .Returns(async (int _, CancellationToken ct) =>
+            .Returns((int _, CancellationToken ct) =>
             {
-                ct.Register(() => prTcs.TrySetCanceled(ct));
-                return await prTcs.Task;
+                ct.Register(() => prTcs.TrySetCanceled());
+                entered.TrySetResult();
+                return prTcs.Task;
             });
 
         var vm = new UpdateNotificationViewModel(
@@ -332,6 +335,13 @@ public class UpdateNotificationViewModelTests
             mockUserSettings.Object);
 
         vm.SubscribeToPrCommand.Execute(391);
+        var enteredDeadline = DateTime.UtcNow.AddSeconds(2);
+        while (!entered.Task.IsCompleted && DateTime.UtcNow < enteredDeadline)
+        {
+            await Task.Delay(10);
+        }
+
+        Assert.True(entered.Task.IsCompleted);
         Assert.True(vm.IsLoadingVersions);
 
         vm.UnsubscribeCommand.Execute(null);
@@ -794,5 +804,40 @@ public class UpdateNotificationViewModelTests
         Assert.NotNull(vm.SelectedVersion);
         Assert.Equal("0.0.2804-pr378", vm.SelectedVersion.Version);
         Assert.Equal("development", vm.SubscribedBranch);
+    }
+
+    /// <summary>
+    /// Verifies that adding and removing items from AvailableCustomBuilds updates HasCustomBuilds and CustomBuildsColumnWidth.
+    /// </summary>
+    [Fact]
+    public void AvailableCustomBuilds_WhenUpdated_UpdatesHasCustomBuildsAndColumnWidth()
+    {
+        var mockUserSettings = new Mock<IUserSettingsService>();
+        mockUserSettings.Setup(x => x.Get()).Returns(new UserSettings());
+
+        using var vm = new UpdateNotificationViewModel(
+            Mock.Of<IVelopackUpdateManager>(),
+            Mock.Of<ILogger<UpdateNotificationViewModel>>(),
+            mockUserSettings.Object);
+
+        Assert.False(vm.HasCustomBuilds);
+        Assert.Equal("0", vm.CustomBuildsColumnWidth.ToString());
+
+        vm.AvailableCustomBuilds.Add(new CustomBuildSubscriptionItem
+        {
+            PublisherId = "pub1",
+            PublisherName = "Publisher 1",
+            Name = "Custom Fork",
+            ContentId = "fork1",
+            LatestVersion = "1.0.0",
+        });
+
+        Assert.True(vm.HasCustomBuilds);
+        Assert.NotEqual("0", vm.CustomBuildsColumnWidth.ToString());
+
+        vm.AvailableCustomBuilds.Clear();
+
+        Assert.False(vm.HasCustomBuilds);
+        Assert.Equal("0", vm.CustomBuildsColumnWidth.ToString());
     }
 }

@@ -582,14 +582,23 @@
                                                                 </Button>
                                                             </StackPanel>
 
-                                                            <!-- Add to Profile Button (visible when downloaded) -->
+                                                            <!-- Add to Profile Button (visible when downloaded and not GenHubBuild) -->
                                                             <Button Command="{Binding AddToProfileCommand}"
-                                                                    IsVisible="{Binding IsDownloaded}"
+                                                                    IsVisible="{Binding ShowAddToProfileButton}"
                                                                     ToolTip.Tip="{localization:Localize Downloads.ContentDetail.AddToProfileTooltip}" Classes="action-secondary action-compact">
-
                                                                 <StackPanel Orientation="Horizontal" Spacing="6">
                                                                     <PathIcon Data="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" Width="{DynamicResource ActionIconSize}" Height="{DynamicResource ActionIconSize}"/>
                                                                     <TextBlock Text="{localization:Localize Downloads.ContentDetail.AddToProfile}" VerticalAlignment="Center"/>
+                                                                </StackPanel>
+                                                            </Button>
+
+                                                            <!-- Install Build Button (visible when GenHubBuild is downloaded) -->
+                                                            <Button Command="{Binding InstallBuildCommand}"
+                                                                    IsVisible="{Binding ShowInstallBuildButton}"
+                                                                    ToolTip.Tip="{localization:Localize Downloads.Card.InstallBuildTooltip}" Classes="action-primary action-compact">
+                                                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                                                    <PathIcon Data="M5,20H19V18H5M19,9H15V3H9V9H5L12,16L19,9Z" Width="{DynamicResource ActionIconSize}" Height="{DynamicResource ActionIconSize}"/>
+                                                                    <TextBlock Text="{localization:Localize Downloads.Card.InstallBuild}" VerticalAlignment="Center"/>
                                                                 </StackPanel>
                                                             </Button>
                                                         </StackPanel>
@@ -935,14 +944,23 @@
                                                                 </Button>
                                                             </StackPanel>
 
-                                                            <!-- Add to Profile Button (visible when downloaded) -->
+                                                            <!-- Add to Profile Button (visible when downloaded and not GenHubBuild) -->
                                                             <Button Command="{Binding AddToProfileCommand}"
-                                                                    IsVisible="{Binding IsDownloaded}"
+                                                                    IsVisible="{Binding ShowAddToProfileButton}"
                                                                     ToolTip.Tip="{localization:Localize Downloads.ContentDetail.AddToProfileTooltip}" Classes="action-secondary action-compact">
-
                                                                 <StackPanel Orientation="Horizontal" Spacing="6">
                                                                     <PathIcon Data="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" Width="{DynamicResource ActionIconSize}" Height="{DynamicResource ActionIconSize}"/>
                                                                     <TextBlock Text="{localization:Localize Downloads.ContentDetail.AddToProfile}" VerticalAlignment="Center"/>
+                                                                </StackPanel>
+                                                            </Button>
+
+                                                            <!-- Install Build Button (visible when GenHubBuild is downloaded) -->
+                                                            <Button Command="{Binding InstallBuildCommand}"
+                                                                    IsVisible="{Binding ShowInstallBuildButton}"
+                                                                    ToolTip.Tip="{localization:Localize Downloads.Card.InstallBuildTooltip}" Classes="action-primary action-compact">
+                                                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                                                    <PathIcon Data="M5,20H19V18H5M19,9H15V3H9V9H5L12,16L19,9Z" Width="{DynamicResource ActionIconSize}" Height="{DynamicResource ActionIconSize}"/>
+                                                                    <TextBlock Text="{localization:Localize Downloads.Card.InstallBuild}" VerticalAlignment="Center"/>
                                                                 </StackPanel>
                                                             </Button>
                                                         </StackPanel>
@@ -1377,6 +1395,17 @@
                                 <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Center">
                                     <PathIcon Data="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" Width="{DynamicResource ActionIconSize}" Height="{DynamicResource ActionIconSize}"/>
                                     <TextBlock Text="{localization:Localize Downloads.ContentDetail.AddToProfile}" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Button>
+
+                            <!-- Install Build Button (visible when GenHubBuild is downloaded) -->
+                            <Button x:Name="InstallBuildButton" HorizontalAlignment="Stretch"
+                                    IsVisible="{Binding ShowInstallBuildButton}"
+                                    Command="{Binding InstallBuildCommand}"
+                                    ToolTip.Tip="{localization:Localize Downloads.Card.InstallBuildTooltip}" Classes="action-primary" MinHeight="48">
+                                <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Center">
+                                    <PathIcon Data="M5,20H19V18H5M19,9H15V3H9V9H5L12,16L19,9Z" Width="{DynamicResource ActionIconSize}" Height="{DynamicResource ActionIconSize}"/>
+                                    <TextBlock Text="{localization:Localize Downloads.Card.InstallBuild}" VerticalAlignment="Center"/>
                                 </StackPanel>
                             </Button>
 

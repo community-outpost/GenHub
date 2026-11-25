@@ -6,6 +6,16 @@ namespace GenHub.Core.Constants;
 public static class RegexConstants
 {
     /// <summary>
+    /// Default regex evaluation timeout in milliseconds.
+    /// </summary>
+    public const int DefaultTimeoutMs = 500;
+
+    /// <summary>
+    /// Default regex evaluation timeout in milliseconds for build inspection regexes.
+    /// </summary>
+    public const int BuildInspectionTimeoutMs = 250;
+
+    /// <summary>
     /// Regex pattern for Generals Online replay URLs.
     /// </summary>
     public const string GeneralsOnlineReplayPattern = @"https://matchdata\.playgenerals\.online/[^""]+_replay\.rep";

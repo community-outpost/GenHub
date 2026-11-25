@@ -84,4 +84,9 @@ public static class ProfileConstants
     /// Error code of a profile creation refused because the profile already exists.
     /// </summary>
     public const string ProfileAlreadyExistsErrorCode = "ProfileAlreadyExists";
+
+    /// <summary>
+    /// Error code when an operation is refused because GenHub application builds cannot be used in game profiles.
+    /// </summary>
+    public const string GenHubBuildNotAllowedErrorCode = "GenHubBuildNotAllowed";
 }

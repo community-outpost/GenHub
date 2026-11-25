@@ -485,17 +485,38 @@ public sealed partial class ContentStateService(
 
     /// <summary>
     /// Checks whether the given item originates from a multi-release feed (such as GitHub releases,
-    /// TheSuperHackers weekly builds, or Generals Online history releases) where every release has its own discrete card in the UI.
+    /// TheSuperHackers weekly builds, Generals Online history releases, or generic catalog detail rows)
+    /// where every release has its own discrete card or row in the UI.
     /// In such feeds, prospective newer releases are uninstalled items, not update targets on that card.
     /// </summary>
     /// <param name="item">The content search result item to check.</param>
     /// <returns>True if the item originates from a multi-release feed; otherwise, false.</returns>
     internal static bool IsMultiReleaseItem(ContentSearchResult item)
     {
-        return IsGitHubPublisher(item.ProviderName) ||
-               string.Equals(item.ProviderName, PublisherTypeConstants.TheSuperHackers, StringComparison.OrdinalIgnoreCase) ||
-               IsGeneralsOnlinePublisher(item.ProviderName) ||
-               item.ResolverMetadata?.ContainsKey(GitHubConstants.OwnerMetadataKey) == true;
+        if (IsGitHubPublisher(item.ProviderName) ||
+            string.Equals(item.ProviderName, PublisherTypeConstants.TheSuperHackers, StringComparison.OrdinalIgnoreCase) ||
+            IsGeneralsOnlinePublisher(item.ProviderName) ||
+            item.ResolverMetadata?.ContainsKey(GitHubConstants.OwnerMetadataKey) == true)
+        {
+            return true;
+        }
+
+        // Generic catalog detail rows are per-release identities: each row represents one
+        // catalog release version, so a newer or older stored build of the same content
+        // must not mark the row downloaded. Catalog cards keep single-content update semantics.
+        return IsFileRow(item) && HasGenericCatalogIdentity(item);
+    }
+
+    /// <summary>
+    /// Checks whether the given item carries generic catalog provenance.
+    /// </summary>
+    /// <param name="item">The content search result item to check.</param>
+    /// <returns><see langword="true"/> if the item was produced by the generic catalog pipeline; otherwise, <see langword="false"/>.</returns>
+    internal static bool HasGenericCatalogIdentity(ContentSearchResult item)
+    {
+        return string.Equals(item.ResolverId, CatalogConstants.GenericCatalogResolverId, StringComparison.OrdinalIgnoreCase) ||
+               item.ResolverMetadata?.ContainsKey(CatalogConstants.CatalogItemJsonMetadataKey) == true ||
+               item.ResolverMetadata?.ContainsKey(CatalogConstants.CatalogContentIdMetadataKey) == true;
     }
 
     /// <summary>
