@@ -170,12 +170,6 @@ public partial class DemoGameProfileSettingsViewModel : GameProfileSettingsViewM
         GameSettingsViewModel.GameTimeFontSize = 10;
         GameSettingsViewModel.LanguageFilter = false;
 
-        // Enable visibility for all extended client sections before assigning mock values:
-        // Generals Online visibility resets the camera bounds to their defaults.
-        GameSettingsViewModel.UpdateApplicableClientVisibility(true, true);
-        GameSettingsViewModel.CameraMinHeight = 200;
-        GameSettingsViewModel.CameraMaxHeight = 850;
-
         // TheSuperHackers extensions
         GameSettingsViewModel.TshArchiveReplays = true;
         GameSettingsViewModel.TshShowMoneyPerMinute = true;
@@ -197,6 +191,56 @@ public partial class DemoGameProfileSettingsViewModel : GameProfileSettingsViewM
 
         // Populate Mock Content Synchronously
         PopulateMockContent();
+        SeedMockProfileSelection();
+
+        // Enable visibility for all extended client sections after the installation selection recomputes it:
+        // Generals Online visibility resets the camera bounds to their defaults.
+        GameSettingsViewModel.UpdateApplicableClientVisibility(true, true);
+        GameSettingsViewModel.CameraMinHeight = 200;
+        GameSettingsViewModel.CameraMaxHeight = 850;
+
+        // The mock loader completes synchronously, so the checklist is filled before the demo is shown.
+        _ = LoadProfileContentCandidatesAsync();
+    }
+
+    private void SeedMockProfileSelection()
+    {
+        AvailableGameInstallations.Clear();
+        AvailableGameInstallations.Add(new ContentDisplayItem
+        {
+            DisplayName = "Zero Hour (EA App)",
+            ContentType = ContentType.GameInstallation,
+            GameType = Core.Models.Enums.GameType.ZeroHour,
+            Publisher = "EA",
+            Version = "1.04",
+            ManifestId = ManifestId.Create("1.0.ea.gameinstallation.zerohour"),
+            InstallationType = GameInstallationType.EaApp,
+        });
+        AvailableGameInstallations.Add(new ContentDisplayItem
+        {
+            DisplayName = "Generals (EA App)",
+            ContentType = ContentType.GameInstallation,
+            GameType = Core.Models.Enums.GameType.Generals,
+            Publisher = "EA",
+            Version = "1.08",
+            ManifestId = ManifestId.Create("1.0.ea.gameinstallation.generals"),
+            InstallationType = GameInstallationType.EaApp,
+        });
+
+        EnabledContent.Clear();
+        EnabledContent.Add(new ContentDisplayItem
+        {
+            DisplayName = "Zero Hour v1.04",
+            ContentType = ContentType.GameClient,
+            GameType = Core.Models.Enums.GameType.ZeroHour,
+            Publisher = "EA",
+            Version = "1.04",
+            ManifestId = ManifestId.Create("1.0.ea.gameclient.zerohour"),
+            InstallationType = GameInstallationType.Unknown,
+        });
+
+        SelectedGameInstallation = AvailableGameInstallations[0];
+        SelectedGameInstallation.IsEnabled = true;
     }
 
     private void PopulateMockContent()
@@ -282,25 +326,11 @@ public partial class DemoGameProfileSettingsViewModel : GameProfileSettingsViewM
         AvailableCoversForSelection.Add(new ProfileResourceItem { Path = "avares://GenHub/Assets/Covers/china-cover.jpg", DisplayName = "China" });
         AvailableCoversForSelection.Add(new ProfileResourceItem { Path = "avares://GenHub/Assets/Covers/gla-cover.jpg", DisplayName = "GLA" });
 
-        // 4. Default Enabled Content
-        EnabledContent.Clear();
-        EnabledContent.Add(new ContentDisplayItem
-        {
-            DisplayName = "Zero Hour v1.04",
-            ContentType = ContentType.GameClient,
-            GameType = Core.Models.Enums.GameType.ZeroHour,
-            Publisher = "EA",
-            Version = "1.04",
-            ManifestId = ManifestId.Create("1.0.ea.gameclient.zerohour"),
-            InstallationType = GameInstallationType.Unknown,
-        });
-
         // Notify UI about collection changes
         OnPropertyChanged(nameof(VisibleFilters));
         OnPropertyChanged(nameof(AvailableContent));
         OnPropertyChanged(nameof(AvailableIcons));
         OnPropertyChanged(nameof(AvailableCoversForSelection));
-        OnPropertyChanged(nameof(EnabledContent));
     }
 
     /// <summary>
