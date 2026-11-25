@@ -5904,7 +5904,7 @@ When you use **Copy Profile**, GenHub duplicates your profile's content configur
     <value>**Content Workflow:**
 1. **Checklist:** The Content page lists the mods, maps, patches, add-ons and tools installed for the profile's game. Checked items are part of the profile.
 2. **Removing:** Unchecking an item removes it from this profile only. It stays in your library.
-3. **Filter, Sort and Refresh:** Show only Mods, Maps, Addons or Tools, sort it by name, release date or enabled items, sort All content by type, or refresh it after installing something new.
+3. **Filter, Sort and Refresh:** Show only Mods, Maps, Addons or Tools, use the sort button to order it by name, release date or enabled items, or by type under All content, or refresh it after installing something new.
 4. **Add Local:** Link external folders or archives without copying them into GenHub.
 
 The game installation and game client are chosen on the Game page.</value>

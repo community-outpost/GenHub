@@ -464,40 +464,64 @@ public class GameProfileSettingsViewModelGameContentTests
     }
 
     /// <summary>
-    /// Verifies sorting by type is offered only while every type is shown, and a single-type filter falls back to name order.
+    /// Verifies sorting by type is offered only while all content is shown, and picking a group falls back to name order.
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
     public async Task SortOrder_TypeNeedsAllContentFilterAsync()
     {
         var viewModel = await CreateSortableViewModelAsync();
-        viewModel.SelectedProfileContentSort = ProfileContentSortOrder.Type;
-        Assert.Contains(ProfileContentSortOrder.Type, viewModel.ProfileContentSortOptions);
-        var options = viewModel.ProfileContentSortOptions;
-        var optionChanges = 0;
+        viewModel.SetProfileContentSortCommand.Execute(ProfileContentSortOrder.Type);
+        Assert.True(viewModel.IsTypeSortAvailable);
+        Assert.Equal(ProfileContentSortOrder.Type, viewModel.SelectedProfileContentSort);
+        var availabilityChanges = 0;
         viewModel.PropertyChanged += (_, e) =>
         {
-            if (e.PropertyName == nameof(GameProfileSettingsViewModel.ProfileContentSortOptions))
+            if (e.PropertyName == nameof(GameProfileSettingsViewModel.IsTypeSortAvailable))
             {
-                optionChanges++;
+                availabilityChanges++;
             }
         };
 
         viewModel.SelectedProfileContentFilter = GameProfileSettingsViewModel.ProfileContentFilterOptions.Single(option => option.Group == ProfileContentGroup.Mods);
 
-        Assert.Equal(1, optionChanges);
-        Assert.DoesNotContain(ProfileContentSortOrder.Type, viewModel.ProfileContentSortOptions);
+        Assert.Equal(1, availabilityChanges);
+        Assert.False(viewModel.IsTypeSortAvailable);
         Assert.Equal(ProfileContentSortOrder.Name, viewModel.SelectedProfileContentSort);
         Assert.Equal([ZeroHourModId], RowIds(viewModel.ProfileContentRows));
 
+        viewModel.SetProfileContentSortCommand.Execute(ProfileContentSortOrder.Type);
+
+        Assert.Equal(ProfileContentSortOrder.Name, viewModel.SelectedProfileContentSort);
+
         viewModel.SelectedProfileContentFilter = ProfileContentFilterOption.All;
 
-        Assert.Equal(2, optionChanges);
-        Assert.Same(options, viewModel.ProfileContentSortOptions);
-        Assert.Equal(
-            [ProfileContentSortOrder.Name, ProfileContentSortOrder.ReleaseDate, ProfileContentSortOrder.EnabledFirst, ProfileContentSortOrder.Type],
-            viewModel.ProfileContentSortOptions);
+        Assert.Equal(2, availabilityChanges);
+        Assert.True(viewModel.IsTypeSortAvailable);
         Assert.Equal([PatchId, ZeroHourModId, MapId], RowIds(viewModel.ProfileContentRows));
+    }
+
+    /// <summary>
+    /// Verifies the sort command selects each order and re-sorts the rows.
+    /// </summary>
+    /// <param name="order">The order to pick.</param>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Theory]
+    [InlineData(ProfileContentSortOrder.Name)]
+    [InlineData(ProfileContentSortOrder.ReleaseDate)]
+    [InlineData(ProfileContentSortOrder.EnabledFirst)]
+    [InlineData(ProfileContentSortOrder.Type)]
+    public async Task SetProfileContentSortCommand_SelectsOrderAsync(ProfileContentSortOrder order)
+    {
+        var viewModel = await CreateSortableViewModelAsync();
+        viewModel.SelectedProfileContentSort = order;
+        var expectedRows = RowIds(viewModel.ProfileContentRows);
+        viewModel.SelectedProfileContentSort = order == ProfileContentSortOrder.Name ? ProfileContentSortOrder.ReleaseDate : ProfileContentSortOrder.Name;
+
+        viewModel.SetProfileContentSortCommand.Execute(order);
+
+        Assert.Equal(order, viewModel.SelectedProfileContentSort);
+        Assert.Equal(expectedRows, RowIds(viewModel.ProfileContentRows));
     }
 
     /// <summary>

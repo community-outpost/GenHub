@@ -7,8 +7,6 @@
     xmlns:localization="clr-namespace:GenHub.Common.Markup"
     xmlns:local="clr-namespace:GenHub.Features.GameProfiles.Views"
     xmlns:conv="clr-namespace:GenHub.Infrastructure.Converters"
-    xmlns:enums="clr-namespace:GenHub.Core.Models.Enums;assembly=GenHub.Core"
-    xmlns:material="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
     mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="550"
     x:Class="GenHub.Features.GameProfiles.Views.GameProfileCardsView"
     x:Name="ProfileCards"
@@ -168,24 +166,6 @@
                                         </ComboBox.ItemTemplate>
                                     </ComboBox>
 
-                                    <StackPanel Orientation="Horizontal" Spacing="2" VerticalAlignment="Center" IsVisible="{Binding !IsScanning}">
-                                        <Button Classes="library-action layout-toggle"
-                                                Classes.selected="{Binding IsLibraryLayout}"
-                                                Command="{Binding SetProfileLayoutCommand}"
-                                                CommandParameter="{x:Static enums:ProfileLayout.Library}"
-                                                ToolTip.Tip="{localization:Localize GameProfiles.Layout.Library}"
-                                                AutomationProperties.Name="{localization:Localize GameProfiles.Layout.Library}">
-                                            <material:MaterialIcon Kind="ViewList" Width="16" Height="16"/>
-                                        </Button>
-                                        <Button Classes="library-action layout-toggle"
-                                                Classes.selected="{Binding IsCardLayout}"
-                                                Command="{Binding SetProfileLayoutCommand}"
-                                                CommandParameter="{x:Static enums:ProfileLayout.Cards}"
-                                                ToolTip.Tip="{localization:Localize GameProfiles.Layout.Cards}"
-                                                AutomationProperties.Name="{localization:Localize GameProfiles.Layout.Cards}">
-                                            <material:MaterialIcon Kind="ViewGrid" Width="16" Height="16"/>
-                                        </Button>
-                                    </StackPanel>
                                 </StackPanel>
 
                                 <!-- Loading UI -->
