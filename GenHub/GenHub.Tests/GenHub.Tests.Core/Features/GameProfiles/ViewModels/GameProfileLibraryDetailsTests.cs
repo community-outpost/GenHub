@@ -26,8 +26,6 @@ public class GameProfileLibraryDetailsTests
 
         Assert.Same(refreshed, item.LibraryProfile);
         Assert.Same(original, item.Profile);
-        Assert.Equal("Updated description", item.LibraryDescription);
-        Assert.True(item.HasLibraryDescription);
         Assert.Equal("Updated game name", item.LibraryGameName);
         Assert.Equal("Updated game name · v1.04", item.LibraryHeaderMetadata);
         Assert.Equal("-quickstart", item.LibraryArguments);
@@ -56,28 +54,22 @@ public class GameProfileLibraryDetailsTests
     }
 
     /// <summary>
-    /// Verifies that a custom description takes precedence over derived launch metadata.
+    /// Verifies that a saved custom description does not replace the generated card summary.
     /// </summary>
     [Fact]
-    public void LibraryDescription_PreservesCustomDescription()
+    public void SavedDescription_DoesNotReplaceGeneratedSummary()
     {
+        var generated = CreateItem(CreateProfile(string.Empty, string.Empty)).Description;
+
         var item = CreateItem(CreateProfile("My LAN configuration", string.Empty));
-        item.Description = "Derived game and publisher metadata";
 
-        Assert.Equal("My LAN configuration", item.LibraryDescription);
-    }
+        Assert.False(string.IsNullOrWhiteSpace(generated));
+        Assert.Equal(generated, item.Description);
+        Assert.DoesNotContain("My LAN configuration", item.Description, StringComparison.Ordinal);
 
-    /// <summary>
-    /// Verifies that generated launch metadata does not fill an empty description with repeated labels.
-    /// </summary>
-    [Fact]
-    public void LibraryDescription_DoesNotRepeatGeneratedGameAndVersionMetadata()
-    {
-        var item = CreateItem(CreateProfile(string.Empty, string.Empty));
-        item.Description = "PC · v1.04 · Zero Hour";
+        item.UpdateFromProfile(CreateProfile("Updated description", string.Empty));
 
-        Assert.False(item.HasLibraryDescription);
-        Assert.NotEqual(item.Description, item.LibraryDescription);
+        Assert.Equal(generated, item.Description);
     }
 
     /// <summary>

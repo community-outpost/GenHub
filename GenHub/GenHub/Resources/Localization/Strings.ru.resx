@@ -4579,9 +4579,6 @@
   <data name="Profiles.Settings.IconAndCover" xml:space="preserve">
     <value>Иконка и обложка</value>
   </data>
-  <data name="Profiles.Settings.LaunchOptions" xml:space="preserve">
-    <value>Параметры запуска</value>
-  </data>
   <data name="Profiles.Settings.ProfileCover" xml:space="preserve">
     <value>Обложка профиля</value>
   </data>
@@ -18628,9 +18625,6 @@ Error: не удалось: {3}
   </data>
   <data name="GameProfiles.Library.EmptyHelp" xml:space="preserve">
     <value>Создайте профиль или найдите установленные игры, чтобы начать.</value>
-  </data>
-  <data name="GameProfiles.Library.NoDescription" xml:space="preserve">
-    <value>У этого профиля пока нет описания.</value>
   </data>
   <data name="GameProfiles.Library.Running" xml:space="preserve">
     <value>Запущено</value>

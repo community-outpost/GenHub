@@ -62,27 +62,6 @@ public partial class GameProfileItemViewModel
     }
 
     /// <summary>
-    /// Gets the saved description without repeating generated game and version metadata.
-    /// </summary>
-    public string LibraryDescription
-    {
-        get
-        {
-            if (!string.IsNullOrWhiteSpace(LibraryProfile.Description))
-            {
-                return LibraryProfile.Description;
-            }
-
-            return GetLibraryText("GameProfiles.Library.NoDescription", "No description has been added to this profile.");
-        }
-    }
-
-    /// <summary>
-    /// Gets a value indicating whether the profile has a saved description worth displaying.
-    /// </summary>
-    public bool HasLibraryDescription => !string.IsNullOrWhiteSpace(LibraryProfile.Description);
-
-    /// <summary>
     /// Gets the current process/preparation state without claiming file validation.
     /// </summary>
     public string LibraryLaunchStatus
@@ -146,8 +125,6 @@ public partial class GameProfileItemViewModel
     {
         OnPropertyChanged(nameof(LibraryGameName));
         OnPropertyChanged(nameof(LibraryHeaderMetadata));
-        OnPropertyChanged(nameof(LibraryDescription));
-        OnPropertyChanged(nameof(HasLibraryDescription));
         OnPropertyChanged(nameof(LibraryLaunchStatus));
         OnPropertyChanged(nameof(LibraryLaunchMethod));
         OnPropertyChanged(nameof(LibraryArguments));

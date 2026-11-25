@@ -4579,9 +4579,6 @@ This will modify game files and configuration settings at:
   <data name="Profiles.Settings.IconAndCover" xml:space="preserve">
     <value>Icon &amp; Cover</value>
   </data>
-  <data name="Profiles.Settings.LaunchOptions" xml:space="preserve">
-    <value>Launch Options</value>
-  </data>
   <data name="Profiles.Settings.ProfileCover" xml:space="preserve">
     <value>Profile Cover</value>
   </data>
@@ -18687,9 +18684,6 @@ Mapped image texture reference</value>
   </data>
   <data name="GameProfiles.Library.EmptyHelp" xml:space="preserve">
     <value>Create a profile or scan for installed games to get started.</value>
-  </data>
-  <data name="GameProfiles.Library.NoDescription" xml:space="preserve">
-    <value>No description has been added to this profile.</value>
   </data>
   <data name="GameProfiles.Library.Running" xml:space="preserve">
     <value>Running</value>

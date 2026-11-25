@@ -4579,9 +4579,6 @@
   <data name="Profiles.Settings.IconAndCover" xml:space="preserve">
     <value>الأيقونة والغلاف</value>
   </data>
-  <data name="Profiles.Settings.LaunchOptions" xml:space="preserve">
-    <value>خيارات التشغيل</value>
-  </data>
   <data name="Profiles.Settings.ProfileCover" xml:space="preserve">
     <value>غلاف الملف الشخصي</value>
   </data>
@@ -18628,9 +18625,6 @@ Error: فشل: {3}
   </data>
   <data name="GameProfiles.Library.EmptyHelp" xml:space="preserve">
     <value>أنشئ ملف تعريف أو ابحث عن الألعاب المثبّتة للبدء.</value>
-  </data>
-  <data name="GameProfiles.Library.NoDescription" xml:space="preserve">
-    <value>لم تتم إضافة وصف إلى ملف التعريف هذا.</value>
   </data>
   <data name="GameProfiles.Library.Running" xml:space="preserve">
     <value>قيد التشغيل</value>

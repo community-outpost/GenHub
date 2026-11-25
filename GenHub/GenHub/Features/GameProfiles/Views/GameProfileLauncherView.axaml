@@ -158,11 +158,6 @@
                                     </Button.Flyout>
                                 </Button>
                             </Grid>
-                        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-                            <StackPanel Margin="30,22,30,30" DataContext="{Binding DisplayedProfile}" x:DataType="vm:GameProfileItemViewModel" IsVisible="{Binding HasLibraryDescription}">
-                                <TextBlock Text="{Binding LibraryDescription}" Classes="library-secondary"/>
-                            </StackPanel>
-                        </ScrollViewer>
                     </Grid>
             </Grid>
         </controls:SidebarLayout>
