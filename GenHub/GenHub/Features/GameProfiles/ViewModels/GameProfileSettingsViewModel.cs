@@ -1076,7 +1076,7 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
     /// </summary>
     partial void OnGameTypeFilterChanged(GameType value)
     {
-        RebuildProfileContentRows();
+        RebuildProfileContentRows(resort: true);
         if (IsInitializing)
         {
             return;

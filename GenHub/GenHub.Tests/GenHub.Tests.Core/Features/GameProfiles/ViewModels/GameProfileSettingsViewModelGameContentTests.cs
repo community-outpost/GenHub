@@ -348,6 +348,29 @@ public class GameProfileSettingsViewModelGameContentTests
     }
 
     /// <summary>
+    /// Verifies a game type change sorts the rows it shows again instead of appending new rows after the kept ones.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task SortOrder_GameTypeChange_SortsNewRowsWithKeptRowsAsync()
+    {
+        const string generalsMapId = "1.0.local.map.generalsmap";
+        AddCandidate(ContentType.Mod, GeneralsModId, GameType.Unknown, "D any game mod");
+        AddCandidate(ContentType.Map, generalsMapId, GameType.Generals, "0 generals map");
+        var viewModel = await CreateSortableViewModelAsync();
+        Assert.Equal([PatchId, ZeroHourModId, MapId, GeneralsModId], RowIds(viewModel.ProfileContentRows));
+        var reloadGate = new TaskCompletionSource<ObservableCollection<CoreContentDisplayItem>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        _loaderMock
+            .Setup(loader => loader.LoadAvailableContentAsync(It.IsAny<ContentType>(), It.IsAny<ObservableCollection<CoreContentDisplayItem>>(), It.IsAny<IEnumerable<string>>()))
+            .Returns(reloadGate.Task);
+
+        viewModel.GameTypeFilter = GameType.Generals;
+
+        Assert.Equal([generalsMapId, GeneralsModId], RowIds(viewModel.ProfileContentRows));
+        reloadGate.SetResult([]);
+    }
+
+    /// <summary>
     /// Verifies sorting by type is offered only while every type is shown, and a single-type filter falls back to name order.
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>

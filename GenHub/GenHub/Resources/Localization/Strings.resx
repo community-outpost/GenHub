@@ -3475,9 +3475,6 @@ Applied: {2} / {3} applicable fixes.</value>
   <data name="GameSettings.Category.Audio" xml:space="preserve">
     <value>Audio</value>
   </data>
-  <data name="GameSettings.Video.Title" xml:space="preserve">
-    <value>Video Settings</value>
-  </data>
   <data name="GameSettings.Video.Resolution" xml:space="preserve">
     <value>Resolution</value>
   </data>
@@ -3541,9 +3538,6 @@ Applied: {2} / {3} applicable fixes.</value>
   <data name="GameSettings.Video.ShowTrees" xml:space="preserve">
     <value>Show Trees</value>
   </data>
-  <data name="GameSettings.Audio.Title" xml:space="preserve">
-    <value>Audio Settings</value>
-  </data>
   <data name="GameSettings.Audio.AudioEnabled" xml:space="preserve">
     <value>Audio Enabled</value>
   </data>
@@ -3561,9 +3555,6 @@ Applied: {2} / {3} applicable fixes.</value>
   </data>
   <data name="GameSettings.Audio.AudioChannels" xml:space="preserve">
     <value>Audio Channels</value>
-  </data>
-  <data name="GameSettings.Controls.Title" xml:space="preserve">
-    <value>Controls &amp; Gameplay</value>
   </data>
   <data name="GameSettings.Controls.ScrollSpeed" xml:space="preserve">
     <value>Scroll Speed</value>
@@ -3591,9 +3582,6 @@ Applied: {2} / {3} applicable fixes.</value>
   </data>
   <data name="GameSettings.Controls.GameTimeFontSize" xml:space="preserve">
     <value>In-Game Clock Font Size</value>
-  </data>
-  <data name="GameSettings.Tsh.Title" xml:space="preserve">
-    <value>TheSuperHackers Settings</value>
   </data>
   <data name="GameSettings.Tsh.ArchiveReplays" xml:space="preserve">
     <value>Archive Replays</value>
@@ -3645,9 +3633,6 @@ Applied: {2} / {3} applicable fixes.</value>
   </data>
   <data name="GameSettings.Tsh.TransitionSpeed" xml:space="preserve">
     <value>Transition Speed</value>
-  </data>
-  <data name="GameSettings.Go.Title" xml:space="preserve">
-    <value>Generals Online Settings</value>
   </data>
   <data name="GameSettings.Go.AutoLogin" xml:space="preserve">
     <value>Auto Login</value>
@@ -5919,7 +5904,7 @@ When you use **Copy Profile**, GenHub duplicates your profile's content configur
     <value>**Content Workflow:**
 1. **Checklist:** The Content page lists the mods, maps, patches, add-ons and tools installed for the profile's game. Checked items are part of the profile.
 2. **Removing:** Unchecking an item removes it from this profile only. It stays in your library.
-3. **Filter, Sort and Refresh:** Narrow the list to one content type, sort it by name, release date, enabled items or type, or refresh it after installing something new.
+3. **Filter, Sort and Refresh:** Narrow the list to one content type, sort it by name, release date or enabled items, sort All content by type, or refresh it after installing something new.
 4. **Add Local:** Link external folders or archives without copying them into GenHub.
 
 The game installation and game client are chosen on the Game page.</value>

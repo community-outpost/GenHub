@@ -3475,9 +3475,6 @@
   <data name="GameSettings.Category.Audio" xml:space="preserve">
     <value>الصوت</value>
   </data>
-  <data name="GameSettings.Video.Title" xml:space="preserve">
-    <value>إعدادات الفيديو</value>
-  </data>
   <data name="GameSettings.Video.Resolution" xml:space="preserve">
     <value>دقة الشاشة</value>
   </data>
@@ -3541,9 +3538,6 @@
   <data name="GameSettings.Video.ShowTrees" xml:space="preserve">
     <value>إظهار الأشجار</value>
   </data>
-  <data name="GameSettings.Audio.Title" xml:space="preserve">
-    <value>إعدادات الصوت</value>
-  </data>
   <data name="GameSettings.Audio.AudioEnabled" xml:space="preserve">
     <value>تفعيل الصوت</value>
   </data>
@@ -3561,9 +3555,6 @@
   </data>
   <data name="GameSettings.Audio.AudioChannels" xml:space="preserve">
     <value>قنوات الصوت</value>
-  </data>
-  <data name="GameSettings.Controls.Title" xml:space="preserve">
-    <value>التحكم وأسلوب اللعب</value>
   </data>
   <data name="GameSettings.Controls.ScrollSpeed" xml:space="preserve">
     <value>سرعة التمرير</value>
@@ -3591,9 +3582,6 @@
   </data>
   <data name="GameSettings.Controls.GameTimeFontSize" xml:space="preserve">
     <value>حجم خط ساعة اللعبة</value>
-  </data>
-  <data name="GameSettings.Tsh.Title" xml:space="preserve">
-    <value>إعدادات TheSuperHackers</value>
   </data>
   <data name="GameSettings.Tsh.ArchiveReplays" xml:space="preserve">
     <value>أرشفة الإعادات</value>
@@ -3645,9 +3633,6 @@
   </data>
   <data name="GameSettings.Tsh.TransitionSpeed" xml:space="preserve">
     <value>سرعة الانتقال</value>
-  </data>
-  <data name="GameSettings.Go.Title" xml:space="preserve">
-    <value>إعدادات Generals Online</value>
   </data>
   <data name="GameSettings.Go.AutoLogin" xml:space="preserve">
     <value>تسجيل دخول تلقائي</value>
@@ -5916,7 +5901,7 @@
     <value>**سير عمل المحتوى:**
 1. **القائمة:** تعرض صفحة المحتوى التعديلات والخرائط والتصحيحات والإضافات والأدوات المثبتة للعبة الملف. العناصر المحددة جزء من الملف.
 2. **الإزالة:** إلغاء تحديد عنصر يزيله من هذا الملف فقط ويبقى في مكتبتك.
-3. **التصفية والترتيب والتحديث:** اقصر القائمة على نوع محتوى واحد، أو رتّبها حسب الاسم أو تاريخ الإصدار أو العناصر المفعّلة أو النوع، أو حدّثها بعد تثبيت شيء جديد.
+3. **التصفية والترتيب والتحديث:** اقصر القائمة على نوع محتوى واحد، أو رتّبها حسب الاسم أو تاريخ الإصدار أو العناصر المفعّلة، أو رتّب «كل المحتوى» حسب النوع، أو حدّثها بعد تثبيت شيء جديد.
 4. **إضافة محلي:** ربط المجلدات أو الأرشيفات الخارجية دون نسخها إلى GenHub.
 
 يتم اختيار نسخة اللعبة وعميل اللعبة في صفحة اللعبة.</value>

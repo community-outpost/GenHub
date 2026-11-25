@@ -3475,9 +3475,6 @@
   <data name="GameSettings.Category.Audio" xml:space="preserve">
     <value>Аудио</value>
   </data>
-  <data name="GameSettings.Video.Title" xml:space="preserve">
-    <value>Настройки видео</value>
-  </data>
   <data name="GameSettings.Video.Resolution" xml:space="preserve">
     <value>Разрешение</value>
   </data>
@@ -3541,9 +3538,6 @@
   <data name="GameSettings.Video.ShowTrees" xml:space="preserve">
     <value>Показывать деревья</value>
   </data>
-  <data name="GameSettings.Audio.Title" xml:space="preserve">
-    <value>Настройки звука</value>
-  </data>
   <data name="GameSettings.Audio.AudioEnabled" xml:space="preserve">
     <value>Звук включен</value>
   </data>
@@ -3561,9 +3555,6 @@
   </data>
   <data name="GameSettings.Audio.AudioChannels" xml:space="preserve">
     <value>Аудиоканалы</value>
-  </data>
-  <data name="GameSettings.Controls.Title" xml:space="preserve">
-    <value>Управление и игра</value>
   </data>
   <data name="GameSettings.Controls.ScrollSpeed" xml:space="preserve">
     <value>Скорость прокрутки</value>
@@ -3591,9 +3582,6 @@
   </data>
   <data name="GameSettings.Controls.GameTimeFontSize" xml:space="preserve">
     <value>Размер шрифта игровых часов</value>
-  </data>
-  <data name="GameSettings.Tsh.Title" xml:space="preserve">
-    <value>Настройки TheSuperHackers</value>
   </data>
   <data name="GameSettings.Tsh.ArchiveReplays" xml:space="preserve">
     <value>Архивировать повторы</value>
@@ -3645,9 +3633,6 @@
   </data>
   <data name="GameSettings.Tsh.TransitionSpeed" xml:space="preserve">
     <value>Скорость переходов</value>
-  </data>
-  <data name="GameSettings.Go.Title" xml:space="preserve">
-    <value>Настройки Generals Online</value>
   </data>
   <data name="GameSettings.Go.AutoLogin" xml:space="preserve">
     <value>Автоматический вход</value>
@@ -5916,7 +5901,7 @@
     <value>**Рабочий процесс контента:**
 1. **Список:** Страница «Контент» показывает моды, карты, патчи, дополнения и инструменты, установленные для игры профиля. Отмеченные элементы входят в профиль.
 2. **Удаление:** Снятие отметки убирает элемент только из этого профиля. Он остаётся в вашей библиотеке.
-3. **Фильтр, сортировка и обновление:** Оставьте в списке один тип контента, отсортируйте его по названию, дате выпуска, включённым элементам или типу, или обновите его после установки нового.
+3. **Фильтр, сортировка и обновление:** Оставьте в списке один тип контента, отсортируйте его по названию, дате выпуска или включённым элементам, отсортируйте «Весь контент» по типу, или обновите его после установки нового.
 4. **Добавить локальный:** Подключение внешних папок или архивов без копирования в GenHub.
 
 Установка игры и игровой клиент выбираются на странице «Игра».</value>
