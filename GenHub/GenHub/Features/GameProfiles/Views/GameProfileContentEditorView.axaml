@@ -100,37 +100,25 @@
                         <MenuFlyout>
                             <MenuItem Header="{localization:Localize GameProfiles.Content.SortByName}"
                                       Command="{Binding SetProfileContentSortCommand}"
-                                      CommandParameter="{x:Static vm:ProfileContentSortOrder.Name}">
-                                <MenuItem.Icon>
-                                    <material:MaterialIcon Kind="Check" Width="16" Height="16"
-                                                           IsVisible="{Binding SelectedProfileContentSort, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static vm:ProfileContentSortOrder.Name}}" />
-                                </MenuItem.Icon>
-                            </MenuItem>
+                                      CommandParameter="{x:Static vm:ProfileContentSortOrder.Name}"
+                                      ToggleType="Radio"
+                                      IsChecked="{Binding SelectedProfileContentSort, Mode=OneWay, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static vm:ProfileContentSortOrder.Name}}" />
                             <MenuItem Header="{localization:Localize GameProfiles.Content.SortByReleaseDate}"
                                       Command="{Binding SetProfileContentSortCommand}"
-                                      CommandParameter="{x:Static vm:ProfileContentSortOrder.ReleaseDate}">
-                                <MenuItem.Icon>
-                                    <material:MaterialIcon Kind="Check" Width="16" Height="16"
-                                                           IsVisible="{Binding SelectedProfileContentSort, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static vm:ProfileContentSortOrder.ReleaseDate}}" />
-                                </MenuItem.Icon>
-                            </MenuItem>
+                                      CommandParameter="{x:Static vm:ProfileContentSortOrder.ReleaseDate}"
+                                      ToggleType="Radio"
+                                      IsChecked="{Binding SelectedProfileContentSort, Mode=OneWay, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static vm:ProfileContentSortOrder.ReleaseDate}}" />
                             <MenuItem Header="{localization:Localize GameProfiles.Content.SortByEnabled}"
                                       Command="{Binding SetProfileContentSortCommand}"
-                                      CommandParameter="{x:Static vm:ProfileContentSortOrder.EnabledFirst}">
-                                <MenuItem.Icon>
-                                    <material:MaterialIcon Kind="Check" Width="16" Height="16"
-                                                           IsVisible="{Binding SelectedProfileContentSort, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static vm:ProfileContentSortOrder.EnabledFirst}}" />
-                                </MenuItem.Icon>
-                            </MenuItem>
+                                      CommandParameter="{x:Static vm:ProfileContentSortOrder.EnabledFirst}"
+                                      ToggleType="Radio"
+                                      IsChecked="{Binding SelectedProfileContentSort, Mode=OneWay, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static vm:ProfileContentSortOrder.EnabledFirst}}" />
                             <MenuItem Header="{localization:Localize GameProfiles.Content.SortByType}"
                                       Command="{Binding SetProfileContentSortCommand}"
                                       CommandParameter="{x:Static vm:ProfileContentSortOrder.Type}"
-                                      IsVisible="{Binding IsTypeSortAvailable}">
-                                <MenuItem.Icon>
-                                    <material:MaterialIcon Kind="Check" Width="16" Height="16"
-                                                           IsVisible="{Binding SelectedProfileContentSort, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static vm:ProfileContentSortOrder.Type}}" />
-                                </MenuItem.Icon>
-                            </MenuItem>
+                                      IsVisible="{Binding IsTypeSortAvailable}"
+                                      ToggleType="Radio"
+                                      IsChecked="{Binding SelectedProfileContentSort, Mode=OneWay, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static vm:ProfileContentSortOrder.Type}}" />
                         </MenuFlyout>
                     </Button.Flyout>
                 </Button>

@@ -514,11 +514,14 @@ public class GameProfileSettingsViewModelGameContentTests
     public async Task SetProfileContentSortCommand_SelectsOrderAsync(ProfileContentSortOrder order)
     {
         var viewModel = await CreateSortableViewModelAsync();
-        viewModel.SelectedProfileContentSort = order == ProfileContentSortOrder.Name ? ProfileContentSortOrder.Type : ProfileContentSortOrder.Name;
+        viewModel.SelectedProfileContentSort = order;
+        var expectedRows = RowIds(viewModel.ProfileContentRows);
+        viewModel.SelectedProfileContentSort = order == ProfileContentSortOrder.Name ? ProfileContentSortOrder.ReleaseDate : ProfileContentSortOrder.Name;
 
         viewModel.SetProfileContentSortCommand.Execute(order);
 
         Assert.Equal(order, viewModel.SelectedProfileContentSort);
+        Assert.Equal(expectedRows, RowIds(viewModel.ProfileContentRows));
     }
 
     /// <summary>

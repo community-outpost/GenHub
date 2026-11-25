@@ -7,7 +7,6 @@
     xmlns:localization="clr-namespace:GenHub.Common.Markup"
     xmlns:local="clr-namespace:GenHub.Features.GameProfiles.Views"
     xmlns:conv="clr-namespace:GenHub.Infrastructure.Converters"
-    xmlns:material="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
     mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="550"
     x:Class="GenHub.Features.GameProfiles.Views.GameProfileCardsView"
     x:Name="ProfileCards"

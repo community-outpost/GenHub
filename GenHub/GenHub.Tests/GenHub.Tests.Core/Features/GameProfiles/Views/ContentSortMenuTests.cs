@@ -1,6 +1,5 @@
 using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
-using Avalonia.LogicalTree;
 using Avalonia.Threading;
 using GenHub.Features.GameProfiles.ViewModels;
 using GenHub.Features.GameProfiles.Views;
@@ -66,5 +65,5 @@ public class ContentSortMenuTests
     }
 
     private static List<bool> CheckMarks(IEnumerable<MenuItem> items) =>
-        items.Select(item => Assert.IsType<MaterialIcon>(item.Icon).IsVisible).ToList();
+        items.Select(item => item.ToggleType == MenuItemToggleType.Radio && item.IsChecked).ToList();
 }
