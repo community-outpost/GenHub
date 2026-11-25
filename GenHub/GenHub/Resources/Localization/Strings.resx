@@ -3361,12 +3361,6 @@ Applied: {2} / {3} applicable fixes.</value>
   <data name="GameProfiles.General.ProfileNameWatermark" xml:space="preserve">
     <value>Enter profile name</value>
   </data>
-  <data name="GameProfiles.General.Description" xml:space="preserve">
-    <value>Description</value>
-  </data>
-  <data name="GameProfiles.General.DescriptionWatermark" xml:space="preserve">
-    <value>Optional description</value>
-  </data>
   <data name="GameProfiles.General.IconAndCover" xml:space="preserve">
     <value>Icon &amp; Cover</value>
   </data>
@@ -3452,7 +3446,7 @@ Applied: {2} / {3} applicable fixes.</value>
     <value>All content</value>
   </data>
   <data name="GameProfiles.Content.FilterLabel" xml:space="preserve">
-    <value>Content type</value>
+    <value>Content category</value>
   </data>
   <data name="GameProfiles.Content.Empty" xml:space="preserve">
     <value>No content found for this game.</value>
@@ -3480,18 +3474,6 @@ Applied: {2} / {3} applicable fixes.</value>
   </data>
   <data name="GameSettings.Category.Audio" xml:space="preserve">
     <value>Audio</value>
-  </data>
-  <data name="GameSettings.Category.Controls" xml:space="preserve">
-    <value>Controls</value>
-  </data>
-  <data name="GameSettings.Category.TheSuperHackers" xml:space="preserve">
-    <value>TheSuperHackers</value>
-  </data>
-  <data name="GameSettings.Category.GeneralsOnline" xml:space="preserve">
-    <value>Generals Online</value>
-  </data>
-  <data name="GameSettings.Video.Title" xml:space="preserve">
-    <value>Video Settings</value>
   </data>
   <data name="GameSettings.Video.Resolution" xml:space="preserve">
     <value>Resolution</value>
@@ -3556,9 +3538,6 @@ Applied: {2} / {3} applicable fixes.</value>
   <data name="GameSettings.Video.ShowTrees" xml:space="preserve">
     <value>Show Trees</value>
   </data>
-  <data name="GameSettings.Audio.Title" xml:space="preserve">
-    <value>Audio Settings</value>
-  </data>
   <data name="GameSettings.Audio.AudioEnabled" xml:space="preserve">
     <value>Audio Enabled</value>
   </data>
@@ -3576,9 +3555,6 @@ Applied: {2} / {3} applicable fixes.</value>
   </data>
   <data name="GameSettings.Audio.AudioChannels" xml:space="preserve">
     <value>Audio Channels</value>
-  </data>
-  <data name="GameSettings.Controls.Title" xml:space="preserve">
-    <value>Controls &amp; Gameplay</value>
   </data>
   <data name="GameSettings.Controls.ScrollSpeed" xml:space="preserve">
     <value>Scroll Speed</value>
@@ -3606,12 +3582,6 @@ Applied: {2} / {3} applicable fixes.</value>
   </data>
   <data name="GameSettings.Controls.GameTimeFontSize" xml:space="preserve">
     <value>In-Game Clock Font Size</value>
-  </data>
-  <data name="GameSettings.Tsh.Title" xml:space="preserve">
-    <value>TheSuperHackers Settings</value>
-  </data>
-  <data name="GameSettings.Tsh.GeneralFeatures" xml:space="preserve">
-    <value>General Features</value>
   </data>
   <data name="GameSettings.Tsh.ArchiveReplays" xml:space="preserve">
     <value>Archive Replays</value>
@@ -3646,9 +3616,6 @@ Applied: {2} / {3} applicable fixes.</value>
   <data name="GameSettings.Tsh.InWindowed" xml:space="preserve">
     <value>In Windowed</value>
   </data>
-  <data name="GameSettings.Tsh.InterfaceFontSizes" xml:space="preserve">
-    <value>Interface &amp; Font Sizes</value>
-  </data>
   <data name="GameSettings.Tsh.SystemTime" xml:space="preserve">
     <value>System Time Font Size</value>
   </data>
@@ -3667,12 +3634,6 @@ Applied: {2} / {3} applicable fixes.</value>
   <data name="GameSettings.Tsh.TransitionSpeed" xml:space="preserve">
     <value>Transition Speed</value>
   </data>
-  <data name="GameSettings.Go.Title" xml:space="preserve">
-    <value>Generals Online Settings</value>
-  </data>
-  <data name="GameSettings.Go.IdentityAndLogin" xml:space="preserve">
-    <value>Identity &amp; Login</value>
-  </data>
   <data name="GameSettings.Go.AutoLogin" xml:space="preserve">
     <value>Auto Login</value>
   </data>
@@ -3681,9 +3642,6 @@ Applied: {2} / {3} applicable fixes.</value>
   </data>
   <data name="GameSettings.Go.ShowRanks" xml:space="preserve">
     <value>Show Ranks</value>
-  </data>
-  <data name="GameSettings.Go.PerformanceAndVisuals" xml:space="preserve">
-    <value>Performance &amp; Visuals</value>
   </data>
   <data name="GameSettings.Go.FpsCap" xml:space="preserve">
     <value>FPS Cap</value>
@@ -3703,9 +3661,6 @@ Applied: {2} / {3} applicable fixes.</value>
   <data name="GameSettings.Go.EngineFpsLimit" xml:space="preserve">
     <value>Engine FPS Limit</value>
   </data>
-  <data name="GameSettings.Go.CameraSettings" xml:space="preserve">
-    <value>Camera Settings</value>
-  </data>
   <data name="GameSettings.Go.MinCameraHeight" xml:space="preserve">
     <value>Min Camera Height</value>
   </data>
@@ -3714,9 +3669,6 @@ Applied: {2} / {3} applicable fixes.</value>
   </data>
   <data name="GameSettings.Go.CameraMoveSpeed" xml:space="preserve">
     <value>Camera Move Speed</value>
-  </data>
-  <data name="GameSettings.Go.SocialAndNotifications" xml:space="preserve">
-    <value>Social &amp; Notifications</value>
   </data>
   <data name="GameSettings.Go.GlobalNotifications" xml:space="preserve">
     <value>Global Notifications</value>
@@ -4611,9 +4563,6 @@ This will modify game files and configuration settings at:
   </data>
   <data name="Profiles.Settings.IconAndCover" xml:space="preserve">
     <value>Icon &amp; Cover</value>
-  </data>
-  <data name="Profiles.Settings.LaunchOptions" xml:space="preserve">
-    <value>Launch Options</value>
   </data>
   <data name="Profiles.Settings.ProfileCover" xml:space="preserve">
     <value>Profile Cover</value>
@@ -5955,7 +5904,7 @@ When you use **Copy Profile**, GenHub duplicates your profile's content configur
     <value>**Content Workflow:**
 1. **Checklist:** The Content page lists the mods, maps, patches, add-ons and tools installed for the profile's game. Checked items are part of the profile.
 2. **Removing:** Unchecking an item removes it from this profile only. It stays in your library.
-3. **Filter and Refresh:** Narrow the list to one content type, or refresh it after installing something new.
+3. **Filter, Sort and Refresh:** Show only Mods, Maps, Addons or Tools, sort it by name, release date or enabled items, sort All content by type, or refresh it after installing something new.
 4. **Add Local:** Link external folders or archives without copying them into GenHub.
 
 The game installation and game client are chosen on the Game page.</value>
@@ -6062,11 +6011,11 @@ A profile is an independent configuration for your game. Instead of reinstalling
     <value>Profile Identity</value>
   </data>
   <data name="Info.Card.game-profile-settings.profile-identity.Content" xml:space="preserve">
-    <value>Name, description, and game installation.</value>
+    <value>Name and game installation.</value>
   </data>
   <data name="Info.Card.game-profile-settings.profile-identity.DetailedContent" xml:space="preserve">
     <value>**Naming Your Profile:**
-The General page holds the fields that identify one profile on the Game Profiles list: a display name and a longer description shown on the profile card.
+The General page holds the fields that identify one profile on the Game Profiles list: its display name.
 
 **Game Installation:**
 The Game page selects which detected game the profile launches (Steam, EA App, or disc) and which game client it uses. A profile uses one installation and one client. If picking an installation of the other game would remove content made for the current game, GenHub asks first, then removes that content.</value>
@@ -6092,10 +6041,10 @@ The swatch grid sets the profile accent color, applied to the editor header and 
   </data>
   <data name="Info.Card.game-profile-settings.profile-launch.DetailedContent" xml:space="preserve">
     <value>**Workspace Strategy:**
-The strategy picker chooses how the profile workspace links game files. The picker is locked while the profile's game is running. Strategy changes apply to the next workspace build.
+The strategy picker in the **Advanced** section of the General page chooses how the profile workspace links game files. The picker is locked while the profile's game is running. Strategy changes apply to the next workspace build.
 
 **Command-Line Arguments:**
-Extra arguments are passed straight to the game executable on launch, for example `-win` for windowed mode or `-quickstart` to skip intro videos.</value>
+Extra arguments, set in the same **Advanced** section, are passed straight to the game executable on launch, for example `-win` for windowed mode or `-quickstart` to skip intro videos.</value>
   </data>
   <data name="Info.Card.game-profile-settings.profile-launch.Action.NAV_INFO_workspaces" xml:space="preserve">
     <value>How workspaces work</value>
@@ -12133,9 +12082,6 @@ Then click the 'Submit' button at the bottom of the page! (GenHub requests exact
   </data>
   <data name="GameSettings.Video.SkipIntroToolTip" xml:space="preserve">
     <value>Skips EA logo introductory movie on game launch without permanently modifying game files.</value>
-  </data>
-  <data name="GameSettings.Camera.Title" xml:space="preserve">
-    <value>Camera Settings</value>
   </data>
   <data name="GameSettings.Camera.Height" xml:space="preserve">
     <value>Default Camera Height</value>
@@ -18724,9 +18670,6 @@ Mapped image texture reference</value>
   <data name="GameProfiles.Library.EmptyHelp" xml:space="preserve">
     <value>Create a profile or scan for installed games to get started.</value>
   </data>
-  <data name="GameProfiles.Library.NoDescription" xml:space="preserve">
-    <value>No description has been added to this profile.</value>
-  </data>
   <data name="GameProfiles.Library.Running" xml:space="preserve">
     <value>Running</value>
   </data>
@@ -18862,5 +18805,44 @@ Mapped image texture reference</value>
   </data>
   <data name="WorkspaceStrategy.FullCopy.Description" xml:space="preserve">
     <value>Copies every file into the workspace. Works everywhere but uses the most disk space.</value>
+  </data>
+  <data name="GameProfiles.General.Advanced" xml:space="preserve">
+    <value>Advanced</value>
+  </data>
+  <data name="GameProfiles.Content.SortLabel" xml:space="preserve">
+    <value>Sort by</value>
+  </data>
+  <data name="GameProfiles.Content.SortByName" xml:space="preserve">
+    <value>Name</value>
+  </data>
+  <data name="GameProfiles.Content.SortByReleaseDate" xml:space="preserve">
+    <value>Release date</value>
+  </data>
+  <data name="GameProfiles.Content.SortByEnabled" xml:space="preserve">
+    <value>Enabled first</value>
+  </data>
+  <data name="GameProfiles.Content.SortByType" xml:space="preserve">
+    <value>Type</value>
+  </data>
+  <data name="GameSettings.Section.Game" xml:space="preserve">
+    <value>Game</value>
+  </data>
+  <data name="GameSettings.Section.Camera" xml:space="preserve">
+    <value>Camera</value>
+  </data>
+  <data name="GameSettings.Section.Multiplayer" xml:space="preserve">
+    <value>Multiplayer</value>
+  </data>
+  <data name="GameSettings.Search.Watermark" xml:space="preserve">
+    <value>Search settings</value>
+  </data>
+  <data name="GameSettings.Search.Clear" xml:space="preserve">
+    <value>Clear search</value>
+  </data>
+  <data name="GameSettings.Search.NoResults" xml:space="preserve">
+    <value>No settings match your search</value>
+  </data>
+  <data name="GameProfiles.Content.EmptyGroup" xml:space="preserve">
+    <value>No content in this group for this game.</value>
   </data>
 </root>

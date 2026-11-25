@@ -27,34 +27,25 @@ public class GameProfileSettingsViewModelPageTests
     }
 
     /// <summary>
-    /// Verifies each page selects the matching tab and category.
+    /// Verifies each page selects the matching tab.
     /// </summary>
     /// <param name="page">The page to select.</param>
     /// <param name="tabIndex">The expected tab index.</param>
-    /// <param name="gameCategory">The expected game settings category, when the page is a game page.</param>
     [Theory]
-    [InlineData(ProfileSettingsPage.General, 1, null)]
-    [InlineData(ProfileSettingsPage.Appearance, 1, null)]
-    [InlineData(ProfileSettingsPage.Game, 0, null)]
-    [InlineData(ProfileSettingsPage.Content, 0, null)]
-    [InlineData(ProfileSettingsPage.Video, 2, SettingsCategory.Video)]
-    [InlineData(ProfileSettingsPage.Audio, 2, SettingsCategory.Audio)]
-    [InlineData(ProfileSettingsPage.Controls, 2, SettingsCategory.Controls)]
-    [InlineData(ProfileSettingsPage.TheSuperHackers, 2, SettingsCategory.TheSuperHackers)]
-    [InlineData(ProfileSettingsPage.GeneralsOnline, 2, SettingsCategory.GeneralsOnline)]
-    public void SelectPageCommand_MapsOntoTabAndCategory(ProfileSettingsPage page, int tabIndex, SettingsCategory? gameCategory)
+    [InlineData(ProfileSettingsPage.General, 1)]
+    [InlineData(ProfileSettingsPage.Appearance, 1)]
+    [InlineData(ProfileSettingsPage.Game, 0)]
+    [InlineData(ProfileSettingsPage.Content, 0)]
+    [InlineData(ProfileSettingsPage.GameSettings, 2)]
+    public void SelectPageCommand_MapsOntoTab(ProfileSettingsPage page, int tabIndex)
     {
         var viewModel = CreateViewModel();
-        viewModel.SelectedPage = page == ProfileSettingsPage.Video ? ProfileSettingsPage.Audio : ProfileSettingsPage.Video;
+        viewModel.SelectedPage = page == ProfileSettingsPage.GameSettings ? ProfileSettingsPage.Content : ProfileSettingsPage.GameSettings;
 
         viewModel.SelectPageCommand.Execute(page);
 
         Assert.Equal(page, viewModel.SelectedPage);
         Assert.Equal(tabIndex, viewModel.SelectedTabIndex);
-        if (gameCategory.HasValue)
-        {
-            Assert.Equal(gameCategory.Value, viewModel.GameSettingsViewModel.SelectedCategory);
-        }
     }
 
     /// <summary>
@@ -65,12 +56,11 @@ public class GameProfileSettingsViewModelPageTests
     [Theory]
     [InlineData(0, ProfileSettingsPage.Content)]
     [InlineData(1, ProfileSettingsPage.General)]
-    [InlineData(2, ProfileSettingsPage.Controls)]
+    [InlineData(2, ProfileSettingsPage.GameSettings)]
     public void SettingTabIndex_UpdatesSelectedPage(int tabIndex, ProfileSettingsPage expected)
     {
         var viewModel = CreateViewModel();
-        viewModel.SelectedPage = tabIndex == 2 ? ProfileSettingsPage.Appearance : ProfileSettingsPage.Controls;
-        viewModel.GameSettingsViewModel.SelectedCategory = SettingsCategory.Controls;
+        viewModel.SelectedPage = tabIndex == 2 ? ProfileSettingsPage.Appearance : ProfileSettingsPage.GameSettings;
 
         viewModel.SelectedTabIndex = tabIndex;
 
@@ -78,23 +68,54 @@ public class GameProfileSettingsViewModelPageTests
     }
 
     /// <summary>
-    /// Verifies a client page falls back to Video when that client stops applying to the profile.
+    /// Verifies the Game Settings page stays open when a client's options stop applying to the profile.
     /// </summary>
-    /// <param name="page">The client page that becomes hidden.</param>
-    [Theory]
-    [InlineData(ProfileSettingsPage.TheSuperHackers)]
-    [InlineData(ProfileSettingsPage.GeneralsOnline)]
-    public void HiddenClientPage_FallsBackToVideo(ProfileSettingsPage page)
+    [Fact]
+    public void ClientVisibilityChange_KeepsGameSettingsPage()
     {
         var viewModel = CreateViewModel();
         viewModel.GameSettingsViewModel.UpdateApplicableClientVisibility(isTheSuperHackers: true, isGeneralsOnline: true);
-        viewModel.SelectedPage = page;
+        viewModel.SelectedPage = ProfileSettingsPage.GameSettings;
 
         viewModel.GameSettingsViewModel.UpdateApplicableClientVisibility(isTheSuperHackers: false, isGeneralsOnline: false);
 
-        Assert.Equal(ProfileSettingsPage.Video, viewModel.SelectedPage);
-        Assert.Equal(SettingsCategory.Video, viewModel.GameSettingsViewModel.SelectedCategory);
+        Assert.Equal(ProfileSettingsPage.GameSettings, viewModel.SelectedPage);
         Assert.True(viewModel.IsGameSettingsTabVisible);
+        Assert.False(viewModel.GameSettingsViewModel.IsTheSuperHackersVisible);
+        Assert.False(viewModel.GameSettingsViewModel.IsGeneralsOnlineVisible);
+    }
+
+    /// <summary>
+    /// Verifies re-entering the Game Settings page clears the settings search.
+    /// </summary>
+    [Fact]
+    public void EnteringGameSettingsPage_ClearsSearchQuery()
+    {
+        var viewModel = CreateViewModel();
+        Assert.Equal(string.Empty, viewModel.GameSettingsViewModel.SearchQuery);
+        viewModel.SelectedPage = ProfileSettingsPage.GameSettings;
+        viewModel.GameSettingsViewModel.SearchQuery = "volume";
+        viewModel.SelectedPage = ProfileSettingsPage.Content;
+
+        viewModel.SelectPageCommand.Execute(ProfileSettingsPage.GameSettings);
+
+        Assert.Equal(string.Empty, viewModel.GameSettingsViewModel.SearchQuery);
+    }
+
+    /// <summary>
+    /// Verifies switching to the Game Settings tab directly, as the Info demo does, clears the settings search.
+    /// </summary>
+    [Fact]
+    public void SwitchingTabToGameSettings_ClearsSearchQuery()
+    {
+        var viewModel = CreateViewModel();
+        viewModel.SelectedPage = ProfileSettingsPage.Content;
+        viewModel.GameSettingsViewModel.SearchQuery = "volume";
+
+        viewModel.SelectedTabIndex = 2;
+
+        Assert.Equal(ProfileSettingsPage.GameSettings, viewModel.SelectedPage);
+        Assert.Equal(string.Empty, viewModel.GameSettingsViewModel.SearchQuery);
     }
 
     private static GameProfileSettingsViewModel CreateViewModel() =>

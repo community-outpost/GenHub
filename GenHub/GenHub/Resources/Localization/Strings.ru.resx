@@ -3361,12 +3361,6 @@
   <data name="GameProfiles.General.ProfileNameWatermark" xml:space="preserve">
     <value>Введите название профиля</value>
   </data>
-  <data name="GameProfiles.General.Description" xml:space="preserve">
-    <value>Описание</value>
-  </data>
-  <data name="GameProfiles.General.DescriptionWatermark" xml:space="preserve">
-    <value>Необязательное описание</value>
-  </data>
   <data name="GameProfiles.General.IconAndCover" xml:space="preserve">
     <value>Значок и обложка</value>
   </data>
@@ -3452,7 +3446,7 @@
     <value>Весь контент</value>
   </data>
   <data name="GameProfiles.Content.FilterLabel" xml:space="preserve">
-    <value>Тип контента</value>
+    <value>Категория контента</value>
   </data>
   <data name="GameProfiles.Content.Empty" xml:space="preserve">
     <value>Контент для этой игры не найден.</value>
@@ -3480,18 +3474,6 @@
   </data>
   <data name="GameSettings.Category.Audio" xml:space="preserve">
     <value>Аудио</value>
-  </data>
-  <data name="GameSettings.Category.Controls" xml:space="preserve">
-    <value>Управление</value>
-  </data>
-  <data name="GameSettings.Category.TheSuperHackers" xml:space="preserve">
-    <value>TheSuperHackers</value>
-  </data>
-  <data name="GameSettings.Category.GeneralsOnline" xml:space="preserve">
-    <value>Generals Online</value>
-  </data>
-  <data name="GameSettings.Video.Title" xml:space="preserve">
-    <value>Настройки видео</value>
   </data>
   <data name="GameSettings.Video.Resolution" xml:space="preserve">
     <value>Разрешение</value>
@@ -3556,9 +3538,6 @@
   <data name="GameSettings.Video.ShowTrees" xml:space="preserve">
     <value>Показывать деревья</value>
   </data>
-  <data name="GameSettings.Audio.Title" xml:space="preserve">
-    <value>Настройки звука</value>
-  </data>
   <data name="GameSettings.Audio.AudioEnabled" xml:space="preserve">
     <value>Звук включен</value>
   </data>
@@ -3576,9 +3555,6 @@
   </data>
   <data name="GameSettings.Audio.AudioChannels" xml:space="preserve">
     <value>Аудиоканалы</value>
-  </data>
-  <data name="GameSettings.Controls.Title" xml:space="preserve">
-    <value>Управление и игра</value>
   </data>
   <data name="GameSettings.Controls.ScrollSpeed" xml:space="preserve">
     <value>Скорость прокрутки</value>
@@ -3606,12 +3582,6 @@
   </data>
   <data name="GameSettings.Controls.GameTimeFontSize" xml:space="preserve">
     <value>Размер шрифта игровых часов</value>
-  </data>
-  <data name="GameSettings.Tsh.Title" xml:space="preserve">
-    <value>Настройки TheSuperHackers</value>
-  </data>
-  <data name="GameSettings.Tsh.GeneralFeatures" xml:space="preserve">
-    <value>Общие возможности</value>
   </data>
   <data name="GameSettings.Tsh.ArchiveReplays" xml:space="preserve">
     <value>Архивировать повторы</value>
@@ -3646,9 +3616,6 @@
   <data name="GameSettings.Tsh.InWindowed" xml:space="preserve">
     <value>В оконном режиме</value>
   </data>
-  <data name="GameSettings.Tsh.InterfaceFontSizes" xml:space="preserve">
-    <value>Интерфейс и размеры шрифтов</value>
-  </data>
   <data name="GameSettings.Tsh.SystemTime" xml:space="preserve">
     <value>Размер шрифта системного времени</value>
   </data>
@@ -3667,12 +3634,6 @@
   <data name="GameSettings.Tsh.TransitionSpeed" xml:space="preserve">
     <value>Скорость переходов</value>
   </data>
-  <data name="GameSettings.Go.Title" xml:space="preserve">
-    <value>Настройки Generals Online</value>
-  </data>
-  <data name="GameSettings.Go.IdentityAndLogin" xml:space="preserve">
-    <value>Профиль и вход</value>
-  </data>
   <data name="GameSettings.Go.AutoLogin" xml:space="preserve">
     <value>Автоматический вход</value>
   </data>
@@ -3681,9 +3642,6 @@
   </data>
   <data name="GameSettings.Go.ShowRanks" xml:space="preserve">
     <value>Показывать ранги</value>
-  </data>
-  <data name="GameSettings.Go.PerformanceAndVisuals" xml:space="preserve">
-    <value>Производительность и графика</value>
   </data>
   <data name="GameSettings.Go.FpsCap" xml:space="preserve">
     <value>Ограничение FPS</value>
@@ -3703,9 +3661,6 @@
   <data name="GameSettings.Go.EngineFpsLimit" xml:space="preserve">
     <value>Ограничение FPS движка</value>
   </data>
-  <data name="GameSettings.Go.CameraSettings" xml:space="preserve">
-    <value>Настройки камеры</value>
-  </data>
   <data name="GameSettings.Go.MinCameraHeight" xml:space="preserve">
     <value>Мин. высота камеры</value>
   </data>
@@ -3714,9 +3669,6 @@
   </data>
   <data name="GameSettings.Go.CameraMoveSpeed" xml:space="preserve">
     <value>Скорость перемещения камеры</value>
-  </data>
-  <data name="GameSettings.Go.SocialAndNotifications" xml:space="preserve">
-    <value>Общение и уведомления</value>
   </data>
   <data name="GameSettings.Go.GlobalNotifications" xml:space="preserve">
     <value>Глобальные уведомления</value>
@@ -4611,9 +4563,6 @@
   </data>
   <data name="Profiles.Settings.IconAndCover" xml:space="preserve">
     <value>Иконка и обложка</value>
-  </data>
-  <data name="Profiles.Settings.LaunchOptions" xml:space="preserve">
-    <value>Параметры запуска</value>
   </data>
   <data name="Profiles.Settings.ProfileCover" xml:space="preserve">
     <value>Обложка профиля</value>
@@ -5952,7 +5901,7 @@
     <value>**Рабочий процесс контента:**
 1. **Список:** Страница «Контент» показывает моды, карты, патчи, дополнения и инструменты, установленные для игры профиля. Отмеченные элементы входят в профиль.
 2. **Удаление:** Снятие отметки убирает элемент только из этого профиля. Он остаётся в вашей библиотеке.
-3. **Фильтр и обновление:** Оставьте в списке один тип контента или обновите его после установки нового.
+3. **Фильтр, сортировка и обновление:** Покажите только моды, карты, аддоны или инструменты, отсортируйте его по названию, дате выпуска или включённым элементам, отсортируйте «Весь контент» по типу, или обновите его после установки нового.
 4. **Добавить локальный:** Подключение внешних папок или архивов без копирования в GenHub.
 
 Установка игры и игровой клиент выбираются на странице «Игра».</value>
@@ -6060,11 +6009,11 @@ GenHub передает аргументы командной строки на�
     <value>Идентификация профиля</value>
   </data>
   <data name="Info.Card.game-profile-settings.profile-identity.Content" xml:space="preserve">
-    <value>Имя, описание и установка игры.</value>
+    <value>Имя и установка игры.</value>
   </data>
   <data name="Info.Card.game-profile-settings.profile-identity.DetailedContent" xml:space="preserve">
     <value>**Имя профиля:**
-Страница «Общие» содержит поля, идентифицирующие один профиль в списке: отображаемое имя и подробное описание на карточке профиля.
+Страница «Общие» содержит поля, идентифицирующие один профиль в списке: отображаемое имя.
 
 **Установка игры:**
 Страница «Игра» выбирает обнаруженную игру, которую запускает профиль (Steam, EA App или диск), и игровой клиент. Профиль использует одну установку и один клиент. Если выбор установки другой игры удалит контент для текущей игры, GenHub сначала запросит подтверждение, затем удалит этот контент.</value>
@@ -6090,10 +6039,10 @@ GenHub передает аргументы командной строки на�
   </data>
   <data name="Info.Card.game-profile-settings.profile-launch.DetailedContent" xml:space="preserve">
     <value>**Стратегия рабочей области:**
-Селектор стратегии выбирает, как рабочая область профиля связывает файлы игры. Селектор заблокирован, пока запущена игра профиля. Изменения стратегии применяются при следующей сборке рабочей области.
+Селектор стратегии в разделе **Дополнительно** страницы «Общие» выбирает, как рабочая область профиля связывает файлы игры. Селектор заблокирован, пока запущена игра профиля. Изменения стратегии применяются при следующей сборке рабочей области.
 
 **Аргументы командной строки:**
-Дополнительные аргументы передаются напрямую исполняемому файлу игры при запуске, например `-win` для оконного режима или `-quickstart` для пропуска вступительных роликов.</value>
+Дополнительные аргументы, заданные в том же разделе **Дополнительно**, передаются напрямую исполняемому файлу игры при запуске, например `-win` для оконного режима или `-quickstart` для пропуска вступительных роликов.</value>
   </data>
   <data name="Info.Card.game-profile-settings.profile-launch.Action.NAV_INFO_workspaces" xml:space="preserve">
     <value>Как работают рабочие области</value>
@@ -12075,9 +12024,6 @@ GenHub связывает запуск модификаций со Steam, отк
   </data>
   <data name="GameSettings.Video.SkipIntroToolTip" xml:space="preserve">
     <value>Пропускает вступительное видео с логотипом EA при запуске игры без изменения файлов игры.</value>
-  </data>
-  <data name="GameSettings.Camera.Title" xml:space="preserve">
-    <value>Настройки камеры</value>
   </data>
   <data name="GameSettings.Camera.Height" xml:space="preserve">
     <value>Высота камеры по умолчанию</value>
@@ -18665,9 +18611,6 @@ Error: не удалось: {3}
   <data name="GameProfiles.Library.EmptyHelp" xml:space="preserve">
     <value>Создайте профиль или найдите установленные игры, чтобы начать.</value>
   </data>
-  <data name="GameProfiles.Library.NoDescription" xml:space="preserve">
-    <value>У этого профиля пока нет описания.</value>
-  </data>
   <data name="GameProfiles.Library.Running" xml:space="preserve">
     <value>Запущено</value>
   </data>
@@ -18803,5 +18746,44 @@ Error: не удалось: {3}
   </data>
   <data name="WorkspaceStrategy.FullCopy.Description" xml:space="preserve">
     <value>Копирует каждый файл в рабочую область. Работает везде, но занимает больше всего места на диске.</value>
+  </data>
+  <data name="GameProfiles.General.Advanced" xml:space="preserve">
+    <value>Дополнительно</value>
+  </data>
+  <data name="GameProfiles.Content.SortLabel" xml:space="preserve">
+    <value>Сортировка</value>
+  </data>
+  <data name="GameProfiles.Content.SortByName" xml:space="preserve">
+    <value>Название</value>
+  </data>
+  <data name="GameProfiles.Content.SortByReleaseDate" xml:space="preserve">
+    <value>Дата выпуска</value>
+  </data>
+  <data name="GameProfiles.Content.SortByEnabled" xml:space="preserve">
+    <value>Сначала включённые</value>
+  </data>
+  <data name="GameProfiles.Content.SortByType" xml:space="preserve">
+    <value>Тип</value>
+  </data>
+  <data name="GameSettings.Section.Game" xml:space="preserve">
+    <value>Игра</value>
+  </data>
+  <data name="GameSettings.Section.Camera" xml:space="preserve">
+    <value>Камера</value>
+  </data>
+  <data name="GameSettings.Section.Multiplayer" xml:space="preserve">
+    <value>Сетевая игра</value>
+  </data>
+  <data name="GameSettings.Search.Watermark" xml:space="preserve">
+    <value>Поиск настроек</value>
+  </data>
+  <data name="GameSettings.Search.Clear" xml:space="preserve">
+    <value>Очистить поиск</value>
+  </data>
+  <data name="GameSettings.Search.NoResults" xml:space="preserve">
+    <value>Нет настроек, соответствующих запросу</value>
+  </data>
+  <data name="GameProfiles.Content.EmptyGroup" xml:space="preserve">
+    <value>В этой группе нет контента для этой игры.</value>
   </data>
 </root>

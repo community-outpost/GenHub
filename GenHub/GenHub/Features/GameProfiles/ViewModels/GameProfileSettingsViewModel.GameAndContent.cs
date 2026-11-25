@@ -22,6 +22,7 @@ public partial class GameProfileSettingsViewModel
 {
     private List<ContentDisplayItem> _profileContentCandidates = [];
     private int _profileContentCandidatesVersion;
+    private List<string> _profileContentOrder = [];
 
     [ObservableProperty]
     private ObservableCollection<ProfileContentRow> _gameInstallationRows = [];
@@ -35,28 +36,39 @@ public partial class GameProfileSettingsViewModel
     [ObservableProperty]
     private ProfileContentFilterOption _selectedProfileContentFilter = ProfileContentFilterOption.All;
 
+    [ObservableProperty]
+    private ProfileContentSortOrder _selectedProfileContentSort = ProfileContentSortOrder.Name;
+
+    /// <summary>
+    /// Gets the content types in each Content page group, in the order the type sort lists them.
+    /// </summary>
+    public static IReadOnlyDictionary<ProfileContentGroup, IReadOnlyList<ContentType>> ProfileContentGroupTypes { get; } =
+        new Dictionary<ProfileContentGroup, IReadOnlyList<ContentType>>
+        {
+            [ProfileContentGroup.Mods] = [ContentType.Mod],
+            [ProfileContentGroup.Maps] = [ContentType.Map, ContentType.MapPack, ContentType.Mission],
+            [ProfileContentGroup.Addons] = [ContentType.Addon, ContentType.Skin, ContentType.LanguagePack, ContentType.Patch],
+            [ProfileContentGroup.Tools] = [ContentType.ModdingTool, ContentType.Executable],
+        };
+
     /// <summary>
     /// Gets the content types listed on the Content page.
     /// </summary>
     public static IReadOnlyList<ContentType> ProfileContentTypes { get; } =
-    [
-        ContentType.Mod,
-        ContentType.Patch,
-        ContentType.Addon,
-        ContentType.Map,
-        ContentType.MapPack,
-        ContentType.Mission,
-        ContentType.LanguagePack,
-        ContentType.Skin,
-        ContentType.ModdingTool,
-        ContentType.Executable,
-    ];
+        [.. Enum.GetValues<ProfileContentGroup>().SelectMany(group => ProfileContentGroupTypes[group])];
 
     /// <summary>
-    /// Gets the choices of the Content page type filter.
+    /// Gets the choices of the Content page filter.
     /// </summary>
     public static IReadOnlyList<ProfileContentFilterOption> ProfileContentFilterOptions { get; } =
-        [ProfileContentFilterOption.All, .. ProfileContentTypes.Select(type => new ProfileContentFilterOption(type))];
+        [ProfileContentFilterOption.All, .. Enum.GetValues<ProfileContentGroup>().Select(group => new ProfileContentFilterOption(group))];
+
+    /// <summary>
+    /// Gets the orders the Content page sort menu offers; sorting by type needs all content shown.
+    /// The list is updated in place so the sort menu keeps its selection when the filter changes.
+    /// </summary>
+    public ObservableCollection<ProfileContentSortOrder> ProfileContentSortOptions { get; } =
+        [ProfileContentSortOrder.Name, ProfileContentSortOrder.ReleaseDate, ProfileContentSortOrder.EnabledFirst, ProfileContentSortOrder.Type];
 
     /// <summary>
     /// Gets a value indicating whether the Content page has no rows to show.
@@ -86,6 +98,24 @@ public partial class GameProfileSettingsViewModel
         .Select(item => (item.ManifestId.Value, item.ContentType)));
 
     /// <summary>
+    /// Gets the Content page group a content type belongs to.
+    /// </summary>
+    /// <param name="type">The content type.</param>
+    /// <returns>The group, or null when the type belongs to no group and only shows under all content.</returns>
+    public static ProfileContentGroup? GetProfileContentGroup(ContentType type)
+    {
+        foreach (var (group, types) in ProfileContentGroupTypes)
+        {
+            if (types.Contains(type))
+            {
+                return group;
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
     /// Loads every installation, client and content item the Game and Content pages can offer.
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
@@ -93,7 +123,7 @@ public partial class GameProfileSettingsViewModel
     {
         if (_profileContentLoader == null)
         {
-            RebuildProfileContentRows();
+            RebuildProfileContentRows(resort: true);
             return;
         }
 
@@ -145,13 +175,15 @@ public partial class GameProfileSettingsViewModel
             _notificationService?.ShowError(GetErrorLoadingContentTitle(), ex.Message);
         }
 
-        RebuildProfileContentRows();
+        RebuildProfileContentRows(resort: true);
     }
 
     /// <summary>
     /// Rebuilds the rows of the Game and Content pages from the current profile state.
+    /// Content rows keep their current order so a toggled row stays in place; new rows follow in sort order.
     /// </summary>
-    protected internal void RebuildProfileContentRows()
+    /// <param name="resort">Whether to order every Content row by the selected sort instead of keeping the current order.</param>
+    protected internal void RebuildProfileContentRows(bool resort = false)
     {
         var gameType = GameTypeFilter;
         var enabledById = new Dictionary<string, ContentDisplayItem>(StringComparer.OrdinalIgnoreCase);
@@ -173,16 +205,51 @@ public partial class GameProfileSettingsViewModel
             enabledById,
             item => item.ContentType == ContentType.GameClient && IsForGame(item, gameType)));
 
-        var filter = SelectedProfileContentFilter?.ContentType;
-        ProfileContentRows = new ObservableCollection<ProfileContentRow>(BuildRows(
-                enabledById,
-                item => item.ContentType is not (ContentType.GameInstallation or ContentType.GameClient) &&
-                        (filter == null || item.ContentType == filter) &&
-                        (enabledById.ContainsKey(item.ManifestId.Value) ||
-                         (ProfileContentTypes.Contains(item.ContentType) && IsForGame(item, gameType))))
-            .OrderBy(row => row.Item.DisplayName, StringComparer.CurrentCultureIgnoreCase));
+        var filter = SelectedProfileContentFilter?.Group;
+        var contentRows = BuildRows(
+            enabledById,
+            item => item.ContentType is not (ContentType.GameInstallation or ContentType.GameClient) &&
+                    (filter == null || GetProfileContentGroup(item.ContentType) == filter) &&
+                    (enabledById.ContainsKey(item.ManifestId.Value) ||
+                     (ProfileContentTypes.Contains(item.ContentType) && IsForGame(item, gameType))));
+        var orderedRows = OrderProfileContentRows(contentRows, resort);
+        _profileContentOrder = orderedRows.Select(row => row.Item.ManifestId.Value).ToList();
+        ProfileContentRows = new ObservableCollection<ProfileContentRow>(orderedRows);
         OnPropertyChanged(nameof(IsStandaloneToolProfile));
         OnPropertyChanged(nameof(CanSelectGameInstallation));
+    }
+
+    private static IEnumerable<ProfileContentRow> SortProfileContentRows(IEnumerable<ProfileContentRow> rows, ProfileContentSortOrder sort)
+    {
+        var byName = StringComparer.CurrentCultureIgnoreCase;
+        return sort switch
+        {
+            ProfileContentSortOrder.ReleaseDate => rows
+                .OrderBy(row => row.Item.ReleaseDate == null)
+                .ThenByDescending(row => row.Item.ReleaseDate)
+                .ThenBy(row => row.Item.DisplayName, byName),
+            ProfileContentSortOrder.EnabledFirst => rows
+                .OrderBy(row => !row.IsIncluded)
+                .ThenBy(row => row.Item.DisplayName, byName),
+            ProfileContentSortOrder.Type => rows
+                .OrderBy(row => GetProfileContentTypeRank(row.Item.ContentType))
+                .ThenBy(row => row.Item.DisplayName, byName),
+            _ => rows.OrderBy(row => row.Item.DisplayName, byName),
+        };
+    }
+
+    // ProfileContentTypes lists the groups in order and each group's types in order, so its index ranks group first, then type.
+    private static int GetProfileContentTypeRank(ContentType type)
+    {
+        for (var i = 0; i < ProfileContentTypes.Count; i++)
+        {
+            if (ProfileContentTypes[i] == type)
+            {
+                return i;
+            }
+        }
+
+        return ProfileContentTypes.Count;
     }
 
     private static string GetDisplayIdentity(ContentDisplayItem item) =>
@@ -222,9 +289,51 @@ public partial class GameProfileSettingsViewModel
         return rows;
     }
 
+    private List<ProfileContentRow> OrderProfileContentRows(List<ProfileContentRow> rows, bool resort)
+    {
+        var sort = SelectedProfileContentSort;
+        if (resort || _profileContentOrder.Count == 0)
+        {
+            return SortProfileContentRows(rows, sort).ToList();
+        }
+
+        var positions = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        for (var i = 0; i < _profileContentOrder.Count; i++)
+        {
+            positions.TryAdd(_profileContentOrder[i], i);
+        }
+
+        var kept = rows
+            .Where(row => positions.ContainsKey(row.Item.ManifestId.Value))
+            .OrderBy(row => positions[row.Item.ManifestId.Value]);
+        var added = SortProfileContentRows(rows.Where(row => !positions.ContainsKey(row.Item.ManifestId.Value)), sort);
+        return kept.Concat(added).ToList();
+    }
+
     partial void OnSelectedProfileContentFilterChanged(ProfileContentFilterOption value)
     {
-        RebuildProfileContentRows();
+        var showsAllContent = value?.IsAll != false;
+        if (!showsAllContent && SelectedProfileContentSort == ProfileContentSortOrder.Type)
+        {
+            SelectedProfileContentSort = ProfileContentSortOrder.Name;
+        }
+
+        if (showsAllContent && !ProfileContentSortOptions.Contains(ProfileContentSortOrder.Type))
+        {
+            ProfileContentSortOptions.Add(ProfileContentSortOrder.Type);
+        }
+        else if (!showsAllContent)
+        {
+            ProfileContentSortOptions.Remove(ProfileContentSortOrder.Type);
+        }
+
+        OnPropertyChanged(nameof(ProfileContentSortOptions));
+        RebuildProfileContentRows(resort: true);
+    }
+
+    partial void OnSelectedProfileContentSortChanged(ProfileContentSortOrder value)
+    {
+        RebuildProfileContentRows(resort: true);
     }
 
     partial void OnProfileContentRowsChanged(ObservableCollection<ProfileContentRow> value)

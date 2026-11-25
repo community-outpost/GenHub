@@ -80,11 +80,7 @@ public class GameProfileWindowLabelTests
             "GameProfiles.Navigation.Game",
             "GameProfiles.Navigation.Content",
             "GameProfiles.General.TabAppearance",
-            "GameSettings.Category.Video",
-            "GameSettings.Category.Audio",
-            "GameSettings.Category.Controls",
-            "GameSettings.Category.TheSuperHackers",
-            "GameSettings.Category.GeneralsOnline",
+            "GameProfiles.Navigation.GameSettings",
         ];
 
         WithLocalization(localization.Object, () =>
@@ -172,7 +168,7 @@ public class GameProfileWindowLabelTests
     }
 
     /// <summary>
-    /// Verifies the strategy description below the picker shows the new language without a new selection.
+    /// Verifies the Advanced section starts collapsed, and the strategy description in it shows the new language without a new selection.
     /// </summary>
     [AvaloniaFact]
     public void WorkspaceStrategyDescription_RefreshesWhenLanguageChanges()
@@ -200,6 +196,11 @@ public class GameProfileWindowLabelTests
 
             try
             {
+                var advanced = Assert.Single(view.GetLogicalDescendants().OfType<Expander>(), expander => expander.Name == "AdvancedSection");
+                Assert.False(advanced.IsExpanded);
+                advanced.IsExpanded = true;
+                Dispatcher.UIThread.RunJobs();
+
                 const string descriptionKey = "WorkspaceStrategy.HardLink.Description";
                 Assert.Single(DescriptionTexts(view), text => text.StartsWith("en:" + descriptionKey, StringComparison.Ordinal));
 

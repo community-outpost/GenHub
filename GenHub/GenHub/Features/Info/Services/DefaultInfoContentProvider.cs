@@ -277,11 +277,11 @@ public class DefaultInfoContentProvider : IInfoContentProvider
         [
             (InfoConstants.CardProfileSettingsIdentity,
              "Profile Identity",
-             "Name, description, and game installation.",
+             "Name and game installation.",
              InfoCardType.HowTo,
              """
              **Naming Your Profile:**
-             The Profile Settings tab holds the fields that identify one profile on the Game Profiles list: a display name and a longer description shown on the profile card.
+             The Profile Settings tab holds the fields that identify one profile on the Game Profiles list: its display name.
 
              **Game Installation:**
              The GameInstallation entries in the content tab's lists select which detected game the profile launches (Steam, EA App, or disc). Switching installations disables enabled content that does not match the new game type, so the profile can never launch with an incompatible mix.
@@ -303,10 +303,10 @@ public class DefaultInfoContentProvider : IInfoContentProvider
              InfoCardType.HowTo,
              """
              **Workspace Strategy:**
-             The strategy picker chooses how the profile workspace links game files. The picker is locked while the profile's game is running. Strategy changes apply to the next workspace build.
+             The strategy picker in the **Advanced** section of the General page chooses how the profile workspace links game files. The picker is locked while the profile's game is running. Strategy changes apply to the next workspace build.
 
              **Command-Line Arguments:**
-             Extra arguments are passed straight to the game executable on launch, for example `-win` for windowed mode or `-quickstart` to skip intro videos.
+             Extra arguments, set in the same **Advanced** section, are passed straight to the game executable on launch, for example `-win` for windowed mode or `-quickstart` to skip intro videos.
              """),
             (InfoConstants.CardProfileSettingsSaving,
              "Saving & Window Memory",
@@ -362,16 +362,16 @@ public class DefaultInfoContentProvider : IInfoContentProvider
                 {
                     Id = InfoConstants.CardSettingsDemo,
                     Title = "Interactive Demo: Settings Window",
-                    Content = "Live interactive game settings window with category navigation and live controls.",
+                    Content = "Live interactive game settings page with every option on one scrolling page.",
                     Type = InfoCardType.Example,
                     IsExpandable = true,
                     DetailedContent = """
                     **Interactive Game Settings Mockup:**
                     Test and explore all graphics, audio, control, and engine settings directly inside this live interactive window.
-                    * Select any category in the left sidebar to jump directly to its options.
+                    * Game Settings is one scrolling page with Video, Audio, Game, Camera and Multiplayer sections.
                     * Adjust resolution, windowed mode, sound channels, or camera heights.
-                    * Toggle community engine extensions from TheSuperHackers and Generals Online.
-                    * Click the top tabs (Content, Profile Settings, Game Settings) to navigate between guides.
+                    * TheSuperHackers and Generals Online rows appear only for profiles that use those clients.
+                    * Pick another page in the sidebar to jump to its guide.
                     """,
                 },
                 new InfoCard
@@ -596,7 +596,7 @@ public class DefaultInfoContentProvider : IInfoContentProvider
                     **Content Workflow:**
                     1. **Checklist:** The Content page lists the mods, maps, patches, add-ons and tools installed for the profile's game. Checked items are part of the profile.
                     2. **Removing:** Unchecking an item removes it from this profile only. It stays in your library.
-                    3. **Filter and Refresh:** Narrow the list to one content type, or refresh it after installing something new.
+                    3. **Filter, Sort and Refresh:** Show only Mods, Maps, Addons or Tools, sort it by name, release date or enabled items, sort All content by type, or refresh it after installing something new.
                     4. **Add Local:** Link external folders or archives without copying them into GenHub.
 
                     The game installation and game client are chosen on the Game page.

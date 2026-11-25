@@ -3361,12 +3361,6 @@
   <data name="GameProfiles.General.ProfileNameWatermark" xml:space="preserve">
     <value>أدخل اسم الملف الشخصي</value>
   </data>
-  <data name="GameProfiles.General.Description" xml:space="preserve">
-    <value>الوصف</value>
-  </data>
-  <data name="GameProfiles.General.DescriptionWatermark" xml:space="preserve">
-    <value>وصف اختياري</value>
-  </data>
   <data name="GameProfiles.General.IconAndCover" xml:space="preserve">
     <value>الأيقونة والغلاف</value>
   </data>
@@ -3452,7 +3446,7 @@
     <value>كل المحتوى</value>
   </data>
   <data name="GameProfiles.Content.FilterLabel" xml:space="preserve">
-    <value>نوع المحتوى</value>
+    <value>فئة المحتوى</value>
   </data>
   <data name="GameProfiles.Content.Empty" xml:space="preserve">
     <value>لم يتم العثور على محتوى لهذه اللعبة.</value>
@@ -3480,18 +3474,6 @@
   </data>
   <data name="GameSettings.Category.Audio" xml:space="preserve">
     <value>الصوت</value>
-  </data>
-  <data name="GameSettings.Category.Controls" xml:space="preserve">
-    <value>التحكم</value>
-  </data>
-  <data name="GameSettings.Category.TheSuperHackers" xml:space="preserve">
-    <value>TheSuperHackers</value>
-  </data>
-  <data name="GameSettings.Category.GeneralsOnline" xml:space="preserve">
-    <value>Generals Online</value>
-  </data>
-  <data name="GameSettings.Video.Title" xml:space="preserve">
-    <value>إعدادات الفيديو</value>
   </data>
   <data name="GameSettings.Video.Resolution" xml:space="preserve">
     <value>دقة الشاشة</value>
@@ -3556,9 +3538,6 @@
   <data name="GameSettings.Video.ShowTrees" xml:space="preserve">
     <value>إظهار الأشجار</value>
   </data>
-  <data name="GameSettings.Audio.Title" xml:space="preserve">
-    <value>إعدادات الصوت</value>
-  </data>
   <data name="GameSettings.Audio.AudioEnabled" xml:space="preserve">
     <value>تفعيل الصوت</value>
   </data>
@@ -3576,9 +3555,6 @@
   </data>
   <data name="GameSettings.Audio.AudioChannels" xml:space="preserve">
     <value>قنوات الصوت</value>
-  </data>
-  <data name="GameSettings.Controls.Title" xml:space="preserve">
-    <value>التحكم وأسلوب اللعب</value>
   </data>
   <data name="GameSettings.Controls.ScrollSpeed" xml:space="preserve">
     <value>سرعة التمرير</value>
@@ -3606,12 +3582,6 @@
   </data>
   <data name="GameSettings.Controls.GameTimeFontSize" xml:space="preserve">
     <value>حجم خط ساعة اللعبة</value>
-  </data>
-  <data name="GameSettings.Tsh.Title" xml:space="preserve">
-    <value>إعدادات TheSuperHackers</value>
-  </data>
-  <data name="GameSettings.Tsh.GeneralFeatures" xml:space="preserve">
-    <value>ميزات عامة</value>
   </data>
   <data name="GameSettings.Tsh.ArchiveReplays" xml:space="preserve">
     <value>أرشفة الإعادات</value>
@@ -3646,9 +3616,6 @@
   <data name="GameSettings.Tsh.InWindowed" xml:space="preserve">
     <value>في وضع النافذة</value>
   </data>
-  <data name="GameSettings.Tsh.InterfaceFontSizes" xml:space="preserve">
-    <value>الواجهة وأحجام الخطوط</value>
-  </data>
   <data name="GameSettings.Tsh.SystemTime" xml:space="preserve">
     <value>حجم خط وقت النظام</value>
   </data>
@@ -3667,12 +3634,6 @@
   <data name="GameSettings.Tsh.TransitionSpeed" xml:space="preserve">
     <value>سرعة الانتقال</value>
   </data>
-  <data name="GameSettings.Go.Title" xml:space="preserve">
-    <value>إعدادات Generals Online</value>
-  </data>
-  <data name="GameSettings.Go.IdentityAndLogin" xml:space="preserve">
-    <value>الهوية وتسجيل الدخول</value>
-  </data>
   <data name="GameSettings.Go.AutoLogin" xml:space="preserve">
     <value>تسجيل دخول تلقائي</value>
   </data>
@@ -3681,9 +3642,6 @@
   </data>
   <data name="GameSettings.Go.ShowRanks" xml:space="preserve">
     <value>إظهار الرتب</value>
-  </data>
-  <data name="GameSettings.Go.PerformanceAndVisuals" xml:space="preserve">
-    <value>الأداء والرسوميات</value>
   </data>
   <data name="GameSettings.Go.FpsCap" xml:space="preserve">
     <value>الحد الأقصى للإطارات</value>
@@ -3703,9 +3661,6 @@
   <data name="GameSettings.Go.EngineFpsLimit" xml:space="preserve">
     <value>حد إطارات المحرك</value>
   </data>
-  <data name="GameSettings.Go.CameraSettings" xml:space="preserve">
-    <value>إعدادات الكاميرا</value>
-  </data>
   <data name="GameSettings.Go.MinCameraHeight" xml:space="preserve">
     <value>الحد الأدنى لارتفاع الكاميرا</value>
   </data>
@@ -3714,9 +3669,6 @@
   </data>
   <data name="GameSettings.Go.CameraMoveSpeed" xml:space="preserve">
     <value>سرعة تحريك الكاميرا</value>
-  </data>
-  <data name="GameSettings.Go.SocialAndNotifications" xml:space="preserve">
-    <value>التواصل والإشعارات</value>
   </data>
   <data name="GameSettings.Go.GlobalNotifications" xml:space="preserve">
     <value>إشعارات عامة</value>
@@ -4611,9 +4563,6 @@
   </data>
   <data name="Profiles.Settings.IconAndCover" xml:space="preserve">
     <value>الأيقونة والغلاف</value>
-  </data>
-  <data name="Profiles.Settings.LaunchOptions" xml:space="preserve">
-    <value>خيارات التشغيل</value>
   </data>
   <data name="Profiles.Settings.ProfileCover" xml:space="preserve">
     <value>غلاف الملف الشخصي</value>
@@ -5952,7 +5901,7 @@
     <value>**سير عمل المحتوى:**
 1. **القائمة:** تعرض صفحة المحتوى التعديلات والخرائط والتصحيحات والإضافات والأدوات المثبتة للعبة الملف. العناصر المحددة جزء من الملف.
 2. **الإزالة:** إلغاء تحديد عنصر يزيله من هذا الملف فقط ويبقى في مكتبتك.
-3. **التصفية والتحديث:** اقصر القائمة على نوع محتوى واحد، أو حدّثها بعد تثبيت شيء جديد.
+3. **التصفية والترتيب والتحديث:** اعرض التعديلات أو الخرائط أو الإضافات أو الأدوات فقط، أو رتّبها حسب الاسم أو تاريخ الإصدار أو العناصر المفعّلة، أو رتّب «كل المحتوى» حسب النوع، أو حدّثها بعد تثبيت شيء جديد.
 4. **إضافة محلي:** ربط المجلدات أو الأرشيفات الخارجية دون نسخها إلى GenHub.
 
 يتم اختيار نسخة اللعبة وعميل اللعبة في صفحة اللعبة.</value>
@@ -6060,11 +6009,11 @@
     <value>هوية الملف</value>
   </data>
   <data name="Info.Card.game-profile-settings.profile-identity.Content" xml:space="preserve">
-    <value>الاسم والوصف ونسخة اللعبة.</value>
+    <value>الاسم ونسخة اللعبة.</value>
   </data>
   <data name="Info.Card.game-profile-settings.profile-identity.DetailedContent" xml:space="preserve">
     <value>**تسمية ملف التعريف:**
-تحمل الصفحة العامة الحقول التي تميز ملفاً واحداً في قائمة ملفات اللعبة: اسم عرض ووصف أطول يظهر على بطاقة الملف.
+تحمل الصفحة العامة الحقول التي تميز ملفاً واحداً في قائمة ملفات اللعبة: اسم العرض.
 
 **نسخة اللعبة:**
 تحدد صفحة اللعبة نسخة اللعبة المكتشفة التي يشغلها الملف (Steam أو EA App أو القرص) وعميل اللعبة الذي يستخدمه. يستخدم الملف نسخة واحدة وعميلاً واحداً. إذا كان اختيار نسخة للعبة الأخرى سيزيل محتوى مخصصاً للعبة الحالية، يطلب GenHub التأكيد أولاً، ثم يزيل ذلك المحتوى.</value>
@@ -6090,10 +6039,10 @@
   </data>
   <data name="Info.Card.game-profile-settings.profile-launch.DetailedContent" xml:space="preserve">
     <value>**استراتيجية مساحة العمل:**
-يحدد المنتقي كيفية ربط مساحة عمل الملف لملفات اللعبة. يُقفل المنتقي أثناء تشغيل لعبة الملف. تُطبق تغييرات الاستراتيجية على بناء مساحة العمل التالي.
+يحدد المنتقي في قسم **متقدم** من الصفحة العامة كيفية ربط مساحة عمل الملف لملفات اللعبة. يُقفل المنتقي أثناء تشغيل لعبة الملف. تُطبق تغييرات الاستراتيجية على بناء مساحة العمل التالي.
 
 **وسائط سطر الأوامر:**
-تُمرر الوسائط الإضافية مباشرة إلى ملف اللعبة التنفيذي عند التشغيل، مثل `-win` لوضع النافذة أو `-quickstart` لتخطي مقاطع المقدمة.</value>
+تُمرر الوسائط الإضافية، المضبوطة في قسم **متقدم** نفسه، مباشرة إلى ملف اللعبة التنفيذي عند التشغيل، مثل `-win` لوضع النافذة أو `-quickstart` لتخطي مقاطع المقدمة.</value>
   </data>
   <data name="Info.Card.game-profile-settings.profile-launch.Action.NAV_INFO_workspaces" xml:space="preserve">
     <value>كيف تعمل مساحات العمل</value>
@@ -12075,9 +12024,6 @@
   </data>
   <data name="GameSettings.Video.SkipIntroToolTip" xml:space="preserve">
     <value>يتخطى الفيديو التمهيدي لشعار EA عند بدء تشغيل اللعبة دون تعديل ملفات اللعبة بشكل دائم.</value>
-  </data>
-  <data name="GameSettings.Camera.Title" xml:space="preserve">
-    <value>إعدادات الكاميرا</value>
   </data>
   <data name="GameSettings.Camera.Height" xml:space="preserve">
     <value>ارتفاع الكاميرا الافتراضي</value>
@@ -18665,9 +18611,6 @@ Error: فشل: {3}
   <data name="GameProfiles.Library.EmptyHelp" xml:space="preserve">
     <value>أنشئ ملف تعريف أو ابحث عن الألعاب المثبّتة للبدء.</value>
   </data>
-  <data name="GameProfiles.Library.NoDescription" xml:space="preserve">
-    <value>لم تتم إضافة وصف إلى ملف التعريف هذا.</value>
-  </data>
   <data name="GameProfiles.Library.Running" xml:space="preserve">
     <value>قيد التشغيل</value>
   </data>
@@ -18803,5 +18746,44 @@ Error: فشل: {3}
   </data>
   <data name="WorkspaceStrategy.FullCopy.Description" xml:space="preserve">
     <value>ينسخ كل ملف إلى مساحة العمل. يعمل في كل مكان لكنه يستخدم أكبر مساحة على القرص.</value>
+  </data>
+  <data name="GameProfiles.General.Advanced" xml:space="preserve">
+    <value>متقدم</value>
+  </data>
+  <data name="GameProfiles.Content.SortLabel" xml:space="preserve">
+    <value>ترتيب حسب</value>
+  </data>
+  <data name="GameProfiles.Content.SortByName" xml:space="preserve">
+    <value>الاسم</value>
+  </data>
+  <data name="GameProfiles.Content.SortByReleaseDate" xml:space="preserve">
+    <value>تاريخ الإصدار</value>
+  </data>
+  <data name="GameProfiles.Content.SortByEnabled" xml:space="preserve">
+    <value>المفعّل أولاً</value>
+  </data>
+  <data name="GameProfiles.Content.SortByType" xml:space="preserve">
+    <value>النوع</value>
+  </data>
+  <data name="GameSettings.Section.Game" xml:space="preserve">
+    <value>اللعبة</value>
+  </data>
+  <data name="GameSettings.Section.Camera" xml:space="preserve">
+    <value>الكاميرا</value>
+  </data>
+  <data name="GameSettings.Section.Multiplayer" xml:space="preserve">
+    <value>اللعب الجماعي</value>
+  </data>
+  <data name="GameSettings.Search.Watermark" xml:space="preserve">
+    <value>البحث في الإعدادات</value>
+  </data>
+  <data name="GameSettings.Search.Clear" xml:space="preserve">
+    <value>مسح البحث</value>
+  </data>
+  <data name="GameSettings.Search.NoResults" xml:space="preserve">
+    <value>لا توجد إعدادات تطابق بحثك</value>
+  </data>
+  <data name="GameProfiles.Content.EmptyGroup" xml:space="preserve">
+    <value>لا يوجد محتوى في هذه المجموعة لهذه اللعبة.</value>
   </data>
 </root>

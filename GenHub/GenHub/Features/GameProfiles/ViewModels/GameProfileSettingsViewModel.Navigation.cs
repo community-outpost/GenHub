@@ -1,5 +1,4 @@
 using CommunityToolkit.Mvvm.Input;
-using System.ComponentModel;
 
 namespace GenHub.Features.GameProfiles.ViewModels;
 
@@ -37,25 +36,6 @@ public partial class GameProfileSettingsViewModel
         _ => GameSettingsTabIndex,
     };
 
-    private static ProfileSettingsPage GetPage(SettingsCategory category) => category switch
-    {
-        SettingsCategory.Audio => ProfileSettingsPage.Audio,
-        SettingsCategory.Controls => ProfileSettingsPage.Controls,
-        SettingsCategory.TheSuperHackers => ProfileSettingsPage.TheSuperHackers,
-        SettingsCategory.GeneralsOnline => ProfileSettingsPage.GeneralsOnline,
-        _ => ProfileSettingsPage.Video,
-    };
-
-    private static SettingsCategory? GetCategory(ProfileSettingsPage page) => page switch
-    {
-        ProfileSettingsPage.Video => SettingsCategory.Video,
-        ProfileSettingsPage.Audio => SettingsCategory.Audio,
-        ProfileSettingsPage.Controls => SettingsCategory.Controls,
-        ProfileSettingsPage.TheSuperHackers => SettingsCategory.TheSuperHackers,
-        ProfileSettingsPage.GeneralsOnline => SettingsCategory.GeneralsOnline,
-        _ => null,
-    };
-
     [RelayCommand]
     private void SelectPage(ProfileSettingsPage page)
     {
@@ -64,14 +44,15 @@ public partial class GameProfileSettingsViewModel
 
     private void ApplySelectedPage(ProfileSettingsPage page)
     {
+        if (page == ProfileSettingsPage.GameSettings)
+        {
+            GameSettingsViewModel.SearchQuery = string.Empty;
+        }
+
         _isSyncingPage = true;
         try
         {
             SelectedTabIndex = GetTabIndex(page);
-            if (GetCategory(page) is { } category)
-            {
-                GameSettingsViewModel.SelectedCategory = category;
-            }
         }
         finally
         {
@@ -92,8 +73,13 @@ public partial class GameProfileSettingsViewModel
         {
             ContentTabIndex => ProfileSettingsPage.Content,
             ProfileTabIndex => ProfileSettingsPage.General,
-            _ => GetPage(GameSettingsViewModel.SelectedCategory),
+            _ => ProfileSettingsPage.GameSettings,
         };
+
+        if (page == ProfileSettingsPage.GameSettings && _selectedPage != ProfileSettingsPage.GameSettings)
+        {
+            GameSettingsViewModel.SearchQuery = string.Empty;
+        }
 
         SetProperty(ref _selectedPage, page, nameof(SelectedPage));
     }
@@ -101,13 +87,5 @@ public partial class GameProfileSettingsViewModel
     partial void OnSelectedTabIndexChanged(int value)
     {
         SyncPageFromState();
-    }
-
-    private void OnGameSettingsPropertyChanged(object? sender, PropertyChangedEventArgs e)
-    {
-        if (e.PropertyName == nameof(GameSettingsViewModel.SelectedCategory) && SelectedTabIndex == GameSettingsTabIndex)
-        {
-            SyncPageFromState();
-        }
     }
 }

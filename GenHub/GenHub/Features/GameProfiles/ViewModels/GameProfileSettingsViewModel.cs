@@ -183,7 +183,6 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
             NullLogger<NotificationItemViewModel>.Instance);
 
         GameSettingsViewModel = new GameSettingsViewModel(gameSettingsService!, gameSettingsLogger!, notificationService, localizationService);
-        GameSettingsViewModel.PropertyChanged += OnGameSettingsPropertyChanged;
 
         WeakReferenceMessenger.Default.Register<Core.Models.Content.ContentAcquiredMessage>(this);
         WeakReferenceMessenger.Default.Register<ManifestReplacedMessage>(this);
@@ -1077,7 +1076,7 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
     /// </summary>
     partial void OnGameTypeFilterChanged(GameType value)
     {
-        RebuildProfileContentRows();
+        RebuildProfileContentRows(resort: true);
         if (IsInitializing)
         {
             return;

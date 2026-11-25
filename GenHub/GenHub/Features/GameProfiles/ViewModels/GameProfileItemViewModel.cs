@@ -952,13 +952,6 @@ public partial class GameProfileItemViewModel : ViewModelBase
 
     private void UpdateDescription(GameProfile gameProfile)
     {
-        // Use actual profile description if available
-        if (!string.IsNullOrEmpty(gameProfile.Description))
-        {
-            Description = gameProfile.Description;
-            return;
-        }
-
         // 1. Extract Installation Source
         string installationSource = string.Empty;
 
