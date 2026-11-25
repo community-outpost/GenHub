@@ -87,7 +87,8 @@
                         Classes="action-secondary library-action"
                         Margin="8,0,0,0"
                         VerticalAlignment="Stretch"
-                        AutomationProperties.Name="{localization:Localize GameProfiles.Content.SortLabel}">
+                        AutomationProperties.Name="{localization:Localize GameProfiles.Content.SortLabel}"
+                        AutomationProperties.HelpText="{Binding SelectedProfileContentSort, Converter={x:Static conv:LocalizedProfileContentSortOrderConverter.Instance}}">
                     <ToolTip.Tip>
                         <StackPanel Orientation="Horizontal" Spacing="4">
                             <TextBlock Text="{localization:Localize GameProfiles.Content.SortLabel}" />

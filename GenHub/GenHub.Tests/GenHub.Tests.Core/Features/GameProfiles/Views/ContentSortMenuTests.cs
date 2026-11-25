@@ -1,12 +1,15 @@
+using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
 using Avalonia.Threading;
 using GenHub.Features.GameProfiles.ViewModels;
 using GenHub.Features.GameProfiles.Views;
 using GenHub.Features.Info.ViewModels;
+using GenHub.Infrastructure.Converters;
 using Material.Icons;
 using Material.Icons.Avalonia;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using Xunit;
 
@@ -45,12 +48,14 @@ public class ContentSortMenuTests
                 items.Select(item => (ProfileContentSortOrder)item.CommandParameter!));
             Assert.Equal([true, false, false, false], CheckMarks(items));
             Assert.True(items[3].IsVisible);
+            Assert.Equal(SortLabel(ProfileContentSortOrder.Name), AutomationProperties.GetHelpText(button));
 
             items[1].Command!.Execute(items[1].CommandParameter);
             Dispatcher.UIThread.RunJobs();
 
             Assert.Equal(ProfileContentSortOrder.ReleaseDate, viewModel.SelectedProfileContentSort);
             Assert.Equal([false, true, false, false], CheckMarks(items));
+            Assert.Equal(SortLabel(ProfileContentSortOrder.ReleaseDate), AutomationProperties.GetHelpText(button));
 
             viewModel.SelectedProfileContentFilter = new ProfileContentFilterOption(ProfileContentGroup.Maps);
             Dispatcher.UIThread.RunJobs();
@@ -63,6 +68,9 @@ public class ContentSortMenuTests
             window.Close();
         }
     }
+
+    private static string? SortLabel(ProfileContentSortOrder order) =>
+        LocalizedProfileContentSortOrderConverter.Instance.Convert(order, typeof(string), null, CultureInfo.InvariantCulture) as string;
 
     private static List<bool> CheckMarks(IEnumerable<MenuItem> items) =>
         items.Select(item => item.ToggleType == MenuItemToggleType.Radio && item.IsChecked).ToList();
