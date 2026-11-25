@@ -72,7 +72,7 @@ public partial class GameProfileSettingsViewModel
     /// Gets the orders the Content page sort menu offers; sorting by type needs every type shown.
     /// </summary>
     public IReadOnlyList<ProfileContentSortOrder> ProfileContentSortOptions =>
-        SelectedProfileContentFilter?.IsAll != false ? AllProfileContentSortOptions : SingleTypeProfileContentSortOptions;
+        SelectedProfileContentFilter is null || SelectedProfileContentFilter.IsAll ? AllProfileContentSortOptions : SingleTypeProfileContentSortOptions;
 
     /// <summary>
     /// Gets a value indicating whether the Content page has no rows to show.

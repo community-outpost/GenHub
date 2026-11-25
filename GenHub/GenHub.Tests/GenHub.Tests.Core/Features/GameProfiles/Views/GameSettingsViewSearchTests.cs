@@ -97,6 +97,33 @@ public class GameSettingsViewSearchTests
     }
 
     /// <summary>
+    /// Verifies matching follows the UI language's casing rules, not the regional format culture.
+    /// </summary>
+    [AvaloniaFact]
+    public void Search_UsesUiCultureCasing_WhenRegionalCultureDiffers()
+    {
+        var originalCulture = CultureInfo.CurrentCulture;
+        var originalUiCulture = CultureInfo.CurrentUICulture;
+        try
+        {
+            CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo("tr-TR");
+            CultureInfo.CurrentUICulture = CultureInfo.GetCultureInfo("en-US");
+
+            WithSettingsView(string.Empty, isTheSuperHackers: true, isGeneralsOnline: false, (view, settings) =>
+            {
+                Search(settings, "in fullscreen");
+
+                Assert.Contains("In Fullscreen", VisibleRowLabels(view));
+            });
+        }
+        finally
+        {
+            CultureInfo.CurrentCulture = originalCulture;
+            CultureInfo.CurrentUICulture = originalUiCulture;
+        }
+    }
+
+    /// <summary>
     /// Verifies search never shows a row that the profile's game client hides.
     /// </summary>
     [AvaloniaFact]

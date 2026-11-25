@@ -53,9 +53,7 @@ public partial class GameSettingsView : UserControl
     internal void ApplySearch(string? query)
     {
         var trimmed = query?.Trim() ?? string.Empty;
-        var rows = new List<SearchRow>();
-        var section = new SearchGroup(null, string.Empty, string.Empty);
-        Collect(SettingsRows, ref section, null, rows);
+        var rows = CollectRows(SettingsRows);
 
         var groups = rows.SelectMany(row => new[] { row.Section, row.SubGroup }).OfType<SearchGroup>().Distinct().ToList();
         foreach (var group in groups)
@@ -108,7 +106,7 @@ public partial class GameSettingsView : UserControl
 
     private static bool Contains(string text, string query) =>
         text.Length > 0 &&
-        CultureInfo.CurrentCulture.CompareInfo.IndexOf(text.Trim(), query, CompareOptions.IgnoreCase) >= 0;
+        CultureInfo.CurrentUICulture.CompareInfo.IndexOf(text.Trim(), query, CompareOptions.IgnoreCase) >= 0;
 
     private static string GetHeaderText(Control control) => control switch
     {
@@ -116,6 +114,14 @@ public partial class GameSettingsView : UserControl
         Panel panel => panel.Children.OfType<TextBlock>().FirstOrDefault(text => text.Classes.Contains(SectionHeaderClass))?.Text ?? string.Empty,
         _ => string.Empty,
     };
+
+    private static List<SearchRow> CollectRows(Panel container)
+    {
+        var rows = new List<SearchRow>();
+        var section = new SearchGroup(null, string.Empty, string.Empty);
+        Collect(container, ref section, null, rows);
+        return rows;
+    }
 
     private static void Collect(Panel container, ref SearchGroup section, SearchGroup? subGroup, List<SearchRow> rows)
     {
