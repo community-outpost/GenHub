@@ -12,6 +12,18 @@
 
     <UserControl.Resources>
         <conv:EqualityConverter x:Key="EqualityConverter" />
+        <DataTemplate x:Key="ProfileContentSortOrderTemplate" x:DataType="vm:ProfileContentSortOrder">
+            <Panel>
+                <TextBlock Text="{localization:Localize GameProfiles.Content.SortByName}"
+                           IsVisible="{Binding Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static vm:ProfileContentSortOrder.Name}}" />
+                <TextBlock Text="{localization:Localize GameProfiles.Content.SortByReleaseDate}"
+                           IsVisible="{Binding Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static vm:ProfileContentSortOrder.ReleaseDate}}" />
+                <TextBlock Text="{localization:Localize GameProfiles.Content.SortByEnabled}"
+                           IsVisible="{Binding Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static vm:ProfileContentSortOrder.EnabledFirst}}" />
+                <TextBlock Text="{localization:Localize GameProfiles.Content.SortByType}"
+                           IsVisible="{Binding Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static vm:ProfileContentSortOrder.Type}}" />
+            </Panel>
+        </DataTemplate>
     </UserControl.Resources>
 
     <UserControl.Styles>
@@ -73,19 +85,18 @@
                           ToolTip.Tip="{localization:Localize GameProfiles.Content.SortLabel}"
                           AutomationProperties.Name="{localization:Localize GameProfiles.Content.SortLabel}">
                     <ComboBox.ItemTemplate>
-                        <DataTemplate x:DataType="vm:ProfileContentSortOrder">
-                            <Panel>
-                                <TextBlock Text="{localization:Localize GameProfiles.Content.SortByName}"
-                                           IsVisible="{Binding Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static vm:ProfileContentSortOrder.Name}}" />
-                                <TextBlock Text="{localization:Localize GameProfiles.Content.SortByReleaseDate}"
-                                           IsVisible="{Binding Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static vm:ProfileContentSortOrder.ReleaseDate}}" />
-                                <TextBlock Text="{localization:Localize GameProfiles.Content.SortByEnabled}"
-                                           IsVisible="{Binding Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static vm:ProfileContentSortOrder.EnabledFirst}}" />
-                                <TextBlock Text="{localization:Localize GameProfiles.Content.SortByType}"
-                                           IsVisible="{Binding Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static vm:ProfileContentSortOrder.Type}}" />
-                            </Panel>
-                        </DataTemplate>
+                        <StaticResource ResourceKey="ProfileContentSortOrderTemplate" />
                     </ComboBox.ItemTemplate>
+                    <ComboBox.SelectionBoxItemTemplate>
+                        <DataTemplate x:DataType="vm:ProfileContentSortOrder">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <TextBlock Text="{localization:Localize GameProfiles.Content.SortLabel}"
+                                           Foreground="{DynamicResource TextSecondaryBrush}" />
+                                <ContentControl Content="{Binding}"
+                                                ContentTemplate="{StaticResource ProfileContentSortOrderTemplate}" />
+                            </StackPanel>
+                        </DataTemplate>
+                    </ComboBox.SelectionBoxItemTemplate>
                 </ComboBox>
                 <Button Grid.Column="2"
                         Classes="icon-action"
