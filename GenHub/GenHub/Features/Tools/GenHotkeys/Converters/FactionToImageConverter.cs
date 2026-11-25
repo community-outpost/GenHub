@@ -9,7 +9,7 @@ using System.IO;
 namespace GenHub.Features.Tools.GenHotkeys.Converters;
 
 /// <summary>
-/// Converts a faction or faction group string to the corresponding authentic transparent faction logo <see cref="Bitmap"/>.
+/// Converts a faction or faction group string to its corresponding emblem <see cref="Bitmap"/>.
 /// </summary>
 public class FactionToImageConverter : IValueConverter
 {
@@ -24,8 +24,9 @@ public class FactionToImageConverter : IValueConverter
         {
             HotkeyFaction faction => faction.FactionGroup,
             string s => s,
-            _ => HotkeyFaction.UsaGroup,
+            _ => null,
         };
+        group ??= parameter as string ?? HotkeyFaction.UsaGroup;
 
         if (string.Equals(group, HotkeyFaction.ChinaGroup, StringComparison.OrdinalIgnoreCase))
         {
@@ -46,11 +47,11 @@ public class FactionToImageConverter : IValueConverter
         throw new NotSupportedException();
     }
 
-    private static Bitmap? LoadAssetBitmap(string filename)
+    private static Bitmap? LoadAssetBitmap(string fileName)
     {
         try
         {
-            using var stream = GenHotkeysAssetLoader.TryOpenFactionIconStream(filename);
+            using var stream = GenHotkeysAssetLoader.TryOpenFactionIconStream(fileName);
             if (stream != null)
             {
                 return new Bitmap(stream);
@@ -58,7 +59,7 @@ public class FactionToImageConverter : IValueConverter
         }
         catch (Exception ex) when (ex is IOException or ArgumentException or NotSupportedException)
         {
-            // Fall back to null if resource cannot be loaded
+            // Fall through
         }
 
         return null;

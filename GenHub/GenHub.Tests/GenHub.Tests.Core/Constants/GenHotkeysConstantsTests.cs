@@ -71,4 +71,16 @@ public class GenHotkeysConstantsTests
 
         Assert.Equal("!Hotkeys_Hotkeys_ZH.big", fileName);
     }
+
+    /// <summary>
+    /// Verifies that RetailActionToTooltipMap maps Inferno Cannon correctly to its tooltip label.
+    /// </summary>
+    [Fact]
+    public void RetailActionToTooltipMap_ContainsInfernoCannon()
+    {
+        Assert.True(GenHotkeysConstants.RetailActionToTooltipMap.TryGetValue(
+            GenHotkeysConstants.CsfLabels.ConstructChinaVehicleInfernoCannon,
+            out var tooltipKey));
+        Assert.Equal("CONTROLBAR:ToolTipChinaBuildInfernoCannon", tooltipKey);
+    }
 }

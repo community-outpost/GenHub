@@ -152,6 +152,65 @@ public class HotkeyProfileStorageServiceTests : IDisposable
     }
 
     /// <summary>
+    /// Verifies that NormalizeComparers handles case-colliding keys without throwing ArgumentException.
+    /// </summary>
+    [Fact]
+    public void NormalizeComparers_WithCaseCollisions_DoesNotThrow()
+    {
+        var profile = new HotkeyProfile();
+        var dictWithCollision = new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["CONTROLBAR:ToolTipStop"] = "Stop Desc 1",
+            ["controlbar:tooltipstop"] = "Stop Desc 2",
+        };
+        profile.TooltipMappings = dictWithCollision;
+
+        var ex = Record.Exception(() => profile.NormalizeComparers());
+        Assert.Null(ex);
+        Assert.True(profile.TooltipMappings.ContainsKey("CONTROLBAR:ToolTipStop"));
+    }
+
+    /// <summary>
+    /// Verifies that NormalizeComparers preserves collection instances if they are already case-insensitive.
+    /// </summary>
+    [Fact]
+    public void NormalizeComparers_WhenAlreadyCaseInsensitive_PreservesInstances()
+    {
+        var profile = new HotkeyProfile();
+        var origKeyMappings = profile.KeyMappings;
+        var origTitleMappings = profile.TitleMappings;
+        var origTooltipMappings = profile.TooltipMappings;
+
+        profile.NormalizeComparers();
+
+        Assert.Same(origKeyMappings, profile.KeyMappings);
+        Assert.Same(origTitleMappings, profile.TitleMappings);
+        Assert.Same(origTooltipMappings, profile.TooltipMappings);
+    }
+
+    /// <summary>
+    /// Verifies that CreateSnapshot produces an isolated copy with case-insensitive collections.
+    /// </summary>
+    [Fact]
+    public void CreateSnapshot_CreatesIndependentSnapshot()
+    {
+        var profile = new HotkeyProfile { Name = "Original" };
+        profile.KeyMappings["Action1"] = 'A';
+        profile.TitleMappings["Action1"] = "Title1";
+
+        var snapshot = profile.CreateSnapshot();
+
+        Assert.Equal("Original", snapshot.Name);
+        Assert.NotSame(profile.KeyMappings, snapshot.KeyMappings);
+        Assert.NotSame(profile.TitleMappings, snapshot.TitleMappings);
+        Assert.Equal('A', snapshot.KeyMappings["action1"]);
+        Assert.Equal("Title1", snapshot.TitleMappings["action1"]);
+
+        profile.KeyMappings["Action1"] = 'B';
+        Assert.Equal('A', snapshot.KeyMappings["Action1"]);
+    }
+
+    /// <summary>
     /// Cleans up managed resources.
     /// </summary>
     /// <param name="disposing">Whether disposing.</param>

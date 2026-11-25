@@ -27,6 +27,9 @@ public partial class HotkeyGameObjectViewModel : ObservableObject
     private Bitmap? _iconBitmap;
 
     [ObservableProperty]
+    private string? _customImagePath;
+
+    [ObservableProperty]
     private bool _hasConflicts;
 
     /// <summary>Gets the list of command layouts (each layout is a collection of action buttons).</summary>

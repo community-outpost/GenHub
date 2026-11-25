@@ -365,11 +365,22 @@ public class TechTreeService(ILogger<TechTreeService> logger) : ITechTreeService
             }
         }
 
+        var (tooltipLabel, tooltipText, hasRetailSlot) = HotkeyTooltipResolver.ResolveTooltip(
+            actJson.HotkeyString,
+            actJson.IconName,
+            actJson.TooltipString,
+            refCsf);
+
         return new HotkeyAction
         {
             IconName = actJson.IconName,
             HotkeyString = actJson.HotkeyString,
+            TooltipString = tooltipLabel,
+            HasRetailTooltipSlot = hasRetailSlot,
             DisplayName = actDisplayName,
+            DefaultDisplayName = actDisplayName,
+            Tooltip = tooltipText,
+            DefaultTooltip = tooltipText,
             DefaultHotkey = defaultHk,
             Hotkey = defaultHk,
         };
