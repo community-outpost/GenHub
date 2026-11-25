@@ -21,6 +21,8 @@ using GenHub.Features.GameProfiles.ViewModels;
 using GenHub.Features.GameProfiles.Views;
 using GenHub.Features.Settings.ViewModels;
 using GenHub.Features.Settings.Views;
+using Material.Icons;
+using Material.Icons.Avalonia;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
@@ -81,16 +83,16 @@ public class GameProfileLayoutTests
     }
 
     /// <summary>
-    /// Verifies that the toggle command switches the layout and saves it.
+    /// Verifies that choosing a layout option switches the layout and saves it.
     /// </summary>
     /// <returns>A task representing the asynchronous test operation.</returns>
     [Fact]
-    public async Task SetProfileLayoutCommand_SwitchesAndPersistsLayoutAsync()
+    public async Task SelectedProfileLayoutOption_SwitchesAndPersistsLayoutAsync()
     {
         var settings = new UserSettings();
         var vm = CreateViewModel(CreateSettingsService(settings).Object);
 
-        vm.SetProfileLayoutCommand.Execute(ProfileLayout.Cards);
+        vm.SelectedProfileLayoutOption = vm.AvailableProfileLayouts.Single(option => option.Layout == ProfileLayout.Cards);
         await WaitForAsync(() => settings.ProfileLayout == ProfileLayout.Cards);
 
         Assert.True(vm.IsCardLayout);
@@ -147,10 +149,10 @@ public class GameProfileLayoutTests
     }
 
     /// <summary>
-    /// Verifies that both layouts offer list and grid toggles bound to the layout command, with the active one marked.
+    /// Verifies that neither layout offers its own list and grid toggles, since the layout is chosen in settings.
     /// </summary>
     [AvaloniaFact]
-    public void LayoutToggles_BindCommandAndMarkActiveLayout()
+    public void Layouts_DoNotShowLayoutToggles()
     {
         var vm = CreateViewModel(null);
         var view = new GameProfileLauncherView { DataContext = vm };
@@ -159,18 +161,13 @@ public class GameProfileLayoutTests
         {
             window.Show();
             Dispatcher.UIThread.RunJobs();
-            var library = view.GetVisualDescendants().OfType<SidebarLayout>().Single();
-            var libraryToggles = GetToggles(library);
+            Assert.Empty(GetLayoutIcons(view));
 
-            AssertToggles(vm, libraryToggles, ProfileLayout.Library);
-
-            var cardsToggle = libraryToggles.Single(toggle => Equals(toggle.CommandParameter, ProfileLayout.Cards));
-            cardsToggle.Command!.Execute(cardsToggle.CommandParameter);
+            vm.ProfileLayout = ProfileLayout.Cards;
             Dispatcher.UIThread.RunJobs();
-            var cards = view.GetVisualDescendants().OfType<GameProfileCardsView>().Single();
 
-            AssertToggles(vm, GetToggles(cards), ProfileLayout.Cards);
-            AssertToggles(vm, libraryToggles, ProfileLayout.Cards);
+            Assert.NotEmpty(view.GetVisualDescendants().OfType<GameProfileCardsView>());
+            Assert.Empty(GetLayoutIcons(view));
         }
         finally
         {
@@ -260,16 +257,8 @@ public class GameProfileLayoutTests
         }
     }
 
-    private static List<Button> GetToggles(Control root) =>
-        root.GetVisualDescendants().OfType<Button>().Where(button => button.Classes.Contains("layout-toggle")).ToList();
-
-    private static void AssertToggles(GameProfileLauncherViewModel vm, List<Button> toggles, ProfileLayout active)
-    {
-        Assert.Equal(2, toggles.Count);
-        Assert.All(toggles, toggle => Assert.Same(vm.SetProfileLayoutCommand, toggle.Command));
-        Assert.Equal([ProfileLayout.Library, ProfileLayout.Cards], toggles.Select(toggle => (ProfileLayout)toggle.CommandParameter!));
-        Assert.All(toggles, toggle => Assert.Equal(Equals(toggle.CommandParameter, active), toggle.Classes.Contains("selected")));
-    }
+    private static List<MaterialIcon> GetLayoutIcons(Control root) =>
+        root.GetVisualDescendants().OfType<MaterialIcon>().Where(icon => icon.Kind is MaterialIconKind.ViewList or MaterialIconKind.ViewGrid).ToList();
 
     private static async Task WaitForAsync(Func<bool> condition)
     {

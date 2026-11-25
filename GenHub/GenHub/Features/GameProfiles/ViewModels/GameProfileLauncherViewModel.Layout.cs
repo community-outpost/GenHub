@@ -1,5 +1,4 @@
 using CommunityToolkit.Mvvm.ComponentModel;
-using CommunityToolkit.Mvvm.Input;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Models.Enums;
 using Microsoft.Extensions.Logging;
@@ -66,9 +65,6 @@ public partial class GameProfileLauncherViewModel
             _ = PersistProfileLayoutAsync(userSettingsService, value);
         }
     }
-
-    [RelayCommand]
-    private void SetProfileLayout(ProfileLayout layout) => ProfileLayout = layout;
 
     private void LoadProfileLayout(IUserSettingsService settingsService)
     {
