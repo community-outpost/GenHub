@@ -70,7 +70,14 @@
                         <DataTemplate x:DataType="vm:ProfileContentFilterOption">
                             <Panel>
                                 <TextBlock Text="{localization:Localize GameProfiles.Content.FilterAll}" IsVisible="{Binding IsAll}" />
-                                <TextBlock Text="{Binding ContentType, Converter={x:Static conv:ContentTypeDisplayConverter.Instance}}" IsVisible="{Binding !IsAll}" />
+                                <TextBlock Text="{localization:Localize Downloads.Filter.Mods}"
+                                           IsVisible="{Binding Group, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static vm:ProfileContentGroup.Mods}}" />
+                                <TextBlock Text="{localization:Localize Downloads.Browser.Filter.Category.Maps}"
+                                           IsVisible="{Binding Group, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static vm:ProfileContentGroup.Maps}}" />
+                                <TextBlock Text="{localization:Localize Downloads.Filter.Addons}"
+                                           IsVisible="{Binding Group, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static vm:ProfileContentGroup.Addons}}" />
+                                <TextBlock Text="{localization:Localize Downloads.Browser.Filter.Category.Tools}"
+                                           IsVisible="{Binding Group, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static vm:ProfileContentGroup.Tools}}" />
                             </Panel>
                         </DataTemplate>
                     </ComboBox.ItemTemplate>
@@ -122,8 +129,23 @@
             <Border x:Name="ContentChecklist" Classes="section-card">
                 <StackPanel>
                     <TextBlock Classes="row-hint" Margin="20,16"
-                               Text="{localization:Localize GameProfiles.Content.Empty}"
-                               IsVisible="{Binding IsProfileContentEmpty}" />
+                               Text="{localization:Localize GameProfiles.Content.Empty}">
+                        <TextBlock.IsVisible>
+                            <MultiBinding Converter="{x:Static BoolConverters.And}">
+                                <Binding Path="IsProfileContentEmpty" />
+                                <Binding Path="SelectedProfileContentFilter.IsAll" FallbackValue="True" />
+                            </MultiBinding>
+                        </TextBlock.IsVisible>
+                    </TextBlock>
+                    <TextBlock Classes="row-hint" Margin="20,16"
+                               Text="{localization:Localize GameProfiles.Content.EmptyGroup}">
+                        <TextBlock.IsVisible>
+                            <MultiBinding Converter="{x:Static BoolConverters.And}">
+                                <Binding Path="IsProfileContentEmpty" />
+                                <Binding Path="!SelectedProfileContentFilter.IsAll" FallbackValue="False" />
+                            </MultiBinding>
+                        </TextBlock.IsVisible>
+                    </TextBlock>
                     <ItemsControl ItemsSource="{Binding ProfileContentRows}">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate x:DataType="vm:ProfileContentRow">

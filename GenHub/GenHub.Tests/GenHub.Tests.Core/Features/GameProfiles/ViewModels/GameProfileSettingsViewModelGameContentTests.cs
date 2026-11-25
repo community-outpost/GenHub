@@ -91,7 +91,7 @@ public class GameProfileSettingsViewModelGameContentTests
         Assert.Equal(Sorted(MapId, PatchId, ZeroHourModId), Sorted([.. RowIds(viewModel.ProfileContentRows)]));
         Assert.DoesNotContain(viewModel.ProfileContentRows, row => row.Item.ContentType is ContentType.GameClient or ContentType.GameInstallation);
 
-        viewModel.SelectedProfileContentFilter = new ProfileContentFilterOption(ContentType.Map);
+        viewModel.SelectedProfileContentFilter = new ProfileContentFilterOption(ProfileContentGroup.Maps);
 
         Assert.Equal([MapId], RowIds(viewModel.ProfileContentRows));
 
@@ -298,7 +298,7 @@ public class GameProfileSettingsViewModelGameContentTests
     [InlineData(ProfileContentSortOrder.Name, new[] { PatchId, ZeroHourModId, MapId })]
     [InlineData(ProfileContentSortOrder.ReleaseDate, new[] { MapId, ZeroHourModId, PatchId })]
     [InlineData(ProfileContentSortOrder.EnabledFirst, new[] { ZeroHourModId, PatchId, MapId })]
-    [InlineData(ProfileContentSortOrder.Type, new[] { ZeroHourModId, PatchId, MapId })]
+    [InlineData(ProfileContentSortOrder.Type, new[] { ZeroHourModId, MapId, PatchId })]
     public async Task SortOrder_OrdersContentRowsAsync(ProfileContentSortOrder sort, string[] expected)
     {
         var viewModel = await CreateSortableViewModelAsync();
@@ -307,6 +307,99 @@ public class GameProfileSettingsViewModelGameContentTests
         viewModel.SelectedProfileContentSort = sort;
 
         Assert.Equal(expected, RowIds(viewModel.ProfileContentRows));
+    }
+
+    /// <summary>
+    /// Verifies the filter lists all content and then the four groups, in order.
+    /// </summary>
+    [Fact]
+    public void FilterOptions_ListAllContentThenTheFourGroups()
+    {
+        Assert.Equal(
+            [null, ProfileContentGroup.Mods, ProfileContentGroup.Maps, ProfileContentGroup.Addons, ProfileContentGroup.Tools],
+            GameProfileSettingsViewModel.ProfileContentFilterOptions.Select(option => option.Group));
+    }
+
+    /// <summary>
+    /// Verifies each content type on the Content page belongs to its expected group.
+    /// </summary>
+    /// <param name="type">The content type.</param>
+    /// <param name="expected">The group it belongs to.</param>
+    [Theory]
+    [InlineData(ContentType.Mod, ProfileContentGroup.Mods)]
+    [InlineData(ContentType.Map, ProfileContentGroup.Maps)]
+    [InlineData(ContentType.MapPack, ProfileContentGroup.Maps)]
+    [InlineData(ContentType.Mission, ProfileContentGroup.Maps)]
+    [InlineData(ContentType.Addon, ProfileContentGroup.Addons)]
+    [InlineData(ContentType.Skin, ProfileContentGroup.Addons)]
+    [InlineData(ContentType.LanguagePack, ProfileContentGroup.Addons)]
+    [InlineData(ContentType.Patch, ProfileContentGroup.Addons)]
+    [InlineData(ContentType.ModdingTool, ProfileContentGroup.Tools)]
+    [InlineData(ContentType.Executable, ProfileContentGroup.Tools)]
+    public void ContentGroups_MapEachTypeToItsGroup(ContentType type, ProfileContentGroup expected)
+    {
+        Assert.Equal(expected, GameProfileSettingsViewModel.GetProfileContentGroup(type));
+    }
+
+    /// <summary>
+    /// Verifies every content type the Content page offers belongs to exactly one group, and types it does not offer belong to none.
+    /// </summary>
+    [Fact]
+    public void ContentGroups_CoverEveryListedTypeExactlyOnce()
+    {
+        foreach (var type in GameProfileSettingsViewModel.ProfileContentTypes)
+        {
+            Assert.Single(GameProfileSettingsViewModel.ProfileContentGroupTypes.Values, types => types.Contains(type));
+        }
+
+        Assert.Equal(10, GameProfileSettingsViewModel.ProfileContentTypes.Count);
+        Assert.Null(GameProfileSettingsViewModel.GetProfileContentGroup(ContentType.Video));
+        Assert.Null(GameProfileSettingsViewModel.GetProfileContentGroup(ContentType.GameClient));
+    }
+
+    /// <summary>
+    /// Verifies a group filter shows only that group's rows, keeping each row's specific type.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task GroupFilter_ShowsOnlyThatGroupsRowsAsync()
+    {
+        var viewModel = await CreateGroupedViewModelAsync();
+
+        viewModel.SelectedProfileContentFilter = new ProfileContentFilterOption(ProfileContentGroup.Maps);
+
+        Assert.Equal(
+            Sorted("1.0.local.map.alpha", MapId, "1.0.local.mappack.pack", "1.0.local.mission.op"),
+            Sorted([.. RowIds(viewModel.ProfileContentRows)]));
+        Assert.Contains(viewModel.ProfileContentRows, row => row.Item.ContentType == ContentType.MapPack);
+        Assert.Contains(viewModel.ProfileContentRows, row => row.Item.ContentType == ContentType.Mission);
+
+        viewModel.SelectedProfileContentFilter = new ProfileContentFilterOption(ProfileContentGroup.Addons);
+
+        Assert.Equal(
+            Sorted("1.0.local.addon.hud", "1.0.local.skin.camo", "1.0.local.languagepack.de", PatchId),
+            Sorted([.. RowIds(viewModel.ProfileContentRows)]));
+    }
+
+    /// <summary>
+    /// Verifies the type sort orders by group, then by the specific type within the group, then by name.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task SortOrder_Type_OrdersByGroupThenTypeThenNameAsync()
+    {
+        var viewModel = await CreateGroupedViewModelAsync();
+
+        viewModel.SelectedProfileContentSort = ProfileContentSortOrder.Type;
+
+        Assert.Equal(
+            [
+                ZeroHourModId,
+                "1.0.local.map.alpha", MapId, "1.0.local.mappack.pack", "1.0.local.mission.op",
+                "1.0.local.addon.hud", "1.0.local.skin.camo", "1.0.local.languagepack.de", PatchId,
+                ToolId,
+            ],
+            RowIds(viewModel.ProfileContentRows));
     }
 
     /// <summary>
@@ -380,6 +473,7 @@ public class GameProfileSettingsViewModelGameContentTests
         var viewModel = await CreateSortableViewModelAsync();
         viewModel.SelectedProfileContentSort = ProfileContentSortOrder.Type;
         Assert.Contains(ProfileContentSortOrder.Type, viewModel.ProfileContentSortOptions);
+        var options = viewModel.ProfileContentSortOptions;
         var optionChanges = 0;
         viewModel.PropertyChanged += (_, e) =>
         {
@@ -389,7 +483,7 @@ public class GameProfileSettingsViewModelGameContentTests
             }
         };
 
-        viewModel.SelectedProfileContentFilter = GameProfileSettingsViewModel.ProfileContentFilterOptions.Single(option => option.ContentType == ContentType.Mod);
+        viewModel.SelectedProfileContentFilter = GameProfileSettingsViewModel.ProfileContentFilterOptions.Single(option => option.Group == ProfileContentGroup.Mods);
 
         Assert.Equal(1, optionChanges);
         Assert.DoesNotContain(ProfileContentSortOrder.Type, viewModel.ProfileContentSortOptions);
@@ -399,7 +493,10 @@ public class GameProfileSettingsViewModelGameContentTests
         viewModel.SelectedProfileContentFilter = ProfileContentFilterOption.All;
 
         Assert.Equal(2, optionChanges);
-        Assert.Contains(ProfileContentSortOrder.Type, viewModel.ProfileContentSortOptions);
+        Assert.Same(options, viewModel.ProfileContentSortOptions);
+        Assert.Equal(
+            [ProfileContentSortOrder.Name, ProfileContentSortOrder.ReleaseDate, ProfileContentSortOrder.EnabledFirst, ProfileContentSortOrder.Type],
+            viewModel.ProfileContentSortOptions);
         Assert.Equal([PatchId, ZeroHourModId, MapId], RowIds(viewModel.ProfileContentRows));
     }
 
@@ -610,12 +707,11 @@ public class GameProfileSettingsViewModelGameContentTests
         await viewModel.RefreshProfileContentCommand.ExecuteAsync(null);
 
         Assert.Equal(Sorted(ToolId, "1.0.local.executable.launcher", ZeroHourModId), Sorted([.. RowIds(viewModel.ProfileContentRows)]));
-        Assert.Contains(GameProfileSettingsViewModel.ProfileContentFilterOptions, option => option.ContentType == ContentType.ModdingTool);
-        Assert.Contains(GameProfileSettingsViewModel.ProfileContentFilterOptions, option => option.ContentType == ContentType.Executable);
+        Assert.Contains(GameProfileSettingsViewModel.ProfileContentFilterOptions, option => option.Group == ProfileContentGroup.Tools);
 
-        viewModel.SelectedProfileContentFilter = new ProfileContentFilterOption(ContentType.ModdingTool);
+        viewModel.SelectedProfileContentFilter = new ProfileContentFilterOption(ProfileContentGroup.Tools);
 
-        Assert.Equal([ToolId], RowIds(viewModel.ProfileContentRows));
+        Assert.Equal(Sorted(ToolId, "1.0.local.executable.launcher"), Sorted([.. RowIds(viewModel.ProfileContentRows)]));
     }
 
     /// <summary>
@@ -940,6 +1036,24 @@ public class GameProfileSettingsViewModelGameContentTests
         AddCandidate(ContentType.Patch, PatchId, GameType.ZeroHour, "A patch");
         SetReleaseDate(ContentType.Mod, ZeroHourModId, new DateTime(2020, 5, 1, 0, 0, 0, DateTimeKind.Utc));
         SetReleaseDate(ContentType.Map, MapId, new DateTime(2024, 5, 1, 0, 0, 0, DateTimeKind.Utc));
+        var viewModel = CreateViewModel(withDialog: false);
+        viewModel.AvailableGameInstallations.Add(CreateItem(ContentType.GameInstallation, ZeroHourInstallId, GameType.ZeroHour));
+        await viewModel.RefreshProfileContentCommand.ExecuteAsync(null);
+        return viewModel;
+    }
+
+    private async Task<GameProfileSettingsViewModel> CreateGroupedViewModelAsync()
+    {
+        AddCandidate(ContentType.Mission, "1.0.local.mission.op", GameType.ZeroHour, "A mission");
+        AddCandidate(ContentType.MapPack, "1.0.local.mappack.pack", GameType.ZeroHour, "A map pack");
+        AddCandidate(ContentType.Map, MapId, GameType.ZeroHour, "B map");
+        AddCandidate(ContentType.Map, "1.0.local.map.alpha", GameType.ZeroHour, "A map");
+        AddCandidate(ContentType.Patch, PatchId, GameType.ZeroHour, "A patch");
+        AddCandidate(ContentType.LanguagePack, "1.0.local.languagepack.de", GameType.ZeroHour, "A language");
+        AddCandidate(ContentType.Skin, "1.0.local.skin.camo", GameType.ZeroHour, "A skin");
+        AddCandidate(ContentType.Addon, "1.0.local.addon.hud", GameType.ZeroHour, "Z addon");
+        AddCandidate(ContentType.ModdingTool, ToolId, GameType.Unknown, "A tool");
+        AddCandidate(ContentType.Mod, ZeroHourModId, GameType.ZeroHour, "Z mod");
         var viewModel = CreateViewModel(withDialog: false);
         viewModel.AvailableGameInstallations.Add(CreateItem(ContentType.GameInstallation, ZeroHourInstallId, GameType.ZeroHour));
         await viewModel.RefreshProfileContentCommand.ExecuteAsync(null);

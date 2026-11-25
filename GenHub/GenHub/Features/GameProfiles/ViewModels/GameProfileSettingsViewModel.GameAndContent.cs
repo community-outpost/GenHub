@@ -20,12 +20,6 @@ namespace GenHub.Features.GameProfiles.ViewModels;
 /// </summary>
 public partial class GameProfileSettingsViewModel
 {
-    private static readonly IReadOnlyList<ProfileContentSortOrder> AllProfileContentSortOptions =
-        [ProfileContentSortOrder.Name, ProfileContentSortOrder.ReleaseDate, ProfileContentSortOrder.EnabledFirst, ProfileContentSortOrder.Type];
-
-    private static readonly IReadOnlyList<ProfileContentSortOrder> SingleTypeProfileContentSortOptions =
-        [ProfileContentSortOrder.Name, ProfileContentSortOrder.ReleaseDate, ProfileContentSortOrder.EnabledFirst];
-
     private List<ContentDisplayItem> _profileContentCandidates = [];
     private int _profileContentCandidatesVersion;
     private List<string> _profileContentOrder = [];
@@ -46,33 +40,35 @@ public partial class GameProfileSettingsViewModel
     private ProfileContentSortOrder _selectedProfileContentSort = ProfileContentSortOrder.Name;
 
     /// <summary>
+    /// Gets the content types in each Content page group, in the order the type sort lists them.
+    /// </summary>
+    public static IReadOnlyDictionary<ProfileContentGroup, IReadOnlyList<ContentType>> ProfileContentGroupTypes { get; } =
+        new Dictionary<ProfileContentGroup, IReadOnlyList<ContentType>>
+        {
+            [ProfileContentGroup.Mods] = [ContentType.Mod],
+            [ProfileContentGroup.Maps] = [ContentType.Map, ContentType.MapPack, ContentType.Mission],
+            [ProfileContentGroup.Addons] = [ContentType.Addon, ContentType.Skin, ContentType.LanguagePack, ContentType.Patch],
+            [ProfileContentGroup.Tools] = [ContentType.ModdingTool, ContentType.Executable],
+        };
+
+    /// <summary>
     /// Gets the content types listed on the Content page.
     /// </summary>
     public static IReadOnlyList<ContentType> ProfileContentTypes { get; } =
-    [
-        ContentType.Mod,
-        ContentType.Patch,
-        ContentType.Addon,
-        ContentType.Map,
-        ContentType.MapPack,
-        ContentType.Mission,
-        ContentType.LanguagePack,
-        ContentType.Skin,
-        ContentType.ModdingTool,
-        ContentType.Executable,
-    ];
+        [.. Enum.GetValues<ProfileContentGroup>().SelectMany(group => ProfileContentGroupTypes[group])];
 
     /// <summary>
-    /// Gets the choices of the Content page type filter.
+    /// Gets the choices of the Content page filter.
     /// </summary>
     public static IReadOnlyList<ProfileContentFilterOption> ProfileContentFilterOptions { get; } =
-        [ProfileContentFilterOption.All, .. ProfileContentTypes.Select(type => new ProfileContentFilterOption(type))];
+        [ProfileContentFilterOption.All, .. Enum.GetValues<ProfileContentGroup>().Select(group => new ProfileContentFilterOption(group))];
 
     /// <summary>
-    /// Gets the orders the Content page sort menu offers; sorting by type needs every type shown.
+    /// Gets the orders the Content page sort menu offers; sorting by type needs all content shown.
+    /// The list is updated in place so the sort menu keeps its selection when the filter changes.
     /// </summary>
-    public IReadOnlyList<ProfileContentSortOrder> ProfileContentSortOptions =>
-        SelectedProfileContentFilter is null || SelectedProfileContentFilter.IsAll ? AllProfileContentSortOptions : SingleTypeProfileContentSortOptions;
+    public ObservableCollection<ProfileContentSortOrder> ProfileContentSortOptions { get; } =
+        [ProfileContentSortOrder.Name, ProfileContentSortOrder.ReleaseDate, ProfileContentSortOrder.EnabledFirst, ProfileContentSortOrder.Type];
 
     /// <summary>
     /// Gets a value indicating whether the Content page has no rows to show.
@@ -100,6 +96,24 @@ public partial class GameProfileSettingsViewModel
     public bool IsStandaloneToolProfile => ToolProfileHelper.IsToolProfile(EnabledContent
         .Where(item => item.ContentType != ContentType.GameInstallation)
         .Select(item => (item.ManifestId.Value, item.ContentType)));
+
+    /// <summary>
+    /// Gets the Content page group a content type belongs to.
+    /// </summary>
+    /// <param name="type">The content type.</param>
+    /// <returns>The group, or null when the type belongs to no group and only shows under all content.</returns>
+    public static ProfileContentGroup? GetProfileContentGroup(ContentType type)
+    {
+        foreach (var (group, types) in ProfileContentGroupTypes)
+        {
+            if (types.Contains(type))
+            {
+                return group;
+            }
+        }
+
+        return null;
+    }
 
     /// <summary>
     /// Loads every installation, client and content item the Game and Content pages can offer.
@@ -191,11 +205,11 @@ public partial class GameProfileSettingsViewModel
             enabledById,
             item => item.ContentType == ContentType.GameClient && IsForGame(item, gameType)));
 
-        var filter = SelectedProfileContentFilter?.ContentType;
+        var filter = SelectedProfileContentFilter?.Group;
         var contentRows = BuildRows(
             enabledById,
             item => item.ContentType is not (ContentType.GameInstallation or ContentType.GameClient) &&
-                    (filter == null || item.ContentType == filter) &&
+                    (filter == null || GetProfileContentGroup(item.ContentType) == filter) &&
                     (enabledById.ContainsKey(item.ManifestId.Value) ||
                      (ProfileContentTypes.Contains(item.ContentType) && IsForGame(item, gameType))));
         var orderedRows = OrderProfileContentRows(contentRows, resort);
@@ -224,6 +238,7 @@ public partial class GameProfileSettingsViewModel
         };
     }
 
+    // ProfileContentTypes lists the groups in order and each group's types in order, so its index ranks group first, then type.
     private static int GetProfileContentTypeRank(ContentType type)
     {
         for (var i = 0; i < ProfileContentTypes.Count; i++)
@@ -297,9 +312,19 @@ public partial class GameProfileSettingsViewModel
 
     partial void OnSelectedProfileContentFilterChanged(ProfileContentFilterOption value)
     {
-        if (value?.IsAll == false && SelectedProfileContentSort == ProfileContentSortOrder.Type)
+        var showsAllContent = value?.IsAll != false;
+        if (!showsAllContent && SelectedProfileContentSort == ProfileContentSortOrder.Type)
         {
             SelectedProfileContentSort = ProfileContentSortOrder.Name;
+        }
+
+        if (showsAllContent && !ProfileContentSortOptions.Contains(ProfileContentSortOrder.Type))
+        {
+            ProfileContentSortOptions.Add(ProfileContentSortOrder.Type);
+        }
+        else if (!showsAllContent)
+        {
+            ProfileContentSortOptions.Remove(ProfileContentSortOrder.Type);
         }
 
         OnPropertyChanged(nameof(ProfileContentSortOptions));
