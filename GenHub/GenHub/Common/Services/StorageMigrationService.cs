@@ -1,0 +1,2427 @@
+using Avalonia;
+using Avalonia.Controls.ApplicationLifetimes;
+using Avalonia.Threading;
+using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
+using GenHub.Core.Interfaces.Common;
+using GenHub.Core.Interfaces.GameProfiles;
+using GenHub.Core.Interfaces.Launching;
+using GenHub.Core.Interfaces.Storage;
+using GenHub.Core.Models.Common;
+using GenHub.Core.Models.Results;
+using GenHub.Core.Models.Storage;
+using GenHub.Core.Models.Workspace;
+using GenHub.Features.Workspace;
+using Microsoft.Extensions.Logging;
+using System;
+using System.Collections.Generic;
+using System.ComponentModel;
+using System.Diagnostics;
+using System.IO;
+using System.Linq;
+using System.Reflection;
+using System.Runtime.InteropServices;
+using System.Security;
+using System.Text.Json;
+using System.Threading;
+using System.Threading.Tasks;
+
+namespace GenHub.Common.Services;
+
+/// <summary>
+/// Service that manages pre-flight validation and post-install relocation of the GenHub installation directory,
+/// CAS pools, and workspaces.
+/// </summary>
+public class StorageMigrationService(
+    IConfigurationProviderService configurationProvider,
+    IUserSettingsService userSettingsService,
+    ICasPoolManager casPoolManager,
+    ILaunchRegistry launchRegistry,
+    IGameProcessManager gameProcessManager,
+    IStorageWritabilityProbe writabilityProbe,
+    ILogger<StorageMigrationService> logger) : IStorageMigrationService
+{
+    private readonly record struct StorageRelocationPaths(
+        string? CurrentCasRoot,
+        string? CurrentWorkspaceRoot,
+        string FinalCasRoot,
+        string FinalWorkspaceRoot);
+
+    private const string ImportUserDataFailureMessage =
+        "Failed to import user data from custom installation directory {CustomRoot}";
+
+    private const string WriteAdoptionMarkerErrorMessage = "Failed to write adoption marker file";
+
+    private static readonly EnumerationOptions RecursiveEnumerationOptions = new()
+    {
+        IgnoreInaccessible = false,
+        AttributesToSkip = FileAttributes.None,
+        RecurseSubdirectories = true,
+    };
+
+    private static readonly HashSet<string> ExcludedUserDataNames = new(PathHelper.PathComparer)
+    {
+        FileTypes.SettingsFileName,
+        DirectoryNames.Profiles,
+        FileTypes.ManifestsDirectory,
+        DirectoryNames.UserData,
+        FileTypes.WorkspaceMetadataFileName,
+        DirectoryNames.Data,
+        DirectoryNames.CasPool,
+        DirectoryNames.Workspaces,
+        DirectoryNames.Cache,
+        StorageMigrationConstants.CacheLowercaseDirectoryName,
+        StorageMigrationConstants.LogsDirectoryName,
+        StorageMigrationConstants.LogsCapitalizedDirectoryName,
+        StorageMigrationConstants.UploadHistoryFileName,
+        MapManagerConstants.MapPacksSubdirectoryName,
+        StorageMigrationConstants.MapPacksCapitalizedDirectoryName,
+        StorageMigrationConstants.MapPacksLowercaseDirectoryName,
+        StorageMigrationConstants.DotGenHubCasDirectoryName,
+        PublisherStudioConstants.StudioFolderName,
+        "Hotkeys",
+        "Artwork",
+        "credentials",
+        ".ghtoken",
+    };
+
+    private static readonly Lazy<bool> CachedIsCustomInstallRoot = new(ComputeIsCustomInstallRoot);
+    private static bool? _customInstallRootOverride;
+    private static bool? _defaultInstallRootOverride;
+    private static string? _defaultInstallRootPathOverride;
+    private static string? _defaultDataRootOverride;
+    private static Func<string?>? _configuredDataPathResolver;
+
+    /// <summary>
+    /// Gets a value indicating whether user configuration was successfully adopted
+    /// during early startup prior to service container initialization.
+    /// </summary>
+    public static bool WasEarlyAdopted { get; internal set; }
+
+    /// <summary>
+    /// Synchronously copies user settings and data from a custom installation before dependency injection
+    /// registers services, ensuring UserSettingsService reads adopted configuration on initial startup.
+    /// </summary>
+    /// <param name="registeredCustomPath">The registered custom installation path from tracker.</param>
+    /// <param name="logger">Optional logger for diagnostics.</param>
+    /// <returns><see langword="true"/> if data was imported; otherwise, <see langword="false"/>.</returns>
+    public static bool EarlyAdoptIfConflict(string? registeredCustomPath, ILogger? logger = null)
+    {
+        if (IsCustomInstallRoot() || string.IsNullOrWhiteSpace(registeredCustomPath))
+        {
+            return false;
+        }
+
+        if (!HasDuplicateInstallationConflict(registeredCustomPath, out var detectedCustomPath) ||
+            string.IsNullOrWhiteSpace(detectedCustomPath))
+        {
+            return false;
+        }
+
+        if (_configuredDataPathResolver == null)
+        {
+            try
+            {
+                Infrastructure.DependencyInjection.ConfigurationModule.InitializeConfiguredDataPathResolver();
+            }
+            catch (Exception ex)
+            {
+                logger?.LogWarning(ex, "Failed to initialize configured data path resolver during early adoption conflict resolution.");
+            }
+        }
+
+        FileInstallationLocationTracker.RecordCustomInstallPathStatic(detectedCustomPath, logger);
+
+        var defaultRoot = GetDefaultDataRoot();
+        var markerPath = Path.Combine(defaultRoot, StorageMigrationConstants.AdoptionPendingMarkerFileName);
+        var isPendingRetry = IsMarkerMatchingPath(markerPath, detectedCustomPath);
+        var hasExistingData = HasExistingUserData(defaultRoot);
+
+        if ((hasExistingData && !isPendingRetry) || !HasExistingUserData(detectedCustomPath))
+        {
+            return false;
+        }
+
+        if (!WriteAdoptionMarkerSafely(markerPath, detectedCustomPath, logger))
+        {
+            logger?.LogWarning("Aborting early adoption because adoption marker could not be written to {MarkerPath}", markerPath);
+            return false;
+        }
+
+        logger?.LogInformation("Adopting configuration from '{Custom}' before service initialization", detectedCustomPath);
+        var result = TryImportUserDataFromCustomInstall(detectedCustomPath, defaultRoot, logger);
+        if (result)
+        {
+            WasEarlyAdopted = true;
+        }
+
+        return result;
+    }
+
+    /// <inheritdoc />
+    public async Task<OperationResult<StorageMigrationPreflightResult>> ValidatePreflightAsync(
+        string targetPath,
+        bool relocateCasAndWorkspace,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var sanityCheck = ValidatePathSanity(targetPath);
+            if (!sanityCheck.IsValid)
+            {
+                return OperationResult<StorageMigrationPreflightResult>.CreateSuccess(sanityCheck);
+            }
+
+            var normalizedTarget = Path.TrimEndingDirectorySeparator(Path.GetFullPath(targetPath));
+            var sourceRoot = GetSourceRootDirectory();
+
+            if (relocateCasAndWorkspace)
+            {
+                var casRoot = ResolveEffectiveCasRoot();
+                var workspaceRoot = ResolveEffectiveWorkspaceRoot();
+                if (!string.IsNullOrWhiteSpace(casRoot) && (IsInsideDirectory(normalizedTarget, casRoot) || IsInsideDirectory(casRoot, normalizedTarget)))
+                {
+                    return OperationResult<StorageMigrationPreflightResult>.CreateSuccess(new StorageMigrationPreflightResult
+                    {
+                        IsValid = false,
+                        ErrorMessage = "The target directory cannot be located inside or contain the CAS storage directory.",
+                    });
+                }
+
+                if (!string.IsNullOrWhiteSpace(workspaceRoot) && (IsInsideDirectory(normalizedTarget, workspaceRoot) || IsInsideDirectory(workspaceRoot, normalizedTarget)))
+                {
+                    return OperationResult<StorageMigrationPreflightResult>.CreateSuccess(new StorageMigrationPreflightResult
+                    {
+                        IsValid = false,
+                        ErrorMessage = "The target directory cannot be located inside or contain the workspace directory.",
+                    });
+                }
+            }
+
+            var hasWritePermission = writabilityProbe.CanCreateStorageAt(normalizedTarget);
+            var (hasActiveProcesses, processNames) = await CheckActiveProcessesAsync(cancellationToken);
+
+            var requiredBytes = CalculateRequiredSpace(sourceRoot, relocateCasAndWorkspace);
+            var availableBytes = GetAvailableFreeSpace(normalizedTarget);
+            var hasSufficientSpace = availableBytes >= requiredBytes;
+
+            var errorMessage = DeterminePreflightErrorMessage(
+                hasWritePermission,
+                hasActiveProcesses,
+                hasSufficientSpace,
+                requiredBytes,
+                availableBytes);
+            var isValid = hasWritePermission && !hasActiveProcesses && hasSufficientSpace;
+
+            var result = new StorageMigrationPreflightResult
+            {
+                IsValid = isValid,
+                RequiredBytes = requiredBytes,
+                AvailableBytes = availableBytes,
+                HasSufficientSpace = hasSufficientSpace,
+                HasWritePermission = hasWritePermission,
+                HasActiveProcesses = hasActiveProcesses,
+                ActiveProcessNames = processNames,
+                IsTargetInsideApplicationDirectory = false,
+                ErrorMessage = errorMessage,
+            };
+
+            return OperationResult<StorageMigrationPreflightResult>.CreateSuccess(result);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to perform migration pre-flight checks for target: {TargetPath}", targetPath);
+            return OperationResult<StorageMigrationPreflightResult>.CreateFailure($"Pre-flight validation error: {ex.Message}");
+        }
+    }
+
+    /// <inheritdoc />
+    public async Task<OperationResult<bool>> MigrateAsync(
+        StorageMigrationRequest request,
+        IProgress<StorageMigrationProgress>? progress = null,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        return await Task.Run(
+            () => ExecuteMigrationAsync(request, progress, cancellationToken),
+            cancellationToken);
+    }
+
+    /// <summary>
+    /// Gets the top-level Velopack installation root directory or falls back to AppContext.BaseDirectory.
+    /// </summary>
+    /// <returns>The source root directory path.</returns>
+    internal static string GetSourceRootDirectory()
+    {
+        var appBaseDir = Path.TrimEndingDirectorySeparator(Path.GetFullPath(AppContext.BaseDirectory));
+
+        if (OperatingSystem.IsMacOS())
+        {
+            var segments = appBaseDir.Split(new[] { '/', '\\' }, StringSplitOptions.RemoveEmptyEntries);
+            for (var i = 0; i < segments.Length; i++)
+            {
+                if (segments[i].EndsWith(StorageMigrationConstants.MacAppBundleExtension, StringComparison.OrdinalIgnoreCase))
+                {
+                    const string prefix = "/";
+                    return prefix + string.Join('/', segments.Take(i + 1));
+                }
+            }
+        }
+
+        var parentDir = Directory.GetParent(appBaseDir)?.FullName;
+        if (parentDir != null)
+        {
+            // Check for Velopack markers (Update.exe / Update, packages dir, app-* directories, or companion executable)
+            var hasUpdateExe = File.Exists(Path.Combine(parentDir, StorageMigrationConstants.VelopackUpdateExe)) ||
+                               File.Exists(Path.Combine(parentDir, StorageMigrationConstants.VelopackUpdateUnix));
+            var hasPackagesDir = Directory.Exists(Path.Combine(parentDir, StorageMigrationConstants.VelopackPackagesDirectoryName));
+            var hasAppDirs = Directory.GetDirectories(parentDir, StorageMigrationConstants.VelopackAppDirectoryPattern).Length > 0;
+
+            if (hasUpdateExe || hasPackagesDir || hasAppDirs)
+            {
+                return parentDir;
+            }
+        }
+
+        return appBaseDir;
+    }
+
+    /// <summary>
+    /// Calculates the relative path of the current process executable from the given root directory.
+    /// </summary>
+    /// <param name="sourceRoot">The source root directory.</param>
+    /// <returns>The relative executable path.</returns>
+    internal static string GetRelativeExecutablePath(string sourceRoot)
+    {
+        var processPath = Environment.ProcessPath;
+        if (string.IsNullOrEmpty(processPath))
+        {
+            return OperatingSystem.IsWindows() ? "GenHub.Windows.exe" : "GenHub.Linux";
+        }
+
+        try
+        {
+            return Path.GetRelativePath(sourceRoot, processPath);
+        }
+        catch (ArgumentException)
+        {
+            return Path.GetFileName(processPath);
+        }
+        catch (PathTooLongException)
+        {
+            return Path.GetFileName(processPath);
+        }
+    }
+
+    /// <summary>
+    /// Determines whether the specified directory is a Velopack installation root.
+    /// </summary>
+    /// <param name="directoryPath">The directory path to test.</param>
+    /// <returns><c>true</c> if the directory contains Velopack installation markers; otherwise, <c>false</c>.</returns>
+    internal static bool IsVelopackRoot(string? directoryPath)
+    {
+        if (string.IsNullOrWhiteSpace(directoryPath) || !Directory.Exists(directoryPath))
+        {
+            return false;
+        }
+
+        try
+        {
+            if (OperatingSystem.IsMacOS() && directoryPath.EndsWith(StorageMigrationConstants.MacAppBundleExtension, StringComparison.OrdinalIgnoreCase))
+            {
+                var contentsDir = Path.Combine(directoryPath, StorageMigrationConstants.MacContentsDirectoryName);
+                return Directory.Exists(contentsDir) &&
+                       (File.Exists(Path.Combine(contentsDir, StorageMigrationConstants.MacInfoPlistFileName)) || Directory.Exists(Path.Combine(contentsDir, StorageMigrationConstants.MacOsDirectoryName)));
+            }
+
+            var hasUpdateExe = File.Exists(Path.Combine(directoryPath, StorageMigrationConstants.VelopackUpdateExe)) ||
+                               File.Exists(Path.Combine(directoryPath, StorageMigrationConstants.VelopackUpdateUnix));
+            var hasPackagesDir = Directory.Exists(Path.Combine(directoryPath, StorageMigrationConstants.VelopackPackagesDirectoryName));
+            var hasAppDirs = Directory.GetDirectories(directoryPath, StorageMigrationConstants.VelopackAppDirectoryPattern).Length > 0;
+            return hasUpdateExe || hasPackagesDir || hasAppDirs;
+        }
+        catch (IOException)
+        {
+            return false;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return false;
+        }
+        catch (ArgumentException)
+        {
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Determines whether the running instance is located in a custom installation directory (e.g. via --installto)
+    /// rather than the default %LOCALAPPDATA%\GenHub root.
+    /// </summary>
+    /// <returns><c>true</c> if running from a custom Velopack install root; otherwise, <c>false</c>.</returns>
+    internal static bool IsCustomInstallRoot() => _customInstallRootOverride ?? CachedIsCustomInstallRoot.Value;
+
+    /// <summary>
+    /// Sets an override for <see cref="IsCustomInstallRoot"/> for unit testing.
+    /// </summary>
+    /// <param name="isCustom">The override value, or <see langword="null"/> to reset.</param>
+    internal static void SetCustomInstallRootOverrideForTesting(bool? isCustom) => _customInstallRootOverride = isCustom;
+
+    /// <summary>
+    /// Determines whether the running instance is located in the default Velopack installation root directory.
+    /// </summary>
+    /// <returns><see langword="true"/> if running from the default installation directory; otherwise, <see langword="false"/>.</returns>
+    internal static bool IsDefaultInstallRoot()
+    {
+        if (_defaultInstallRootOverride.HasValue)
+        {
+            return _defaultInstallRootOverride.Value;
+        }
+
+        var defaultInstallRoot = GetDefaultInstallRoot();
+        if (string.IsNullOrWhiteSpace(defaultInstallRoot))
+        {
+            return false;
+        }
+
+        var sourceRoot = GetSourceRootDirectory();
+        if (PathHelper.AreSamePath(sourceRoot, defaultInstallRoot))
+        {
+            return true;
+        }
+
+        var sourceParent = Directory.GetParent(sourceRoot)?.FullName;
+        return sourceParent != null && PathHelper.AreSamePath(sourceParent, defaultInstallRoot);
+    }
+
+    /// <summary>
+    /// Sets an override for <see cref="IsDefaultInstallRoot"/> for unit testing.
+    /// </summary>
+    /// <param name="isDefault">The override value, or <see langword="null"/> to reset.</param>
+    internal static void SetDefaultInstallRootOverrideForTesting(bool? isDefault) => _defaultInstallRootOverride = isDefault;
+
+    /// <summary>
+    /// Sets an override for <see cref="GetDefaultInstallRoot"/> path for unit testing.
+    /// </summary>
+    /// <param name="path">The override directory path, or <see langword="null"/> to reset.</param>
+    internal static void SetDefaultInstallRootPathOverrideForTesting(string? path) => _defaultInstallRootPathOverride = path;
+
+    /// <summary>
+    /// Sets an override for <see cref="GetDefaultDataRoot"/> for unit testing.
+    /// </summary>
+    /// <param name="path">The override directory path, or <see langword="null"/> to reset.</param>
+    internal static void SetDefaultDataRootOverrideForTesting(string? path) => _defaultDataRootOverride = path;
+
+    /// <summary>
+    /// Sets a resolver callback for configured data path (e.g. from <c>IConfiguration</c>).
+    /// </summary>
+    /// <param name="resolver">The resolver function, or <see langword="null"/> to reset.</param>
+    internal static void SetConfiguredDataPathResolver(Func<string?>? resolver) => _configuredDataPathResolver = resolver;
+
+    /// <summary>
+    /// Gets the default application data root directory in LocalApplicationData across all platforms.
+    /// </summary>
+    /// <returns>The path to the default application data root.</returns>
+    internal static string GetDefaultDataRoot()
+    {
+        if (_defaultDataRootOverride != null)
+        {
+            return _defaultDataRootOverride;
+        }
+
+        var configured = _configuredDataPathResolver?.Invoke();
+        if (!string.IsNullOrWhiteSpace(configured) && PathHelper.TrySanitizeLocalPath(configured, out var sanitized))
+        {
+            return sanitized;
+        }
+
+        return AppDataPathHelper.GetDataRoot();
+    }
+
+    /// <summary>
+    /// Gets the default Velopack installation root directory in LocalApplicationData.
+    /// </summary>
+    /// <returns>The path to the default installation root.</returns>
+    internal static string GetDefaultInstallRoot()
+    {
+        if (_defaultInstallRootPathOverride != null)
+        {
+            return _defaultInstallRootPathOverride;
+        }
+
+        if (OperatingSystem.IsMacOS())
+        {
+            var userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+            if (!string.IsNullOrWhiteSpace(userProfile))
+            {
+                var userApplications = Path.Combine(
+                    userProfile,
+                    "Applications",
+                    $"{AppConstants.AppName}.app");
+
+                if (Directory.Exists(userApplications))
+                {
+                    return userApplications;
+                }
+            }
+
+            return $"/Applications/{AppConstants.AppName}.app";
+        }
+
+        var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+        if (string.IsNullOrWhiteSpace(localAppData))
+        {
+            localAppData = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        }
+
+        return !string.IsNullOrWhiteSpace(localAppData)
+            ? Path.Combine(localAppData, AppConstants.AppName)
+            : string.Empty;
+    }
+
+    /// <summary>
+    /// If running from a custom install location, removes empty %LOCALAPPDATA%\GenHub and %APPDATA%\GenHub folders
+    /// if they were created during bootstrap or leftover from default paths.
+    /// </summary>
+    internal static void CleanOrphanedDefaultAppDataIfCustom()
+    {
+        if (!IsCustomInstallRoot())
+        {
+            return;
+        }
+
+        var defaultInstall = GetDefaultInstallRoot();
+        if (!string.IsNullOrWhiteSpace(defaultInstall) && Path.IsPathRooted(defaultInstall))
+        {
+            CleanIfEmpty(defaultInstall);
+        }
+
+        var defaultData = GetDefaultDataRoot();
+        if (!string.IsNullOrWhiteSpace(defaultData) && Path.IsPathRooted(defaultData))
+        {
+            CleanIfEmpty(defaultData);
+        }
+
+        var appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+        if (!string.IsNullOrWhiteSpace(appData) && Path.IsPathRooted(appData))
+        {
+            CleanIfEmpty(Path.Combine(appData, AppConstants.AppName));
+        }
+    }
+
+    /// <summary>
+    /// Checks whether a duplicate installation conflict exists where the current instance is running
+    /// from the default install root, but a valid custom installation exists elsewhere.
+    /// </summary>
+    /// <param name="candidateCustomPath">The candidate custom installation directory.</param>
+    /// <param name="detectedCustomPath">The resolved valid custom installation path if detected.</param>
+    /// <returns><see langword="true"/> if a valid custom installation exists elsewhere while running from default; otherwise, <see langword="false"/>.</returns>
+    internal static bool HasDuplicateInstallationConflict(string? candidateCustomPath, out string? detectedCustomPath)
+    {
+        detectedCustomPath = null;
+        if (IsCustomInstallRoot() || !IsDefaultInstallRoot() || string.IsNullOrWhiteSpace(candidateCustomPath))
+        {
+            return false;
+        }
+
+        if (!PathHelper.TrySanitizeLocalPath(candidateCustomPath, out var sanitizedCandidate))
+        {
+            return false;
+        }
+
+        try
+        {
+            var currentRoot = GetSourceRootDirectory();
+            var normalizedCandidate = Path.TrimEndingDirectorySeparator(Path.GetFullPath(sanitizedCandidate));
+
+            if (PathHelper.AreSamePath(currentRoot, normalizedCandidate))
+            {
+                return false;
+            }
+
+            if (Directory.Exists(normalizedCandidate) && IsVelopackRoot(normalizedCandidate))
+            {
+                detectedCustomPath = normalizedCandidate;
+                return true;
+            }
+        }
+        catch (IOException)
+        {
+            return false;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return false;
+        }
+        catch (SecurityException)
+        {
+            return false;
+        }
+        catch (ArgumentException)
+        {
+            return false;
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Resolves the installation root that operating system entry points (application shortcuts,
+    /// URI scheme handlers) should target. When a duplicate installation conflict is active, the
+    /// registered custom installation is canonical so an accidental default-location copy can never
+    /// hijack OS links; otherwise the running installation root is returned.
+    /// </summary>
+    /// <param name="registeredCustomPath">The registered custom installation path, if any.</param>
+    /// <returns>The canonical installation root for OS links.</returns>
+    internal static string ResolveLinkInstallRoot(string? registeredCustomPath)
+    {
+        if (HasDuplicateInstallationConflict(registeredCustomPath, out var detectedCustomPath) &&
+            !string.IsNullOrWhiteSpace(detectedCustomPath))
+        {
+            return detectedCustomPath;
+        }
+
+        return GetSourceRootDirectory();
+    }
+
+    /// <summary>
+    /// Resolves the launcher executable inside an installation root, preferring the root-level
+    /// launcher matching the current executable file name so links stay stable across updates.
+    /// </summary>
+    /// <param name="linkRoot">The installation root that OS links should target.</param>
+    /// <param name="currentExePath">The running executable path, used for its file name and as fallback.</param>
+    /// <returns>The launcher path when it can be determined; otherwise, <see langword="null"/>.</returns>
+    internal static string? ResolveLinkExecutablePath(string linkRoot, string? currentExePath)
+    {
+        if (string.IsNullOrWhiteSpace(currentExePath))
+        {
+            return null;
+        }
+
+        var fileName = Path.GetFileName(currentExePath);
+        if (!string.IsNullOrWhiteSpace(fileName))
+        {
+            var candidate = Path.Combine(linkRoot, fileName);
+            if (File.Exists(candidate))
+            {
+                return candidate;
+            }
+        }
+
+        return currentExePath;
+    }
+
+    /// <summary>
+    /// Checks if the specified root directory contains existing user configuration, game profiles, or manifests.
+    /// </summary>
+    /// <param name="rootPath">The root directory to inspect.</param>
+    /// <returns><see langword="true"/> if existing user data is present; otherwise, <see langword="false"/>.</returns>
+    internal static bool HasExistingUserData(string? rootPath)
+    {
+        if (string.IsNullOrWhiteSpace(rootPath) || !Directory.Exists(rootPath))
+        {
+            return false;
+        }
+
+        try
+        {
+            if (File.Exists(Path.Combine(rootPath, FileTypes.SettingsFileName)))
+            {
+                return true;
+            }
+
+            var profilesDir = Path.Combine(rootPath, DirectoryNames.Profiles);
+            if (Directory.Exists(profilesDir) && Directory.EnumerateFileSystemEntries(profilesDir).Any())
+            {
+                return true;
+            }
+
+            var manifestsDir = Path.Combine(rootPath, FileTypes.ManifestsDirectory);
+            if (Directory.Exists(manifestsDir) && Directory.EnumerateFileSystemEntries(manifestsDir).Any())
+            {
+                return true;
+            }
+
+            var userDataDir = Path.Combine(rootPath, DirectoryNames.UserData);
+            if (Directory.Exists(userDataDir) && Directory.EnumerateFileSystemEntries(userDataDir).Any())
+            {
+                return true;
+            }
+        }
+        catch (IOException)
+        {
+            return false;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return false;
+        }
+        catch (SecurityException)
+        {
+            return false;
+        }
+        catch (ArgumentException)
+        {
+            return false;
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Adopts user data from an existing custom directory installation into the current target installation root.
+    /// Copies settings.json, Profiles, UserData, and custom manifests if they do not already exist in the target.
+    /// Derived states such as Workspaces and CAS storage are intentionally excluded so they can be cleanly rebuilt.
+    /// </summary>
+    /// <param name="customRoot">The custom installation root directory to import from.</param>
+    /// <param name="targetRoot">The target installation root directory.</param>
+    /// <param name="logger">Optional logger for diagnostic output.</param>
+    /// <param name="cancellationToken">Optional token to cancel the operation.</param>
+    /// <returns><see langword="true"/> if data was imported; otherwise, <see langword="false"/>.</returns>
+    internal static bool TryImportUserDataFromCustomInstall(
+        string customRoot,
+        string targetRoot,
+        ILogger? logger = null,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(customRoot) || string.IsNullOrWhiteSpace(targetRoot) ||
+            !Directory.Exists(customRoot) || !Directory.Exists(targetRoot))
+        {
+            return false;
+        }
+
+        try
+        {
+            var importedAny = false;
+            var settingsSrc = Path.Combine(customRoot, FileTypes.SettingsFileName);
+            var settingsDest = Path.Combine(targetRoot, FileTypes.SettingsFileName);
+
+            cancellationToken.ThrowIfCancellationRequested();
+
+            if (File.Exists(settingsSrc) && !File.Exists(settingsDest))
+            {
+                File.Copy(settingsSrc, settingsDest, overwrite: false);
+                importedAny = true;
+                logger?.LogInformation("Imported settings from custom installation: {Src} -> {Dest}", settingsSrc, settingsDest);
+            }
+
+            var dirsToCopy = new[]
+            {
+                DirectoryNames.Profiles,
+                FileTypes.ManifestsDirectory,
+                DirectoryNames.UserData,
+            };
+
+            foreach (var dirName in dirsToCopy)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var srcDir = Path.Combine(customRoot, dirName);
+                var destDir = Path.Combine(targetRoot, dirName);
+                if (Directory.Exists(srcDir) && CopyMissingFilesRecursive(srcDir, destDir, cancellationToken))
+                {
+                    importedAny = true;
+                    logger?.LogInformation("Imported {Directory} from custom installation: {Src} -> {Dest}", dirName, srcDir, destDir);
+                }
+            }
+
+            return importedAny;
+        }
+        catch (OperationCanceledException)
+        {
+            return false;
+        }
+        catch (IOException ex)
+        {
+            logger?.LogWarning(ex, ImportUserDataFailureMessage, customRoot);
+            return false;
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            logger?.LogWarning(ex, ImportUserDataFailureMessage, customRoot);
+            return false;
+        }
+        catch (SecurityException ex)
+        {
+            logger?.LogWarning(ex, ImportUserDataFailureMessage, customRoot);
+            return false;
+        }
+        catch (ArgumentException ex)
+        {
+            logger?.LogWarning(ex, ImportUserDataFailureMessage, customRoot);
+            return false;
+        }
+        catch (NotSupportedException ex)
+        {
+            logger?.LogWarning(ex, ImportUserDataFailureMessage, customRoot);
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Checks whether the custom installation contains user configuration or data
+    /// (settings, profiles, manifests, or user data) that has not yet been imported into the target root.
+    /// </summary>
+    /// <param name="customRoot">The custom installation root directory.</param>
+    /// <param name="targetRoot">The target installation root directory.</param>
+    /// <returns><see langword="true"/> if unadopted user data is confirmed present;
+    /// <see langword="false"/> if all user data has been adopted or paths do not exist;
+    /// or <see langword="null"/> if an error prevented inspection.</returns>
+    internal static bool? HasUnadoptedUserData(string customRoot, string targetRoot)
+    {
+        if (string.IsNullOrWhiteSpace(customRoot) || string.IsNullOrWhiteSpace(targetRoot) ||
+            !Directory.Exists(customRoot) || !Directory.Exists(targetRoot))
+        {
+            return false;
+        }
+
+        try
+        {
+            var settingsSrc = Path.Combine(customRoot, FileTypes.SettingsFileName);
+            var settingsDest = Path.Combine(targetRoot, FileTypes.SettingsFileName);
+            if (File.Exists(settingsSrc) && !File.Exists(settingsDest))
+            {
+                return true;
+            }
+
+            var dirs = new[]
+            {
+                DirectoryNames.Profiles,
+                FileTypes.ManifestsDirectory,
+                DirectoryNames.UserData,
+            };
+
+            foreach (var dir in dirs)
+            {
+                var srcDir = Path.Combine(customRoot, dir);
+                var destDir = Path.Combine(targetRoot, dir);
+                if (HasUnadoptedDirectoryData(srcDir, destDir))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+        catch (IOException)
+        {
+            return null;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return null;
+        }
+        catch (SecurityException)
+        {
+            return null;
+        }
+        catch (ArgumentException)
+        {
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Recursively copies files from source to destination if they do not already exist in the destination.
+    /// </summary>
+    /// <param name="srcDir">Source directory.</param>
+    /// <param name="destDir">Destination directory.</param>
+    /// <param name="cancellationToken">Optional token to cancel the operation.</param>
+    /// <returns><see langword="true"/> if any file was copied; otherwise, <see langword="false"/>.</returns>
+    internal static bool CopyMissingFilesRecursive(string srcDir, string destDir, CancellationToken cancellationToken = default)
+    {
+        var copiedAny = false;
+        Directory.CreateDirectory(destDir);
+
+        foreach (var file in Directory.EnumerateFiles(srcDir, "*", RecursiveEnumerationOptions))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var relPath = Path.GetRelativePath(srcDir, file);
+            var destFile = Path.Combine(destDir, relPath);
+            if (!File.Exists(destFile))
+            {
+                var targetSubDir = Path.GetDirectoryName(destFile);
+                if (!string.IsNullOrEmpty(targetSubDir))
+                {
+                    Directory.CreateDirectory(targetSubDir);
+                }
+
+                File.Copy(file, destFile, overwrite: false);
+                copiedAny = true;
+            }
+        }
+
+        return copiedAny;
+    }
+
+    /// <summary>
+    /// Determines whether the source directory contains any files not yet adopted into the destination directory.
+    /// </summary>
+    /// <param name="srcDir">Source directory.</param>
+    /// <param name="destDir">Destination directory.</param>
+    /// <returns><see langword="true"/> if unadopted files exist; otherwise, <see langword="false"/>.</returns>
+    internal static bool HasUnadoptedDirectoryData(string srcDir, string destDir)
+    {
+        if (!Directory.Exists(srcDir))
+        {
+            return false;
+        }
+
+        if (!Directory.Exists(destDir))
+        {
+            return Directory.EnumerateFileSystemEntries(srcDir, "*", RecursiveEnumerationOptions).Any();
+        }
+
+        foreach (var file in Directory.EnumerateFiles(srcDir, "*", RecursiveEnumerationOptions))
+        {
+            var relPath = Path.GetRelativePath(srcDir, file);
+            var destFile = Path.Combine(destDir, relPath);
+            if (!File.Exists(destFile))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Checks whether a path is equal to or contained within a parent directory.
+    /// </summary>
+    /// <param name="path">The path to test.</param>
+    /// <param name="parentDirectory">The parent directory path.</param>
+    /// <returns><see langword="true"/> if the path is inside or equal to the parent directory; otherwise, <see langword="false"/>.</returns>
+    internal static bool IsInsideDirectory(string? path, string? parentDirectory)
+    {
+        if (string.IsNullOrWhiteSpace(path) || string.IsNullOrWhiteSpace(parentDirectory))
+        {
+            return false;
+        }
+
+        return PathHelper.AreSamePath(parentDirectory, path) ||
+               PathHelper.IsPathWithinDirectory(parentDirectory, path);
+    }
+
+    /// <summary>
+    /// Calculates the total size of all files in a directory in bytes.
+    /// </summary>
+    /// <param name="directoryPath">The directory path.</param>
+    /// <returns>Total size in bytes.</returns>
+    internal static long CalculateDirectorySize(string directoryPath)
+    {
+        if (!Directory.Exists(directoryPath))
+        {
+            return 0;
+        }
+
+        try
+        {
+            var dirInfo = new DirectoryInfo(directoryPath);
+            return dirInfo.EnumerateFiles("*", SearchOption.AllDirectories).Sum(fi => fi.Length);
+        }
+        catch (IOException)
+        {
+            return 0;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return 0;
+        }
+        catch (SecurityException)
+        {
+            return 0;
+        }
+        catch (ArgumentException)
+        {
+            return 0;
+        }
+    }
+
+    /// <summary>
+    /// Gets the available free space on the drive containing the given path.
+    /// </summary>
+    /// <param name="path">The filesystem path.</param>
+    /// <returns>Available free space in bytes.</returns>
+    internal static long GetAvailableFreeSpace(string path)
+    {
+        try
+        {
+            var fullPath = Path.GetFullPath(path);
+            var root = Path.GetPathRoot(fullPath);
+            if (!string.IsNullOrEmpty(root))
+            {
+                var drive = new DriveInfo(root);
+                if (drive.IsReady)
+                {
+                    return drive.AvailableFreeSpace;
+                }
+            }
+        }
+        catch (IOException)
+        {
+            // Ignore exceptions and assume ample space
+        }
+        catch (UnauthorizedAccessException)
+        {
+            // Ignore exceptions and assume ample space
+        }
+        catch (SecurityException)
+        {
+            // Ignore exceptions and assume ample space
+        }
+        catch (ArgumentException)
+        {
+            // Ignore exceptions and assume ample space
+        }
+
+        return long.MaxValue;
+    }
+
+    /// <summary>
+    /// Safely moves a directory with rollback on copy failure.
+    /// </summary>
+    /// <param name="sourceDir">The source directory path.</param>
+    /// <param name="destDir">The destination directory path.</param>
+    internal static void MigrateDirectorySafely(string sourceDir, string destDir)
+    {
+        if (!Directory.Exists(sourceDir))
+        {
+            return;
+        }
+
+        if (!Directory.Exists(destDir))
+        {
+            try
+            {
+                Directory.Move(sourceDir, destDir);
+                return;
+            }
+            catch (IOException)
+            {
+                // Move across volumes or permissions fallback to copy-then-delete
+                Directory.CreateDirectory(destDir);
+            }
+            catch (UnauthorizedAccessException)
+            {
+                // Move across volumes or permissions fallback to copy-then-delete
+                Directory.CreateDirectory(destDir);
+            }
+        }
+
+        try
+        {
+            CopyDirectoryRecursive(sourceDir, destDir);
+            FileOperationsService.DeleteDirectoryIfExists(sourceDir);
+        }
+        catch (IOException)
+        {
+            TryDeleteDirectory(destDir);
+            throw;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            TryDeleteDirectory(destDir);
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// Checks whether an adoption pending marker file exists and matches the specified custom installation path.
+    /// </summary>
+    /// <param name="markerPath">Path to the adoption pending marker file.</param>
+    /// <param name="customPath">The candidate custom installation path.</param>
+    /// <returns><see langword="true"/> if the marker exists and contains a non-empty path matching <paramref name="customPath"/>; otherwise, <see langword="false"/>.</returns>
+    internal static bool IsMarkerMatchingPath(string markerPath, string customPath)
+    {
+        if (string.IsNullOrWhiteSpace(markerPath) || string.IsNullOrWhiteSpace(customPath))
+        {
+            return false;
+        }
+
+        try
+        {
+            if (!File.Exists(markerPath))
+            {
+                return false;
+            }
+
+            var recorded = File.ReadAllText(markerPath).Trim();
+            if (string.IsNullOrWhiteSpace(recorded))
+            {
+                try
+                {
+                    File.Delete(markerPath);
+                }
+                catch (IOException)
+                {
+                    // Best-effort cleanup of corrupted marker
+                }
+                catch (UnauthorizedAccessException)
+                {
+                    // Best-effort cleanup of corrupted marker
+                }
+
+                return false;
+            }
+
+            return PathHelper.AreSamePath(recorded, customPath);
+        }
+        catch (IOException)
+        {
+            return false;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return false;
+        }
+        catch (SecurityException)
+        {
+            return false;
+        }
+        catch (ArgumentException)
+        {
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Writes the adoption pending marker file safely, ensuring directory existence and catching transient errors.
+    /// </summary>
+    /// <param name="markerPath">The path of the marker file to write.</param>
+    /// <param name="detectedCustomPath">The custom installation root path to record.</param>
+    /// <param name="logger">Optional logger for diagnostics.</param>
+    /// <returns><see langword="true"/> if written successfully or already matches; otherwise, <see langword="false"/>.</returns>
+    internal static bool WriteAdoptionMarkerSafely(string markerPath, string detectedCustomPath, ILogger? logger = null)
+    {
+        try
+        {
+            var directory = Path.GetDirectoryName(markerPath);
+            if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
+            {
+                Directory.CreateDirectory(directory);
+            }
+
+            if (!File.Exists(markerPath) || !PathHelper.AreSamePath(File.ReadAllText(markerPath).Trim(), detectedCustomPath))
+            {
+                File.WriteAllText(markerPath, detectedCustomPath);
+            }
+
+            return true;
+        }
+        catch (IOException ex)
+        {
+            logger?.LogWarning(ex, WriteAdoptionMarkerErrorMessage);
+            return false;
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            logger?.LogWarning(ex, WriteAdoptionMarkerErrorMessage);
+            return false;
+        }
+        catch (SecurityException ex)
+        {
+            logger?.LogWarning(ex, WriteAdoptionMarkerErrorMessage);
+            return false;
+        }
+        catch (ArgumentException ex)
+        {
+            logger?.LogWarning(ex, WriteAdoptionMarkerErrorMessage);
+            return false;
+        }
+    }
+
+    private static bool ComputeIsCustomInstallRoot()
+    {
+        try
+        {
+            var sourceRoot = GetSourceRootDirectory();
+            var defaultInstallRoot = GetDefaultInstallRoot();
+
+            if (!string.IsNullOrWhiteSpace(defaultInstallRoot))
+            {
+                if (PathHelper.AreSamePath(sourceRoot, defaultInstallRoot))
+                {
+                    return false;
+                }
+
+                var sourceParent = Directory.GetParent(sourceRoot)?.FullName;
+                if (sourceParent != null && PathHelper.AreSamePath(sourceParent, defaultInstallRoot))
+                {
+                    return false;
+                }
+            }
+
+            return IsVelopackRoot(sourceRoot);
+        }
+        catch (IOException)
+        {
+            return false;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return false;
+        }
+        catch (SecurityException)
+        {
+            return false;
+        }
+        catch (ArgumentException)
+        {
+            return false;
+        }
+    }
+
+    private static StorageMigrationPreflightResult ValidatePathSanity(string targetPath)
+    {
+        if (string.IsNullOrWhiteSpace(targetPath))
+        {
+            return new StorageMigrationPreflightResult
+            {
+                IsValid = false,
+                ErrorMessage = "Target installation directory path cannot be empty.",
+            };
+        }
+
+        var normalizedTarget = Path.TrimEndingDirectorySeparator(Path.GetFullPath(targetPath));
+        var appBaseDir = Path.TrimEndingDirectorySeparator(Path.GetFullPath(AppContext.BaseDirectory));
+        var sourceRoot = GetSourceRootDirectory();
+
+        if (normalizedTarget.Equals(sourceRoot, PathHelper.PathComparison) ||
+            normalizedTarget.Equals(appBaseDir, PathHelper.PathComparison))
+        {
+            return new StorageMigrationPreflightResult
+            {
+                IsValid = false,
+                ErrorMessage = "The target directory is the same as the current installation directory.",
+            };
+        }
+
+        if (IsInsideDirectory(normalizedTarget, sourceRoot) || IsInsideDirectory(normalizedTarget, appBaseDir))
+        {
+            return new StorageMigrationPreflightResult
+            {
+                IsValid = false,
+                IsTargetInsideApplicationDirectory = true,
+                ErrorMessage = "The target directory cannot be located inside the current installation directory.",
+            };
+        }
+
+        if (IsInsideDirectory(sourceRoot, normalizedTarget) || IsInsideDirectory(appBaseDir, normalizedTarget))
+        {
+            return new StorageMigrationPreflightResult
+            {
+                IsValid = false,
+                ErrorMessage = "The target directory cannot be a parent of the current installation directory.",
+            };
+        }
+
+        if (Directory.Exists(normalizedTarget) && Directory.EnumerateFileSystemEntries(normalizedTarget).Any())
+        {
+            return new StorageMigrationPreflightResult
+            {
+                IsValid = false,
+                ErrorMessage = "The target directory already exists and is not empty. Please select an empty or new folder.",
+            };
+        }
+
+        return new StorageMigrationPreflightResult { IsValid = true };
+    }
+
+    private static string? DeterminePreflightErrorMessage(
+        bool hasWritePermission,
+        bool hasActiveProcesses,
+        bool hasSufficientSpace,
+        long requiredBytes,
+        long availableBytes)
+    {
+        if (!hasWritePermission)
+        {
+            return "The target directory is not writable. Please choose a location with write permissions.";
+        }
+
+        if (hasActiveProcesses)
+        {
+            return "Cannot migrate while active game or GenHub processes are running. Please close all games and try again.";
+        }
+
+        if (!hasSufficientSpace)
+        {
+            var reqMb = requiredBytes / ConversionConstants.BytesPerMegabyte;
+            var availMb = availableBytes / ConversionConstants.BytesPerMegabyte;
+            return $"Insufficient disk space on target drive. Required: {reqMb:N0} MB, Available: {availMb:N0} MB.";
+        }
+
+        return null;
+    }
+
+    private static void CopyDirectoryRecursive(string sourceDir, string destDir)
+    {
+        Directory.CreateDirectory(destDir);
+
+        foreach (var file in Directory.GetFiles(sourceDir))
+        {
+            var fileName = Path.GetFileName(file);
+            var destFile = Path.Combine(destDir, fileName);
+            File.Copy(file, destFile, overwrite: true);
+        }
+
+        foreach (var subDir in Directory.GetDirectories(sourceDir))
+        {
+            var dirName = Path.GetFileName(subDir);
+            var destSubDir = Path.Combine(destDir, dirName);
+            CopyDirectoryRecursive(subDir, destSubDir);
+        }
+    }
+
+    private static void TryDeleteDirectory(string path)
+    {
+        try
+        {
+            if (Directory.Exists(path))
+            {
+                Directory.Delete(path, recursive: true);
+            }
+        }
+        catch (IOException)
+        {
+            // Suppress cleanup exceptions during rollback
+        }
+        catch (UnauthorizedAccessException)
+        {
+            // Suppress cleanup exceptions during rollback
+        }
+    }
+
+    private static string GetPowerShellExcludedList()
+    {
+        return string.Join(", ", ExcludedUserDataNames.Select(name => $"'{name}'"));
+    }
+
+    private static string GetBashExcludedPattern()
+    {
+        return string.Join("|", ExcludedUserDataNames);
+    }
+
+    private static string GetFallbackScriptTemplate(bool isWindows)
+    {
+        if (isWindows)
+        {
+            return $@"# GenHub Windows Migration Script (Fallback)
+param(
+    [string]$ProcessId = ""{{PROCESS_ID}}"",
+    [string]$SourceDir = ""{{SOURCE_DIR}}"",
+    [string]$TargetDir = ""{{TARGET_DIR}}"",
+    [string]$CurrentExe = ""{{CURRENT_EXE}}"",
+    [string]$LogFile = ""{{LOG_FILE}}"",
+    [string]$BackupDir = ""{{BACKUP_DIR}}""
+)
+
+function Write-Log {{
+    param([string]$Message)
+    $timestamp = Get-Date -Format 'yyyy-MM-dd HH:mm:ss'
+    ""[$timestamp] $Message"" | Out-File -FilePath $LogFile -Append -Encoding UTF8
+}}
+
+Write-Log ""GenHub Migration Script Started""
+Wait-Process -Id $ProcessId -Timeout 60 -ErrorAction SilentlyContinue
+$process = Get-Process -Id $ProcessId -ErrorAction SilentlyContinue
+if ($process) {{
+    Stop-Process -Id $ProcessId -Force
+    Start-Sleep -Seconds 2
+}}
+Get-Process -Name ""GenHub*"" -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+Start-Sleep -Seconds 2
+
+$updateSuccess = $false
+$excluded = @({GetPowerShellExcludedList()})
+try {{
+    if (-not (Test-Path $TargetDir)) {{
+        New-Item -ItemType Directory -Path $TargetDir -Force | Out-Null
+    }}
+    New-Item -ItemType Directory -Path $BackupDir -Force | Out-Null
+    if (Test-Path $TargetDir) {{
+        $existingItems = Get-ChildItem -Path $TargetDir -Force -ErrorAction SilentlyContinue
+        if ($null -ne $existingItems -and $existingItems.Count -gt 0) {{
+            $existingItems | ForEach-Object {{
+                Copy-Item -Path $_.FullName -Destination $BackupDir -Recurse -Force -ErrorAction Stop
+            }}
+        }}
+    }}
+    Get-ChildItem -Path $SourceDir -Force | Where-Object {{ $excluded -notcontains $_.Name }} | ForEach-Object {{
+        Copy-Item -Path $_.FullName -Destination $TargetDir -Recurse -Force -ErrorAction Stop
+    }}
+    Write-Log ""Migration copied successfully""
+    if (-not (Test-Path $CurrentExe)) {{
+        throw ""Updated executable not found: $CurrentExe""
+    }}
+    $exeDir = Split-Path -Path $CurrentExe -Parent
+    $proc = Start-Process -FilePath $CurrentExe -WorkingDirectory $exeDir -PassThru -ErrorAction Stop
+    if ($null -eq $proc) {{
+        throw ""Failed to start updated application: process could not be launched""
+    }}
+    Start-Sleep -Seconds 1
+    for ($i = 0; $i -lt 5; $i++) {{
+        if ($proc.HasExited) {{
+            throw ""Application exited prematurely after launch with exit code $($proc.ExitCode)""
+        }}
+        Start-Sleep -Seconds 1
+    }}
+    Write-Log ""Application started and verified running""
+    if (Test-Path $SourceDir) {{
+        Get-ChildItem -Path $SourceDir -Force | Where-Object {{ $excluded -notcontains $_.Name }} | ForEach-Object {{
+            Remove-Item -Path $_.FullName -Recurse -Force -ErrorAction SilentlyContinue
+        }}
+        $remaining = Get-ChildItem -Path $SourceDir -Force -ErrorAction SilentlyContinue
+        if ($null -eq $remaining -or $remaining.Count -eq 0) {{
+            Remove-Item -Path $SourceDir -Force -ErrorAction SilentlyContinue
+        }}
+    }}
+    $updateSuccess = $true
+}}
+catch {{
+    Write-Log ""Migration failed: $($_.Exception.Message)""
+    if (Test-Path $BackupDir) {{
+        $backupItems = Get-ChildItem -Path $BackupDir -Force -ErrorAction SilentlyContinue
+        if ($null -ne $backupItems -and $backupItems.Count -gt 0) {{
+            Get-ChildItem -Path $TargetDir -Force -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
+            $backupItems | ForEach-Object {{
+                Copy-Item -Path $_.FullName -Destination $TargetDir -Recurse -Force -ErrorAction SilentlyContinue
+            }}
+            Write-Log ""Backup restored successfully""
+        }}
+    }}
+}}
+finally {{
+    $updaterDir = Split-Path -Path $MyInvocation.MyCommand.Path -Parent
+    if ($updateSuccess) {{
+        Start-Sleep -Seconds 2
+        if (Test-Path $updaterDir) {{
+            Remove-Item -Path $updaterDir -Recurse -Force -ErrorAction SilentlyContinue
+        }}
+    }} else {{
+        Write-Log ""Preserving backup and temporary updater directory for recovery: $updaterDir""
+    }}
+}}
+";
+        }
+
+        return $@"#!/bin/bash
+trap '' HUP
+UPDATER_DIR=$(cd -- ""$(dirname -- ""$0"")"" && pwd)
+PROCESS_ID=""${{1:-{{{{PROCESS_ID}}}}}}""
+SOURCE_DIR=""${{2:-{{{{SOURCE_DIR}}}}}}""
+TARGET_DIR=""${{3:-{{{{TARGET_DIR}}}}}}""
+CURRENT_EXE=""${{4:-{{{{CURRENT_EXE}}}}}}""
+LOG_FILE=""${{5:-{{{{LOG_FILE}}}}}}""
+BACKUP_DIR=""${{6:-{{{{BACKUP_DIR}}}}}}""
+
+write_log() {{
+    echo ""[$(date '+%Y-%m-%d %H:%M:%S')] $1"" >> ""$LOG_FILE""
+}}
+
+is_excluded() {{
+    case ""$1"" in
+        {GetBashExcludedPattern()})
+            return 0
+            ;;
+        *)
+            return 1
+            ;;
+    esac
+}}
+
+write_log ""GenHub Linux Migration Script Started""
+for _ in {{1..60}}; do
+    if ! kill -0 ""$PROCESS_ID"" 2>/dev/null; then
+        break
+    fi
+    sleep 1
+done
+
+if kill -0 ""$PROCESS_ID"" 2>/dev/null; then
+    kill -TERM ""$PROCESS_ID"" 2>/dev/null
+    sleep 2
+    kill -KILL ""$PROCESS_ID"" 2>/dev/null
+fi
+
+pkill -x ""GenHub"" 2>/dev/null || true
+pkill -x ""GenHub.Linux"" 2>/dev/null || true
+sleep 2
+
+mkdir -p ""$BACKUP_DIR""
+if [ -d ""$TARGET_DIR"" ] && [ ""$(ls -A ""$TARGET_DIR"" 2>/dev/null)"" ]; then
+    write_log ""Backing up existing files...""
+    if ! cp -a ""$TARGET_DIR/."" ""$BACKUP_DIR/"" 2>> ""$LOG_FILE""; then
+        write_log ""Error: Failed to create backup of existing files.""
+        exit 1
+    fi
+fi
+
+mkdir -p ""$TARGET_DIR""
+copy_failed=0
+for item in ""$SOURCE_DIR""/* ""$SOURCE_DIR""/.[!.]*; do
+    [ -e ""$item"" ] || continue
+    name=$(basename ""$item"")
+    if is_excluded ""$name""; then
+        continue
+    fi
+    if ! cp -a ""$item"" ""$TARGET_DIR/"" 2>> ""$LOG_FILE""; then
+        copy_failed=1
+        break
+    fi
+done
+
+if [ ""$copy_failed"" -eq 1 ]; then
+    write_log ""Error: Failed to copy migration files""
+    if [ -d ""$BACKUP_DIR"" ] && [ ""$(ls -A ""$BACKUP_DIR"" 2>/dev/null)"" ]; then
+        write_log ""Attempting to restore backup...""
+        rm -rf ""${{TARGET_DIR:?}}""/* ""${{TARGET_DIR:?}}""/.[!.]* 2>/dev/null || true
+        if cp -a ""${{BACKUP_DIR:?}}/."" ""$TARGET_DIR/"" 2>/dev/null; then
+            write_log ""Backup restored.""
+        else
+            write_log ""Error: Failed to restore backup.""
+        fi
+    fi
+    exit 1
+fi
+
+write_log ""Starting updated application: $CURRENT_EXE""
+if [ -f ""$CURRENT_EXE"" ]; then
+    EXE_DIR=$(dirname ""$CURRENT_EXE"")
+    EXE_NAME=$(basename ""$CURRENT_EXE"")
+    cd ""$EXE_DIR"" || exit 1
+    if [ ! -x ""$EXE_NAME"" ]; then
+        chmod +x ""$EXE_NAME""
+    fi
+    nohup ""./$EXE_NAME"" > /dev/null 2>&1 &
+    APP_PID=$!
+    for _ in $(seq 1 5); do
+        sleep 1
+        if ! kill -0 ""$APP_PID"" 2>/dev/null; then
+            write_log ""Error: Application exited prematurely after launch""
+            if [ -d ""$BACKUP_DIR"" ] && [ ""$(ls -A ""$BACKUP_DIR"" 2>/dev/null)"" ]; then
+                write_log ""Attempting to restore backup...""
+                rm -rf ""${{TARGET_DIR:?}}""/* ""${{TARGET_DIR:?}}""/.[!.]* 2>/dev/null || true
+                if cp -a ""${{BACKUP_DIR:?}}/."" ""$TARGET_DIR/"" 2>/dev/null; then
+                    write_log ""Backup restored.""
+                else
+                    write_log ""Error: Failed to restore backup.""
+                fi
+            fi
+            exit 1
+        fi
+    done
+    write_log ""Application started and verified running (PID: $APP_PID)""
+    for item in ""$SOURCE_DIR""/* ""$SOURCE_DIR""/.[!.]*; do
+        [ -e ""$item"" ] || continue
+        name=$(basename ""$item"")
+        if is_excluded ""$name""; then
+            continue
+        fi
+        rm -rf ""$item"" 2>/dev/null || true
+    done
+    rmdir ""$SOURCE_DIR"" 2>/dev/null || true
+else
+    write_log ""Error: Updated executable not found: $CURRENT_EXE""
+    if [ -d ""$BACKUP_DIR"" ] && [ ""$(ls -A ""$BACKUP_DIR"" 2>/dev/null)"" ]; then
+        write_log ""Attempting to restore backup...""
+        rm -rf ""${{TARGET_DIR:?}}""/* ""${{TARGET_DIR:?}}""/.[!.]* 2>/dev/null || true
+        if cp -a ""${{BACKUP_DIR:?}}/."" ""$TARGET_DIR/"" 2>/dev/null; then
+            write_log ""Backup restored.""
+        else
+            write_log ""Error: Failed to restore backup.""
+        fi
+    fi
+    exit 1
+fi
+
+sleep 2
+rm -rf ""${{UPDATER_DIR:?}}"" 2>/dev/null || true
+";
+    }
+
+    private static string? GetScriptResource(string scriptName)
+    {
+        foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
+        {
+            var content = TryReadAssemblyResource(assembly, scriptName);
+            if (content != null)
+            {
+                return content;
+            }
+        }
+
+        return null;
+    }
+
+    private static string? TryReadAssemblyResource(Assembly assembly, string scriptName)
+    {
+        try
+        {
+            var resourceNames = assembly.GetManifestResourceNames();
+            var match = resourceNames.FirstOrDefault(n => n.EndsWith(scriptName, StringComparison.OrdinalIgnoreCase));
+            if (match == null)
+            {
+                return null;
+            }
+
+            using var stream = assembly.GetManifestResourceStream(match);
+            if (stream == null)
+            {
+                return null;
+            }
+
+            using var reader = new StreamReader(stream);
+            return reader.ReadToEnd();
+        }
+        catch (FileLoadException)
+        {
+            return null;
+        }
+        catch (BadImageFormatException)
+        {
+            return null;
+        }
+        catch (IOException)
+        {
+            return null;
+        }
+        catch (NotSupportedException)
+        {
+            return null;
+        }
+        catch (InvalidOperationException)
+        {
+            return null;
+        }
+        catch (SecurityException)
+        {
+            return null;
+        }
+    }
+
+    private static string GetPowerShellPath()
+    {
+        var systemPowerShell = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.System),
+            "WindowsPowerShell",
+            "v1.0",
+            "powershell.exe");
+
+        return File.Exists(systemPowerShell) ? systemPowerShell : "powershell.exe";
+    }
+
+    private static string ResolveFinalDirectoryPath(
+        string? currentRoot,
+        string defaultTarget,
+        string sourceRoot,
+        string targetRoot)
+    {
+        if (string.IsNullOrWhiteSpace(currentRoot))
+        {
+            return defaultTarget;
+        }
+
+        var relative = Path.GetRelativePath(sourceRoot, currentRoot);
+        if (relative != "." && !relative.StartsWith("..", StringComparison.Ordinal) && !Path.IsPathRooted(relative))
+        {
+            return Path.Combine(targetRoot, relative);
+        }
+
+        return defaultTarget;
+    }
+
+    private static string? DetermineRollbackPath(bool rolledBack, string? originalPath, string targetPath)
+    {
+        if (rolledBack)
+        {
+            return originalPath;
+        }
+
+        return Directory.Exists(targetPath) ? targetPath : originalPath;
+    }
+
+    private static bool RollbackDirectoryMove(
+        bool moved,
+        string? originalPath,
+        string targetPath,
+        ILogger logger)
+    {
+        if (!moved || string.IsNullOrWhiteSpace(originalPath))
+        {
+            return true;
+        }
+
+        const int maxAttempts = 2;
+        for (var attempt = 1; attempt <= maxAttempts; attempt++)
+        {
+            try
+            {
+                if (Directory.Exists(targetPath))
+                {
+                    MigrateDirectorySafely(targetPath, originalPath);
+                    logger.LogInformation("Successfully rolled back directory move from {Target} to {Original}", targetPath, originalPath);
+                }
+
+                return true;
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                HandleRollbackFailure(ex, attempt, maxAttempts, targetPath, originalPath, logger);
+            }
+        }
+
+        return false;
+    }
+
+    private static void HandleRollbackFailure(
+        Exception ex,
+        int attempt,
+        int maxAttempts,
+        string targetPath,
+        string originalPath,
+        ILogger logger)
+    {
+        if (attempt < maxAttempts)
+        {
+            logger.LogWarning(ex, "Rollback attempt {Attempt} of {MaxAttempts} failed from {Target} to {Original}. Retrying in 500ms...", attempt, maxAttempts, targetPath, originalPath);
+            Thread.Sleep(500);
+        }
+        else
+        {
+            logger.LogCritical(ex, "Failed to rollback directory move from {Target} to {Original} after {MaxAttempts} attempts. Manual recovery may be required.", targetPath, originalPath, maxAttempts);
+        }
+    }
+
+    private static bool TryRewritePath(string? path, string oldRoot, string newRoot, Action<string> apply)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return false;
+        }
+
+        var relative = Path.GetRelativePath(oldRoot, path);
+        if (relative == ".")
+        {
+            apply(newRoot);
+            return true;
+        }
+
+        if (!relative.StartsWith("..", StringComparison.Ordinal) && !Path.IsPathRooted(relative))
+        {
+            apply(Path.Combine(newRoot, relative));
+            return true;
+        }
+
+        return false;
+    }
+
+    private static bool RewriteWorkspaces(List<WorkspaceInfo> workspaces, string oldWorkspaceRoot, string newWorkspaceRoot)
+    {
+        var updated = false;
+        foreach (var ws in workspaces)
+        {
+            updated |= TryRewritePath(ws.WorkspacePath, oldWorkspaceRoot, newWorkspaceRoot, p => ws.WorkspacePath = p);
+            updated |= TryRewritePath(ws.ExecutablePath, oldWorkspaceRoot, newWorkspaceRoot, p => ws.ExecutablePath = p);
+            updated |= TryRewritePath(ws.WorkingDirectory, oldWorkspaceRoot, newWorkspaceRoot, p => ws.WorkingDirectory = p);
+        }
+
+        return updated;
+    }
+
+    private static void CleanupTempFile(string tempPath)
+    {
+        if (File.Exists(tempPath))
+        {
+            try
+            {
+                File.Delete(tempPath);
+            }
+            catch (IOException)
+            {
+                // Best effort temp cleanup
+            }
+            catch (UnauthorizedAccessException)
+            {
+                // Best effort temp cleanup
+            }
+        }
+    }
+
+    private static void CleanIfEmpty(string path)
+    {
+        try
+        {
+            if (!Directory.Exists(path))
+            {
+                return;
+            }
+
+            CleanEmptySubdirectories(path);
+
+            if (!Directory.EnumerateFileSystemEntries(path).Any())
+            {
+                Directory.Delete(path);
+            }
+        }
+        catch (IOException)
+        {
+            // Non-fatal cleanup
+        }
+        catch (UnauthorizedAccessException)
+        {
+            // Non-fatal cleanup
+        }
+        catch (ArgumentException)
+        {
+            // Non-fatal cleanup
+        }
+        catch (System.Security.SecurityException)
+        {
+            // Non-fatal cleanup
+        }
+    }
+
+    private static void CleanEmptySubdirectories(string dir)
+    {
+        try
+        {
+            foreach (var subDir in Directory.GetDirectories(dir))
+            {
+                CleanEmptySubdirectories(subDir);
+                if (!Directory.EnumerateFileSystemEntries(subDir).Any())
+                {
+                    try
+                    {
+                        Directory.Delete(subDir);
+                    }
+                    catch (IOException)
+                    {
+                        // Non-fatal cleanup
+                    }
+                    catch (UnauthorizedAccessException)
+                    {
+                        // Non-fatal cleanup
+                    }
+                }
+            }
+        }
+        catch (IOException)
+        {
+            // Non-fatal cleanup
+        }
+        catch (UnauthorizedAccessException)
+        {
+            // Non-fatal cleanup
+        }
+    }
+
+    private async Task<(bool HasActiveProcesses, List<string> ProcessNames)> CheckActiveProcessesAsync(CancellationToken cancellationToken)
+    {
+        var activeLaunches = (await launchRegistry.GetAllActiveLaunchesAsync()).ToList();
+        var activeProcessesResult = await gameProcessManager.GetActiveProcessesAsync(cancellationToken);
+        var activeProcesses = activeProcessesResult.Success && activeProcessesResult.Data != null
+            ? activeProcessesResult.Data
+            : [];
+
+        var hasActiveProcesses = activeLaunches.Count > 0 || activeProcesses.Count > 0;
+        var processNames = new List<string>();
+
+        foreach (var launch in activeLaunches)
+        {
+            processNames.Add($"Launch: {launch.ProfileId}");
+        }
+
+        foreach (var proc in activeProcesses)
+        {
+            processNames.Add($"Process: {proc.ProcessName} (PID: {proc.ProcessId})");
+        }
+
+        return (hasActiveProcesses, processNames);
+    }
+
+    private long CalculateRequiredSpace(string sourceRoot, bool relocateCasAndWorkspace)
+    {
+        long requiredBytes = 0;
+
+        if (Directory.Exists(sourceRoot))
+        {
+            var dirInfo = new DirectoryInfo(sourceRoot);
+            foreach (var entry in dirInfo.EnumerateFileSystemInfos())
+            {
+                if (ExcludedUserDataNames.Contains(entry.Name))
+                {
+                    continue;
+                }
+
+                requiredBytes += entry is FileInfo fi
+                    ? fi.Length
+                    : CalculateDirectorySize(entry.FullName);
+            }
+        }
+
+        if (relocateCasAndWorkspace)
+        {
+            var casRoot = ResolveEffectiveCasRoot();
+            if (Directory.Exists(casRoot))
+            {
+                requiredBytes += CalculateDirectorySize(casRoot);
+            }
+
+            var workspaceRoot = ResolveEffectiveWorkspaceRoot();
+            if (Directory.Exists(workspaceRoot))
+            {
+                requiredBytes += CalculateDirectorySize(workspaceRoot);
+            }
+        }
+
+        return requiredBytes + StorageMigrationConstants.DiskSpaceSafetyMarginBytes;
+    }
+
+    private async Task<OperationResult<bool>> RelocateStorageAsync(
+        string targetRoot,
+        string sourceRoot,
+        CancellationToken cancellationToken = default)
+    {
+        var currentCasRoot = ResolveEffectiveCasRoot();
+        var currentWorkspaceRoot = ResolveEffectiveWorkspaceRoot();
+
+        var targetDataDir = Path.Combine(targetRoot, DirectoryNames.Data);
+        var targetCasRoot = Path.Combine(targetDataDir, DirectoryNames.CasPool);
+        var targetWorkspaceRoot = Path.Combine(targetDataDir, DirectoryNames.Workspaces);
+
+        var finalCasRoot = ResolveFinalDirectoryPath(currentCasRoot, targetCasRoot, sourceRoot, targetRoot);
+        var finalWorkspaceRoot = ResolveFinalDirectoryPath(currentWorkspaceRoot, targetWorkspaceRoot, sourceRoot, targetRoot);
+
+        var paths = new StorageRelocationPaths(
+            currentCasRoot,
+            currentWorkspaceRoot,
+            finalCasRoot,
+            finalWorkspaceRoot);
+
+        if (!TryMoveStorageDirectory(currentCasRoot, finalCasRoot, out var casMoved))
+        {
+            return OperationResult<bool>.CreateFailure("Failed to relocate CAS storage pool.");
+        }
+
+        if (!TryMoveStorageDirectory(currentWorkspaceRoot, finalWorkspaceRoot, out var workspaceMoved))
+        {
+            return await HandleWorkspaceMoveFailureAsync(casMoved, paths, cancellationToken);
+        }
+
+        if (workspaceMoved && !string.IsNullOrWhiteSpace(currentWorkspaceRoot))
+        {
+            await RewriteWorkspaceMetadataAsync(currentWorkspaceRoot, finalWorkspaceRoot, CancellationToken.None);
+        }
+
+        var saved = await userSettingsService.TryUpdateAndSaveAsync(settings =>
+        {
+            settings.CasConfiguration.CasRootPath = finalCasRoot;
+            settings.WorkspacePath = finalWorkspaceRoot;
+            settings.MarkAsExplicitlySet(nameof(UserSettings.WorkspacePath));
+            return true;
+        });
+
+        if (!saved)
+        {
+            return await HandleSettingsPersistFailureAsync(casMoved, workspaceMoved, paths, cancellationToken);
+        }
+
+        try
+        {
+            casPoolManager.ReinitializeInstallationPool();
+        }
+        catch (IOException ex)
+        {
+            logger.LogWarning(ex, "Failed to reinitialize CAS installation pool after storage relocation.");
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            logger.LogWarning(ex, "Failed to reinitialize CAS installation pool after storage relocation.");
+        }
+        catch (InvalidOperationException ex)
+        {
+            logger.LogWarning(ex, "Failed to reinitialize CAS installation pool after storage relocation.");
+        }
+
+        return OperationResult<bool>.CreateSuccess(true);
+    }
+
+    private async Task<OperationResult<bool>> HandleWorkspaceMoveFailureAsync(
+        bool casMoved,
+        StorageRelocationPaths paths,
+        CancellationToken cancellationToken = default)
+    {
+        var casRolledBack = RollbackDirectoryMove(casMoved, paths.CurrentCasRoot, paths.FinalCasRoot, logger);
+        if (!casRolledBack && paths.CurrentCasRoot != null)
+        {
+            var casSaved = await PersistRollbackPathsAsync(
+                casRolledBack: false,
+                workspaceRolledBack: true,
+                paths,
+                cancellationToken);
+
+            if (!casSaved)
+            {
+                logger.LogCritical("Failed to persist CAS storage path to {Target} after rollback failure.", paths.FinalCasRoot);
+                return OperationResult<bool>.CreateFailure($"Critical: CAS storage rollback failed, and settings could not be saved to target path {paths.FinalCasRoot}.");
+            }
+        }
+
+        return OperationResult<bool>.CreateFailure("Failed to relocate game workspaces directory.");
+    }
+
+    private async Task<OperationResult<bool>> HandleSettingsPersistFailureAsync(
+        bool casMoved,
+        bool workspaceMoved,
+        StorageRelocationPaths paths,
+        CancellationToken cancellationToken = default)
+    {
+        logger.LogError("Failed to persist relocated storage settings. Rolling back storage relocation.");
+
+        var casRolledBack = RollbackDirectoryMove(casMoved, paths.CurrentCasRoot, paths.FinalCasRoot, logger);
+        var workspaceRolledBack = RollbackDirectoryMove(workspaceMoved, paths.CurrentWorkspaceRoot, paths.FinalWorkspaceRoot, logger);
+
+        if (workspaceRolledBack && !string.IsNullOrWhiteSpace(paths.CurrentWorkspaceRoot))
+        {
+            await RewriteWorkspaceMetadataAsync(paths.FinalWorkspaceRoot, paths.CurrentWorkspaceRoot, CancellationToken.None);
+        }
+
+        var rollbackSaved = await PersistRollbackPathsAsync(
+            casRolledBack,
+            workspaceRolledBack,
+            paths,
+            cancellationToken);
+
+        if (!rollbackSaved)
+        {
+            logger.LogCritical("Failed to persist storage paths during rollback. Settings on disk may be out of sync with physical storage.");
+            return OperationResult<bool>.CreateFailure("Critical: Failed to persist storage configuration during rollback. Configuration on disk may be unrecovered and out of sync with physical storage.");
+        }
+
+        return OperationResult<bool>.CreateFailure("Failed to persist relocated storage settings. Storage locations have been rolled back.");
+    }
+
+    private async Task<bool> PersistRollbackPathsAsync(
+        bool casRolledBack,
+        bool workspaceRolledBack,
+        StorageRelocationPaths paths,
+        CancellationToken cancellationToken = default)
+    {
+        var saved = await TrySaveRollbackPathsAsync(casRolledBack, workspaceRolledBack, paths);
+
+        if (!saved)
+        {
+            await Task.Delay(500, cancellationToken);
+            saved = await TrySaveRollbackPathsAsync(casRolledBack, workspaceRolledBack, paths);
+        }
+
+        if (saved && !casRolledBack)
+        {
+            try
+            {
+                casPoolManager.ReinitializeInstallationPool();
+            }
+            catch (IOException ex)
+            {
+                logger.LogWarning(ex, "Failed to reinitialize CAS installation pool after rollback.");
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                logger.LogWarning(ex, "Failed to reinitialize CAS installation pool after rollback.");
+            }
+            catch (InvalidOperationException ex)
+            {
+                logger.LogWarning(ex, "Failed to reinitialize CAS installation pool after rollback.");
+            }
+        }
+
+        return saved;
+    }
+
+    private Task<bool> TrySaveRollbackPathsAsync(
+        bool casRolledBack,
+        bool workspaceRolledBack,
+        StorageRelocationPaths paths)
+    {
+        return userSettingsService.TryUpdateAndSaveAsync(liveSettings =>
+        {
+            var casPath = DetermineRollbackPath(casRolledBack, paths.CurrentCasRoot, paths.FinalCasRoot);
+            if (casPath != null)
+            {
+                liveSettings.CasConfiguration.CasRootPath = casPath;
+            }
+
+            var workspacePath = DetermineRollbackPath(workspaceRolledBack, paths.CurrentWorkspaceRoot, paths.FinalWorkspaceRoot);
+            if (workspacePath != null)
+            {
+                liveSettings.WorkspacePath = workspacePath;
+            }
+
+            return true;
+        });
+    }
+
+    private bool TryMoveStorageDirectory(string? currentPath, string targetPath, out bool moved)
+    {
+        moved = false;
+        if (string.IsNullOrWhiteSpace(currentPath) || !Directory.Exists(currentPath))
+        {
+            return true;
+        }
+
+        if (PathHelper.AreSamePath(currentPath, targetPath))
+        {
+            return true;
+        }
+
+        try
+        {
+            MigrateDirectorySafely(currentPath, targetPath);
+            moved = true;
+            return true;
+        }
+        catch (IOException ex)
+        {
+            logger.LogError(ex, "Failed to migrate storage directory from {Current} to {Target}", currentPath, targetPath);
+            return false;
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            logger.LogError(ex, "Failed to migrate storage directory from {Current} to {Target}", currentPath, targetPath);
+            return false;
+        }
+    }
+
+    private string? ResolveEffectiveCasRoot()
+    {
+        var settingsPath = userSettingsService.Get().CasConfiguration?.CasRootPath;
+        if (!string.IsNullOrWhiteSpace(settingsPath))
+        {
+            return settingsPath;
+        }
+
+        return configurationProvider.GetCasConfiguration()?.CasRootPath;
+    }
+
+    private string? ResolveEffectiveWorkspaceRoot()
+    {
+        var settingsPath = userSettingsService.Get().WorkspacePath;
+        if (!string.IsNullOrWhiteSpace(settingsPath))
+        {
+            return settingsPath;
+        }
+
+        return configurationProvider.GetWorkspacePath();
+    }
+
+    private async Task RewriteWorkspaceMetadataAsync(string oldWorkspaceRoot, string newWorkspaceRoot, CancellationToken cancellationToken)
+    {
+        var appDataMetadataPath = Path.Combine(configurationProvider.GetApplicationDataPath(), FileTypes.WorkspaceMetadataFileName);
+        var wsMetadataPath = Path.Combine(newWorkspaceRoot, FileTypes.WorkspaceMetadataFileName);
+        var metadataPaths = new[] { appDataMetadataPath, wsMetadataPath }.Distinct();
+
+        foreach (var metadataPath in metadataPaths)
+        {
+            await RewriteMetadataFileAsync(metadataPath, oldWorkspaceRoot, newWorkspaceRoot, cancellationToken);
+        }
+    }
+
+    private async Task RewriteMetadataFileAsync(string metadataPath, string oldWorkspaceRoot, string newWorkspaceRoot, CancellationToken cancellationToken)
+    {
+        if (!File.Exists(metadataPath))
+        {
+            return;
+        }
+
+        try
+        {
+            var json = await File.ReadAllTextAsync(metadataPath, cancellationToken);
+            var workspaces = JsonSerializer.Deserialize<List<WorkspaceInfo>>(json);
+            if (workspaces == null || workspaces.Count == 0 || !RewriteWorkspaces(workspaces, oldWorkspaceRoot, newWorkspaceRoot))
+            {
+                return;
+            }
+
+            await WriteUpdatedMetadataSafelyAsync(metadataPath, workspaces, oldWorkspaceRoot, newWorkspaceRoot, cancellationToken);
+        }
+        catch (Exception ex) when (ex is IOException or JsonException or UnauthorizedAccessException)
+        {
+            logger.LogWarning(ex, "Failed to rewrite workspace metadata paths in {MetadataFile}", metadataPath);
+        }
+    }
+
+    private async Task WriteUpdatedMetadataSafelyAsync(
+        string metadataPath,
+        List<WorkspaceInfo> workspaces,
+        string oldWorkspaceRoot,
+        string newWorkspaceRoot,
+        CancellationToken cancellationToken)
+    {
+        var options = new JsonSerializerOptions { WriteIndented = true };
+        var updatedJson = JsonSerializer.Serialize(workspaces, options);
+        var directory = Path.GetDirectoryName(metadataPath);
+        var tempPath = Path.Combine(directory ?? string.Empty, $"{Path.GetFileName(metadataPath)}.{Guid.NewGuid():N}.tmp");
+        try
+        {
+            await File.WriteAllTextAsync(tempPath, updatedJson, cancellationToken);
+            File.Move(tempPath, metadataPath, overwrite: true);
+            logger.LogInformation("Rewrote workspace metadata paths from {OldRoot} to {NewRoot} in {Path}", oldWorkspaceRoot, newWorkspaceRoot, metadataPath);
+        }
+        finally
+        {
+            CleanupTempFile(tempPath);
+        }
+    }
+
+    private string PrepareMigrationScript(string targetDirectory)
+    {
+        var isWindows = OperatingSystem.IsWindows();
+        var scriptName = isWindows
+            ? StorageMigrationConstants.WindowsUpdateScriptName
+            : StorageMigrationConstants.LinuxUpdateScriptName;
+
+        var scriptTemplate = GetScriptResource(scriptName) ?? GetFallbackScriptTemplate(isWindows);
+        var scriptFilePath = Path.Combine(targetDirectory, scriptName);
+        File.WriteAllText(scriptFilePath, scriptTemplate);
+
+        if (!isWindows)
+        {
+            try
+            {
+                var filePermissions = UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute |
+                                      UnixFileMode.GroupRead | UnixFileMode.GroupExecute |
+                                      UnixFileMode.OtherRead | UnixFileMode.OtherExecute;
+                File.SetUnixFileMode(scriptFilePath, filePermissions);
+            }
+            catch (IOException ex)
+            {
+                logger.LogWarning(ex, "Failed to set Unix permissions on migration script {Path}", scriptFilePath);
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                logger.LogWarning(ex, "Failed to set Unix permissions on migration script {Path}", scriptFilePath);
+            }
+            catch (PlatformNotSupportedException ex)
+            {
+                logger.LogWarning(ex, "Failed to set Unix permissions on migration script {Path}", scriptFilePath);
+            }
+        }
+
+        logger.LogInformation("Migration script generated at {ScriptPath}", scriptFilePath);
+        return scriptFilePath;
+    }
+
+    private void LaunchHelperProcess(
+        string scriptPath,
+        string sourceDir,
+        string targetDir,
+        string relativeExePath,
+        string logFile,
+        string backupDir)
+    {
+        try
+        {
+            var targetExe = Path.Combine(targetDir, relativeExePath);
+            var pid = Environment.ProcessId.ToString();
+
+            var startInfo = new ProcessStartInfo
+            {
+                FileName = OperatingSystem.IsWindows() ? GetPowerShellPath() : "/bin/bash",
+                UseShellExecute = false,
+                CreateNoWindow = true,
+            };
+
+            if (OperatingSystem.IsWindows())
+            {
+                startInfo.ArgumentList.Add("-ExecutionPolicy");
+                startInfo.ArgumentList.Add("Bypass");
+                startInfo.ArgumentList.Add("-NoProfile");
+                startInfo.ArgumentList.Add("-File");
+            }
+
+            startInfo.ArgumentList.Add(scriptPath);
+            startInfo.ArgumentList.Add(pid);
+            startInfo.ArgumentList.Add(sourceDir);
+            startInfo.ArgumentList.Add(targetDir);
+            startInfo.ArgumentList.Add(targetExe);
+            startInfo.ArgumentList.Add(logFile);
+            startInfo.ArgumentList.Add(backupDir);
+
+            using var process = Process.Start(startInfo);
+            if (process == null)
+            {
+                throw new InvalidOperationException($"Process.Start returned null for helper process '{scriptPath}'.");
+            }
+
+            logger.LogInformation("Started detached helper migration process (PID: {ProcessId}): {ScriptPath}", process.Id, scriptPath);
+        }
+        catch (Exception ex) when (ex is Win32Exception or IOException or PlatformNotSupportedException)
+        {
+            throw new InvalidOperationException($"Failed to start helper migration process for '{scriptPath}'.", ex);
+        }
+    }
+
+    private async Task<OperationResult<bool>> ExecuteMigrationAsync(
+        StorageMigrationRequest request,
+        IProgress<StorageMigrationProgress>? progress,
+        CancellationToken cancellationToken)
+    {
+        string? stagedTempDir = null;
+        var helperLaunched = false;
+        try
+        {
+            var preflightResult = await RunPreflightPhaseAsync(request, progress, cancellationToken);
+            if (!preflightResult.Success)
+            {
+                return preflightResult;
+            }
+
+            var targetRoot = Path.TrimEndingDirectorySeparator(Path.GetFullPath(request.TargetPath));
+            var sourceRoot = GetSourceRootDirectory();
+            Directory.CreateDirectory(targetRoot);
+
+            if (request.RelocateCasAndWorkspace)
+            {
+                var relocateResult = await RunRelocateStoragePhaseAsync(targetRoot, sourceRoot, progress, cancellationToken);
+                if (!relocateResult.Success)
+                {
+                    return relocateResult;
+                }
+            }
+
+            helperLaunched = StageAndLaunchAssistant(request, sourceRoot, targetRoot, progress, out stagedTempDir);
+
+            if (!helperLaunched && stagedTempDir != null)
+            {
+                FileOperationsService.DeleteDirectoryIfExists(stagedTempDir);
+            }
+
+            FinalizeMigration(request, progress);
+            return OperationResult<bool>.CreateSuccess(true);
+        }
+        catch (Exception ex)
+        {
+            if (stagedTempDir != null && !helperLaunched)
+            {
+                FileOperationsService.DeleteDirectoryIfExists(stagedTempDir);
+            }
+
+            logger.LogError(ex, "Installation migration failed unexpectedly for target {TargetPath}", request.TargetPath);
+            return OperationResult<bool>.CreateFailure($"Migration failed: {ex.Message}");
+        }
+    }
+
+    private async Task<OperationResult<bool>> RunPreflightPhaseAsync(
+        StorageMigrationRequest request,
+        IProgress<StorageMigrationProgress>? progress,
+        CancellationToken cancellationToken)
+    {
+        progress?.Report(new StorageMigrationProgress
+        {
+            Stage = StorageMigrationConstants.StagePreflight,
+            Percentage = 10,
+            Message = "Validating target directory and pre-flight constraints...",
+        });
+
+        var preflight = await ValidatePreflightAsync(request.TargetPath, request.RelocateCasAndWorkspace, cancellationToken);
+        if (!preflight.Success || preflight.Data is null || !preflight.Data.IsValid)
+        {
+            var error = preflight.Data?.ErrorMessage ?? preflight.FirstError ?? "Pre-flight validation failed.";
+            logger.LogError("Migration pre-flight validation failed: {Error}", error);
+            return OperationResult<bool>.CreateFailure(error);
+        }
+
+        return OperationResult<bool>.CreateSuccess(true);
+    }
+
+    private async Task<OperationResult<bool>> RunRelocateStoragePhaseAsync(
+        string targetRoot,
+        string sourceRoot,
+        IProgress<StorageMigrationProgress>? progress,
+        CancellationToken cancellationToken)
+    {
+        progress?.Report(new StorageMigrationProgress
+        {
+            Stage = StorageMigrationConstants.StageRelocatingStorage,
+            Percentage = 30,
+            Message = "Relocating CAS storage pool and game workspaces...",
+        });
+
+        return await RelocateStorageAsync(targetRoot, sourceRoot, cancellationToken);
+    }
+
+    private bool StageAndLaunchAssistant(
+        StorageMigrationRequest request,
+        string sourceRoot,
+        string targetRoot,
+        IProgress<StorageMigrationProgress>? progress,
+        out string stagedTempDir)
+    {
+        progress?.Report(new StorageMigrationProgress
+        {
+            Stage = StorageMigrationConstants.StagePreparingBinaries,
+            Percentage = 65,
+            Message = "Staging binary migration helper script...",
+        });
+
+        var tempDir = Path.Combine(Path.GetTempPath(), $"{StorageMigrationConstants.MigrationTempDirectoryPrefix}{Guid.NewGuid():N}");
+        Directory.CreateDirectory(tempDir);
+        stagedTempDir = tempDir;
+        var logFile = Path.Combine(tempDir, StorageMigrationConstants.MigrationLogFileName);
+        var backupDir = Path.Combine(tempDir, StorageMigrationConstants.MigrationBackupDirectoryName);
+        var relativeExe = GetRelativeExecutablePath(sourceRoot);
+        var scriptPath = PrepareMigrationScript(tempDir);
+
+        progress?.Report(new StorageMigrationProgress
+        {
+            Stage = StorageMigrationConstants.StageLaunchingAssistant,
+            Percentage = 85,
+            Message = "Launching migration assistant process...",
+        });
+
+        if (request.LaunchHelperProcess)
+        {
+            LaunchHelperProcess(scriptPath, sourceRoot, targetRoot, relativeExe, logFile, backupDir);
+            return true;
+        }
+
+        return false;
+    }
+
+    private void FinalizeMigration(
+        StorageMigrationRequest request,
+        IProgress<StorageMigrationProgress>? progress)
+    {
+        progress?.Report(new StorageMigrationProgress
+        {
+            Stage = StorageMigrationConstants.StageFinalizing,
+            Percentage = 100,
+            Message = "Migration staged successfully. GenHub will now restart from the new location.",
+        });
+
+        if (request.ExitApplicationOnSuccess)
+        {
+            ExitApplication();
+        }
+    }
+
+    private void ExitApplication()
+    {
+        try
+        {
+            logger.LogInformation("Exiting GenHub to allow migration helper script to proceed.");
+            Dispatcher.UIThread.Post(() =>
+            {
+                if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
+                {
+                    desktop.Shutdown(0);
+                }
+            });
+        }
+        catch (InvalidOperationException ex)
+        {
+            logger.LogWarning(ex, "Exception during application lifetime shutdown for migration");
+        }
+    }
+}

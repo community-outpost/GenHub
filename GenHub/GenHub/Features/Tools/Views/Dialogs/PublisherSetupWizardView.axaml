@@ -1,0 +1,102 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:localization="clr-namespace:GenHub.Common.Markup"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:GenHub.Features.Tools.ViewModels.Dialogs"
+             mc:Ignorable="d" d:DesignWidth="600" d:DesignHeight="500"
+             x:Class="GenHub.Features.Tools.Views.Dialogs.PublisherSetupWizardView"
+             x:DataType="vm:PublisherSetupWizardViewModel">
+
+    <Grid RowDefinitions="Auto,*,Auto" Margin="{DynamicResource DialogPadding}">
+        <!-- Header -->
+        <!-- Header -->
+        <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="{DynamicResource DialogHeaderSpacing}">
+            <StackPanel Spacing="4">
+                <TextBlock Classes="dialog-title" Text="{localization:Localize Tools.PublisherStudio.SetupWizard.Title}" />
+                <TextBlock Classes="dialog-hint" Text="{Binding StepTitle}"/>
+            </StackPanel>
+            <Button Classes="action-secondary icon-action" Grid.Column="1"
+                    Command="{Binding CancelCommand}"
+                    VerticalAlignment="Center"
+                    AutomationProperties.Name="{localization:Localize Common.Button.Close}"
+                    ToolTip.Tip="{localization:Localize Common.Button.Close}">
+                <PathIcon Data="{StaticResource CloseIcon}"/>
+            </Button>
+        </Grid>
+
+        <!-- Content -->
+        <ContentControl Grid.Row="1" Margin="0,0,0,24">
+            <Grid>
+                <!-- Step 0: Identity -->
+                <StackPanel Spacing="20" IsVisible="{Binding IsStep0}">
+                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.SetupWizard.Welcome}" TextWrapping="Wrap" Foreground="{DynamicResource TextPrimary}"/>
+
+                    <StackPanel Spacing="8">
+                        <StackPanel Orientation="Horizontal" Spacing="4">
+                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.SetupWizard.PublisherId}" Classes="dialog-label"/>
+                            <TextBlock Text="*" Foreground="{DynamicResource StatusErrorBrush}"/>
+                        </StackPanel>
+                        <TextBox Classes="form-field" Text="{Binding PublisherId}" Watermark="{localization:Localize Tools.PublisherStudio.SetupWizard.PublisherIdPlaceholder}"/>
+                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.SetupWizard.PublisherIdHint}" Classes="dialog-hint"/>
+                    </StackPanel>
+
+                    <StackPanel Spacing="8">
+                        <StackPanel Orientation="Horizontal" Spacing="4">
+                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.SetupWizard.DisplayName}" Classes="dialog-label"/>
+                            <TextBlock Text="*" Foreground="{DynamicResource StatusErrorBrush}"/>
+                        </StackPanel>
+                        <TextBox Classes="form-field" Text="{Binding PublisherName}" Watermark="{localization:Localize Tools.PublisherStudio.SetupWizard.DisplayNamePlaceholder}"/>
+                    </StackPanel>
+                </StackPanel>
+
+                <!-- Step 1: Contact -->
+                <StackPanel Spacing="20" IsVisible="{Binding IsStep1}">
+                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.SetupWizard.ContactInfo}" TextWrapping="Wrap" Foreground="{DynamicResource TextPrimary}"/>
+
+                    <StackPanel Spacing="8">
+                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.SetupWizard.Website}" Classes="dialog-label"/>
+                        <TextBox Classes="form-field" Text="{Binding WebsiteUrl}" Watermark="https://example.com"/>
+                    </StackPanel>
+
+                    <StackPanel Spacing="8">
+                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.SetupWizard.ContactEmail}" Classes="dialog-label"/>
+                        <TextBox Classes="form-field" Text="{Binding ContactEmail}" Watermark="{localization:Localize Tools.PublisherStudio.SetupWizard.ContactEmailPlaceholder}"/>
+                    </StackPanel>
+
+                    <TextBlock Classes="dialog-error"
+                               Text="{Binding ValidationError}"
+                               IsVisible="{Binding ValidationError, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                </StackPanel>
+
+                <!-- Step 2: Complete -->
+                <StackPanel Spacing="16" IsVisible="{Binding IsStep2}">
+                    <StackPanel Orientation="Vertical" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="16" Margin="0,40,0,0">
+                         <!-- Assumed PathIcon Resource exists, keeping it for now -->
+                         <PathIcon Data="{StaticResource CheckmarkCircleIcon}" Width="64" Height="64" Foreground="{DynamicResource SuccessBrush}"/>
+                         <TextBlock Text="{localization:Localize Tools.PublisherStudio.SetupWizard.AllSet}" FontSize="20" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}"/>
+                         <TextBlock Text="{localization:Localize Tools.PublisherStudio.SetupWizard.AllSetDescription}" TextAlignment="Center" TextWrapping="Wrap" MaxWidth="400" Foreground="{DynamicResource TextSecondary}"/>
+                    </StackPanel>
+                </StackPanel>
+            </Grid>
+        </ContentControl>
+
+        <!-- Footer / Navigation -->
+        <Grid Grid.Row="2" ColumnDefinitions="Auto,*,Auto">
+            <Button Command="{Binding PreviousStepCommand}"
+                    Content="{localization:Localize Tools.PublisherStudio.SetupWizard.Back}"
+                    Classes="action-secondary"
+                    IsVisible="{Binding !IsStep0}"/>
+
+            <Button Classes="action-primary" Grid.Column="2"
+                    Command="{Binding NextStepCommand}"
+                    Content="{localization:Localize Tools.PublisherStudio.SetupWizard.Next}"
+                    IsVisible="{Binding !IsStep2}"/>
+
+            <Button Classes="action-primary" Grid.Column="2"
+                    Command="{Binding FinishCommand}"
+                    Content="{localization:Localize Tools.PublisherStudio.SetupWizard.Finish}"
+                    IsVisible="{Binding IsStep2}"/>
+        </Grid>
+    </Grid>
+</UserControl>

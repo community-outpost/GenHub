@@ -1,0 +1,296 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="clr-namespace:GenHub.Features.GameProfiles.ViewModels"
+             xmlns:conv="clr-namespace:GenHub.Infrastructure.Converters"
+             xmlns:converters="clr-namespace:Avalonia.Data.Converters;assembly=Avalonia.Base"
+             xmlns:localization="clr-namespace:GenHub.Common.Markup;assembly=GenHub"
+             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="1200"
+             x:Class="GenHub.Features.GameProfiles.Views.GameProfileGeneralSettingsView"
+             x:DataType="vm:GameProfileSettingsViewModel">
+
+    <UserControl.Resources>
+        <conv:ThemeBackgroundConverter x:Key="ThemeBackgroundConverter" />
+        <conv:ThemeBorderConverter x:Key="ThemeBorderConverter" />
+        <conv:StringToImageConverter x:Key="StringToImageConverter" />
+        <conv:TabIndexToVisibilityConverter x:Key="TabIndexToVisibilityConverter" />
+        <conv:ColorToBrushConverter x:Key="ColorToBrushConverter" />
+        <conv:NullableDecimalToIntConverter x:Key="NullableDecimalToIntConverter" />
+        <conv:IntToBoolConverter x:Key="IntToBoolConverter" />
+        <conv:EqualityConverter x:Key="EqualityConverter" />
+    </UserControl.Resources>
+
+    <UserControl.Styles>
+        <Style Selector="Border.settings-card">
+            <Setter Property="Margin" Value="0,0,0,8" />
+            <Setter Property="Padding" Value="20,16" />
+            <Setter Property="CornerRadius" Value="{DynamicResource CardCornerRadius}" />
+            <Setter Property="BorderThickness" Value="0" />
+        </Style>
+        <Style Selector="Border.settings-card:pointerover">
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
+        </Style>
+        <Style Selector="Button.color-btn">
+            <Setter Property="Width" Value="{DynamicResource ColorSwatchSize}" />
+            <Setter Property="Height" Value="{DynamicResource ColorSwatchSize}" />
+            <Setter Property="Margin" Value="0,0,6,6" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="CornerRadius" Value="14" />
+            <Setter Property="Cursor" Value="Hand" />
+        </Style>
+        <Style Selector="TextBlock.row-label">
+            <Setter Property="FontSize" Value="15" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+        <Style Selector="TextBlock.row-hint">
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Foreground" Value="{DynamicResource TextSecondary}" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+            <Setter Property="Margin" Value="0,4,0,0" />
+        </Style>
+        <Style Selector=":is(Control).row-control">
+            <Setter Property="HorizontalAlignment" Value="Stretch" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="Margin" Value="24,0,0,0" />
+        </Style>
+        <Style Selector="Expander#AdvancedSection /template/ ToggleButton#ExpanderHeader">
+            <Setter Property="BorderThickness" Value="0" />
+        </Style>
+        <Style Selector="Expander#AdvancedSection /template/ ToggleButton#ExpanderHeader /template/ Border#ToggleButtonBackground">
+            <Setter Property="BorderThickness" Value="0" />
+        </Style>
+    </UserControl.Styles>
+
+    <ScrollViewer x:Name="GeneralSettingsScrollViewer"
+                  VerticalScrollBarVisibility="Auto"
+                  HorizontalScrollBarVisibility="Disabled">
+        <Panel Margin="32,0,32,24">
+            <StackPanel x:Name="GeneralPage"
+                        IsVisible="{Binding SelectedPage, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static vm:ProfileSettingsPage.General}}">
+                <Border Classes="settings-card">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" MinWidth="140" />
+                            <ColumnDefinition Width="2*" MaxWidth="324" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Classes="row-label" Text="{localization:Localize GameProfiles.General.ProfileName}" />
+                        <TextBox Grid.Column="1" Classes="form-field row-control"
+                                 Text="{Binding Name, Mode=TwoWay}"
+                                 Watermark="{localization:Localize GameProfiles.General.ProfileNameWatermark}" />
+                    </Grid>
+                </Border>
+
+                <Border Classes="settings-card" IsVisible="{Binding IsSteamLaunchSupported}">
+                    <Grid ColumnDefinitions="*,80">
+                        <StackPanel VerticalAlignment="Center">
+                            <TextBlock Classes="row-label" Text="{localization:Localize GameProfiles.General.SteamLaunch}" />
+                            <TextBlock Classes="row-hint" Text="{localization:Localize GameProfiles.General.SteamLaunchDescription}" />
+                        </StackPanel>
+                        <ToggleSwitch Grid.Column="1"
+                                      x:Name="SteamLaunchToggle"
+                                      IsChecked="{Binding UseSteamLaunch}"
+                                      IsEnabled="{Binding CanEditImmutableMetadata}"
+                                      OnContent="{x:Null}"
+                                      OffContent="{x:Null}"
+                                      HorizontalAlignment="Right"
+                                      VerticalAlignment="Center"
+                                      AutomationProperties.Name="{localization:Localize GameProfiles.General.SteamLaunch}" />
+                    </Grid>
+                </Border>
+
+                <TextBlock x:Name="LaunchConfigurationLockedReason"
+                           Text="{localization:Localize GameProfiles.General.LaunchConfigurationLocked}"
+                           IsVisible="{Binding IsHotswapMode}"
+                           Foreground="{DynamicResource WarningBrush}"
+                           FontSize="12"
+                           Margin="0,4,0,0"
+                           TextWrapping="Wrap" />
+
+                <Expander x:Name="AdvancedSection"
+                          Header="{localization:Localize GameProfiles.General.Advanced}"
+                          IsExpanded="False"
+                          Margin="0,16,0,0"
+                          Background="Transparent"
+                          BorderBrush="Transparent"
+                          BorderThickness="0">
+                    <StackPanel Margin="0,8,0,0">
+                        <Border Classes="settings-card">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" MinWidth="140" />
+                                    <ColumnDefinition Width="2*" MaxWidth="324" />
+                                </Grid.ColumnDefinitions>
+                                <StackPanel VerticalAlignment="Center">
+                                    <TextBlock Classes="row-label" Text="{localization:Localize GameProfiles.General.WorkspaceStrategy}" />
+                                    <TextBlock Classes="row-hint">
+                                        <TextBlock.Text>
+                                            <MultiBinding Converter="{x:Static conv:WorkspaceStrategyDisplayConverter.Description}">
+                                                <Binding Path="SelectedWorkspaceStrategy" />
+                                                <Binding Path="CurrentCulture" Source="{x:Static conv:WorkspaceStrategyDisplayConverter.LocalizationSource}" />
+                                            </MultiBinding>
+                                        </TextBlock.Text>
+                                    </TextBlock>
+                                </StackPanel>
+                                <ComboBox Grid.Column="1"
+                                          Classes="workspace-strategy form-field row-control"
+                                          ItemsSource="{x:Static vm:GameProfileSettingsViewModel.AvailableWorkspaceStrategies}"
+                                          SelectedItem="{Binding SelectedWorkspaceStrategy}"
+                                          IsEnabled="{Binding CanEditImmutableMetadata}"
+                                          AutomationProperties.Name="{localization:Localize GameProfiles.General.WorkspaceStrategy}" />
+                            </Grid>
+                        </Border>
+
+                        <Border Classes="settings-card">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" MinWidth="140" />
+                                    <ColumnDefinition Width="2*" MaxWidth="324" />
+                                </Grid.ColumnDefinitions>
+                                <StackPanel VerticalAlignment="Center">
+                                    <TextBlock Classes="row-label" Text="{localization:Localize GameProfiles.General.CommandLineArguments}" />
+                                    <TextBlock Classes="row-hint" Text="{localization:Localize Profiles.Settings.CommandLineArgumentsHint}" />
+                                </StackPanel>
+                                <TextBox Grid.Column="1"
+                                         Classes="form-field row-control"
+                                         Text="{Binding CommandLineArguments, Mode=TwoWay}"
+                                         IsEnabled="{Binding CanEditImmutableMetadata}"
+                                         Watermark="{localization:Localize GameProfiles.General.CommandLineArgumentsWatermark}"
+                                         AutomationProperties.Name="{localization:Localize GameProfiles.General.CommandLineArguments}" />
+                            </Grid>
+                        </Border>
+                    </StackPanel>
+                </Expander>
+            </StackPanel>
+
+            <StackPanel x:Name="AppearancePage"
+                        IsVisible="{Binding SelectedPage, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static vm:ProfileSettingsPage.Appearance}}">
+                <Border Classes="settings-card">
+                    <StackPanel Spacing="12">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <TextBlock Grid.Column="0" Classes="row-label" Text="{localization:Localize GameProfiles.General.ProfileIcon}" />
+                            <Button
+                                    Grid.Column="1"
+                                    Content="{localization:Localize Common.BrowseEllipsis}"
+                                    Command="{Binding BrowseForCustomIconCommand}"
+                                    Classes="action-secondary"/>
+                        </Grid>
+                        <ItemsControl ItemsSource="{Binding AvailableIcons}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <WrapPanel Orientation="Horizontal" HorizontalAlignment="Left" />
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Width="50" Height="50" Margin="0,0,8,8" CornerRadius="8" Classes="selectable-tile" ToolTip.Tip="{Binding DisplayName}"
+                                            Classes.selected="{Binding Path, Converter={StaticResource EqualityConverter}, ConverterParameter={Binding $parent[ItemsControl].((vm:GameProfileSettingsViewModel)DataContext).IconPath}}">
+                                        <Border.Styles>
+                                            <Style Selector="Border.selectable-tile">
+                                                <Setter Property="Background" Value="#15FFFFFF" />
+                                                <Setter Property="BorderBrush" Value="#30FFFFFF" />
+                                                <Setter Property="BorderThickness" Value="1" />
+                                            </Style>
+                                            <Style Selector="Border.selectable-tile.selected">
+                                                <Setter Property="Background" Value="{DynamicResource AccentBadgeBackgroundBrush}" />
+                                                <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+                                                <Setter Property="BorderThickness" Value="2" />
+                                            </Style>
+                                        </Border.Styles>
+                                        <Button Background="Transparent" Command="{Binding $parent[ItemsControl].((vm:GameProfileSettingsViewModel)DataContext).SelectIconCommand}" CommandParameter="{Binding}" Padding="4">
+                                            <Image Source="{Binding Path, Converter={StaticResource StringToImageConverter}}" Stretch="Uniform" />
+                                        </Button>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </Border>
+
+                <Border Classes="settings-card">
+                    <StackPanel Spacing="12">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <TextBlock Grid.Column="0" Classes="row-label" Text="{localization:Localize GameProfiles.General.ProfileCover}" />
+                            <Button
+                                    Grid.Column="1"
+                                    Content="{localization:Localize Common.BrowseEllipsis}"
+                                    Command="{Binding BrowseForCustomCoverCommand}"
+                                    Classes="action-secondary"/>
+                        </Grid>
+                        <ItemsControl ItemsSource="{Binding AvailableCoversForSelection}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <WrapPanel Orientation="Horizontal" HorizontalAlignment="Left" />
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Width="140" Height="80" Margin="0,0,12,8" CornerRadius="8" Classes="selectable-tile" ToolTip.Tip="{Binding DisplayName}"
+                                            Classes.selected="{Binding Path, Converter={StaticResource EqualityConverter}, ConverterParameter={Binding $parent[ItemsControl].((vm:GameProfileSettingsViewModel)DataContext).CoverPath}}">
+                                        <Border.Styles>
+                                            <Style Selector="Border.selectable-tile">
+                                                <Setter Property="Background" Value="#15FFFFFF" />
+                                                <Setter Property="BorderBrush" Value="#30FFFFFF" />
+                                                <Setter Property="BorderThickness" Value="1" />
+                                            </Style>
+                                            <Style Selector="Border.selectable-tile.selected">
+                                                <Setter Property="Background" Value="{DynamicResource AccentBadgeBackgroundBrush}" />
+                                                <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+                                                <Setter Property="BorderThickness" Value="2" />
+                                            </Style>
+                                        </Border.Styles>
+                                        <Button Background="Transparent" Command="{Binding $parent[ItemsControl].((vm:GameProfileSettingsViewModel)DataContext).SelectCoverCommand}" CommandParameter="{Binding}" Padding="4">
+                                            <Image Source="{Binding Path, Converter={StaticResource StringToImageConverter}}" Stretch="UniformToFill" />
+                                        </Button>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </Border>
+
+                <Border Classes="settings-card">
+                    <StackPanel Spacing="12">
+                        <TextBlock Classes="row-label" Text="{localization:Localize GameProfiles.General.PrimaryColor}" />
+                        <WrapPanel HorizontalAlignment="Left">
+                            <Button Classes="color-btn" Background="#D32F2F" Command="{Binding SelectThemeColorCommand}" CommandParameter="#D32F2F" ToolTip.Tip="{localization:Localize Theme.Color.Red}" AutomationProperties.Name="{localization:Localize Theme.Color.Red}"/>
+                            <Button Classes="color-btn" Background="#E91E63" Command="{Binding SelectThemeColorCommand}" CommandParameter="#E91E63" ToolTip.Tip="{localization:Localize Theme.Color.Pink}" AutomationProperties.Name="{localization:Localize Theme.Color.Pink}"/>
+                            <Button Classes="color-btn" Background="#C2185B" Command="{Binding SelectThemeColorCommand}" CommandParameter="#C2185B" ToolTip.Tip="{localization:Localize Theme.Color.DeepPink}" AutomationProperties.Name="{localization:Localize Theme.Color.DeepPink}"/>
+                            <Button Classes="color-btn" Background="#9C27B0" Command="{Binding SelectThemeColorCommand}" CommandParameter="#9C27B0" ToolTip.Tip="{localization:Localize Theme.Color.Purple}" AutomationProperties.Name="{localization:Localize Theme.Color.Purple}"/>
+                            <Button Classes="color-btn" Background="#5E35B1" Command="{Binding SelectThemeColorCommand}" CommandParameter="#5E35B1" ToolTip.Tip="{localization:Localize Theme.Color.DeepPurple}" AutomationProperties.Name="{localization:Localize Theme.Color.DeepPurple}"/>
+                            <Button Classes="color-btn" Background="#673AB7" Command="{Binding SelectThemeColorCommand}" CommandParameter="#673AB7" ToolTip.Tip="{localization:Localize Theme.Color.Indigo}" AutomationProperties.Name="{localization:Localize Theme.Color.Indigo}"/>
+                            <Button Classes="color-btn" Background="#512DA8" Command="{Binding SelectThemeColorCommand}" CommandParameter="#512DA8" ToolTip.Tip="{localization:Localize Theme.Color.DeepIndigo}" AutomationProperties.Name="{localization:Localize Theme.Color.DeepIndigo}"/>
+                            <Button Classes="color-btn" Background="#3F51B5" Command="{Binding SelectThemeColorCommand}" CommandParameter="#3F51B5" ToolTip.Tip="{localization:Localize Theme.Color.Blue}" AutomationProperties.Name="{localization:Localize Theme.Color.Blue}"/>
+                            <Button Classes="color-btn" Background="#303F9F" Command="{Binding SelectThemeColorCommand}" CommandParameter="#303F9F" ToolTip.Tip="{localization:Localize Theme.Color.DarkBlue}" AutomationProperties.Name="{localization:Localize Theme.Color.DarkBlue}"/>
+                            <Button Classes="color-btn" Background="#2196F3" Command="{Binding SelectThemeColorCommand}" CommandParameter="#2196F3" ToolTip.Tip="{localization:Localize Theme.Color.LightBlue}" AutomationProperties.Name="{localization:Localize Theme.Color.LightBlue}"/>
+                            <Button Classes="color-btn" Background="#1976D2" Command="{Binding SelectThemeColorCommand}" CommandParameter="#1976D2" ToolTip.Tip="{localization:Localize Theme.Color.MediumBlue}" AutomationProperties.Name="{localization:Localize Theme.Color.MediumBlue}"/>
+                            <Button Classes="color-btn" Background="#0288D1" Command="{Binding SelectThemeColorCommand}" CommandParameter="#0288D1" ToolTip.Tip="{localization:Localize Theme.Color.CyanBlue}" AutomationProperties.Name="{localization:Localize Theme.Color.CyanBlue}"/>
+                            <Button Classes="color-btn" Background="#00BCD4" Command="{Binding SelectThemeColorCommand}" CommandParameter="#00BCD4" ToolTip.Tip="{localization:Localize Theme.Color.Cyan}" AutomationProperties.Name="{localization:Localize Theme.Color.Cyan}"/>
+                            <Button Classes="color-btn" Background="#0097A7" Command="{Binding SelectThemeColorCommand}" CommandParameter="#0097A7" ToolTip.Tip="{localization:Localize Theme.Color.DarkCyan}" AutomationProperties.Name="{localization:Localize Theme.Color.DarkCyan}"/>
+                            <Button Classes="color-btn" Background="#009688" Command="{Binding SelectThemeColorCommand}" CommandParameter="#009688" ToolTip.Tip="{localization:Localize Theme.Color.Teal}" AutomationProperties.Name="{localization:Localize Theme.Color.Teal}"/>
+                            <Button Classes="color-btn" Background="#00796B" Command="{Binding SelectThemeColorCommand}" CommandParameter="#00796B" ToolTip.Tip="{localization:Localize Theme.Color.DarkTeal}" AutomationProperties.Name="{localization:Localize Theme.Color.DarkTeal}"/>
+                            <Button Classes="color-btn" Background="#4CAF50" Command="{Binding SelectThemeColorCommand}" CommandParameter="#4CAF50" ToolTip.Tip="{localization:Localize Theme.Color.Green}" AutomationProperties.Name="{localization:Localize Theme.Color.Green}"/>
+                            <Button Classes="color-btn" Background="#388E3C" Command="{Binding SelectThemeColorCommand}" CommandParameter="#388E3C" ToolTip.Tip="{localization:Localize Theme.Color.DarkGreen}" AutomationProperties.Name="{localization:Localize Theme.Color.DarkGreen}"/>
+                            <Button Classes="color-btn" Background="#8BC34A" Command="{Binding SelectThemeColorCommand}" CommandParameter="#8BC34A" ToolTip.Tip="{localization:Localize Theme.Color.LightGreen}" AutomationProperties.Name="{localization:Localize Theme.Color.LightGreen}"/>
+                            <Button Classes="color-btn" Background="#689F38" Command="{Binding SelectThemeColorCommand}" CommandParameter="#689F38" ToolTip.Tip="{localization:Localize Theme.Color.OliveGreen}" AutomationProperties.Name="{localization:Localize Theme.Color.OliveGreen}"/>
+                            <Button Classes="color-btn" Background="#CDDC39" Command="{Binding SelectThemeColorCommand}" CommandParameter="#CDDC39" ToolTip.Tip="{localization:Localize Theme.Color.Lime}" AutomationProperties.Name="{localization:Localize Theme.Color.Lime}"/>
+                            <Button Classes="color-btn" Background="#FFEB3B" Command="{Binding SelectThemeColorCommand}" CommandParameter="#FFEB3B" ToolTip.Tip="{localization:Localize Theme.Color.Yellow}" AutomationProperties.Name="{localization:Localize Theme.Color.Yellow}"/>
+                            <Button Classes="color-btn" Background="#FFC107" Command="{Binding SelectThemeColorCommand}" CommandParameter="#FFC107" ToolTip.Tip="{localization:Localize Theme.Color.Amber}" AutomationProperties.Name="{localization:Localize Theme.Color.Amber}"/>
+                            <Button Classes="color-btn" Background="#FF9800" Command="{Binding SelectThemeColorCommand}" CommandParameter="#FF9800" ToolTip.Tip="{localization:Localize Theme.Color.Orange}" AutomationProperties.Name="{localization:Localize Theme.Color.Orange}"/>
+                            <Button Classes="color-btn" Background="#FFA000" Command="{Binding SelectThemeColorCommand}" CommandParameter="#FFA000" ToolTip.Tip="{localization:Localize Theme.Color.DarkOrange}" AutomationProperties.Name="{localization:Localize Theme.Color.DarkOrange}"/>
+                            <Button Classes="color-btn" Background="#FF5722" Command="{Binding SelectThemeColorCommand}" CommandParameter="#FF5722" ToolTip.Tip="{localization:Localize Theme.Color.DeepOrange}" AutomationProperties.Name="{localization:Localize Theme.Color.DeepOrange}"/>
+                            <Button Classes="color-btn" Background="#E64A19" Command="{Binding SelectThemeColorCommand}" CommandParameter="#E64A19" ToolTip.Tip="{localization:Localize Theme.Color.DarkOrangeRed}" AutomationProperties.Name="{localization:Localize Theme.Color.DarkOrangeRed}"/>
+                            <Button Classes="color-btn" Background="#795548" Command="{Binding SelectThemeColorCommand}" CommandParameter="#795548" ToolTip.Tip="{localization:Localize Theme.Color.Brown}" AutomationProperties.Name="{localization:Localize Theme.Color.Brown}"/>
+                            <Button Classes="color-btn" Background="#BD5A0F" Command="{Binding SelectThemeColorCommand}" CommandParameter="#BD5A0F" ToolTip.Tip="{localization:Localize Common.Game.Generals}" AutomationProperties.Name="{localization:Localize Common.Game.Generals}"/>
+                            <Button Classes="color-btn" Background="#2D4963" Command="{Binding SelectThemeColorCommand}" CommandParameter="#2D4963" ToolTip.Tip="{localization:Localize Common.Game.ZeroHour}" AutomationProperties.Name="{localization:Localize Common.Game.ZeroHour}"/>
+                            <Button Classes="color-btn" Background="#607D8B" Command="{Binding SelectThemeColorCommand}" CommandParameter="#607D8B" ToolTip.Tip="{localization:Localize Theme.Color.BlueGrey}" AutomationProperties.Name="{localization:Localize Theme.Color.BlueGrey}"/>
+                            <Button Classes="color-btn" Background="#455A64" Command="{Binding SelectThemeColorCommand}" CommandParameter="#455A64" ToolTip.Tip="{localization:Localize Theme.Color.DarkGrey}" AutomationProperties.Name="{localization:Localize Theme.Color.DarkGrey}"/>
+                        </WrapPanel>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </Panel>
+    </ScrollViewer>
+</UserControl>

@@ -46,6 +46,8 @@ public class DownloadProgressTests
     [InlineData(512, 1024, 50.0)]
     [InlineData(1024, 1024, 100.0)]
     [InlineData(1024, 0, 0.0)]
+    [InlineData(2048, 1024, 100.0)]
+    [InlineData(-100, 1024, 0.0)]
     public void Percentage_CalculatesCorrectly(long bytesReceived, long totalBytes, double expectedPercentage)
     {
         // Arrange

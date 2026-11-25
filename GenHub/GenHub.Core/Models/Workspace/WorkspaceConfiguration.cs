@@ -1,6 +1,8 @@
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameClients;
 using GenHub.Core.Models.Manifest;
+using System.Collections.Concurrent;
+using System.Text.Json.Serialization;
 
 namespace GenHub.Core.Models.Workspace;
 
@@ -9,6 +11,8 @@ namespace GenHub.Core.Models.Workspace;
 /// </summary>
 public class WorkspaceConfiguration
 {
+    private readonly ConcurrentQueue<string> _skippedSourceFiles = new();
+
     /// <summary>Gets or sets the unique identifier for this workspace.</summary>
     public string Id { get; set; } = Guid.NewGuid().ToString();
 
@@ -35,8 +39,27 @@ public class WorkspaceConfiguration
     /// </summary>
     public Dictionary<string, string> ManifestSourcePaths { get; set; } = new();
 
+    /// <summary>
+    /// Gets or sets an additional retail archive root whose top-level <c>.big</c> archives are
+    /// linked into the workspace root alongside the manifest content.
+    /// </summary>
+    /// <remarks>
+    /// Zero Hour is an expansion: it mounts the base Generals archives in addition to its own.
+    /// Engines that resolve a second install root out of band (the Windows registry on Windows,
+    /// <c>CNC_GENERALS_INSTALLPATH</c> on a native build) need nothing here. A Windows retail
+    /// binary running under Wine or Proton reads neither — its Wine prefix carries no GenHub
+    /// registry keys and it never queries the environment — so without this its workspace holds
+    /// only Zero Hour files and base content silently fails to mount (magenta textures).
+    /// Linking the archives into the working directory uses the engine's unconditional mount
+    /// mechanism instead, which works under every runner with no registry or environment channel.
+    /// <para>
+    /// Null unless the launcher explicitly sets it, so every existing caller behaves exactly as before.
+    /// </para>
+    /// </remarks>
+    public string? SupplementalArchiveRoot { get; set; }
+
     /// <summary>Gets or sets the workspace strategy.</summary>
-    public WorkspaceStrategy Strategy { get; set; } = WorkspaceStrategy.HybridCopySymlink;
+    public WorkspaceStrategy Strategy { get; set; } = GenHub.Core.Constants.WorkspaceConstants.DefaultWorkspaceStrategy;
 
     /// <summary>Gets or sets a value indicating whether to force recreation of the workspace.</summary>
     public bool ForceRecreate { get; set; }
@@ -56,4 +79,23 @@ public class WorkspaceConfiguration
     /// This is useful when switching profiles to avoid deleting large map packs.
     /// </summary>
     public bool SkipCleanup { get; set; }
+
+    /// <summary>
+    /// Gets the relative paths of workspace files that preparation skipped because their source
+    /// file was missing. Strategies record them while preparing; the workspace manager reports them.
+    /// </summary>
+    [JsonIgnore]
+    public IReadOnlyCollection<string> SkippedSourceFiles => _skippedSourceFiles;
+
+    /// <summary>
+    /// Records a workspace file that preparation skipped because its source file was missing.
+    /// Safe to call from parallel preparation.
+    /// </summary>
+    /// <param name="relativePath">The workspace-relative path of the skipped file.</param>
+    public void RecordSkippedSourceFile(string relativePath) => _skippedSourceFiles.Enqueue(relativePath);
+
+    /// <summary>
+    /// Clears the recorded skips so a new preparation reports only its own.
+    /// </summary>
+    public void ClearSkippedSourceFiles() => _skippedSourceFiles.Clear();
 }

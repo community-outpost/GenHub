@@ -1,0 +1,73 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:localization="clr-namespace:GenHub.Common.Markup"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="clr-namespace:GenHub.Features.Tools.ViewModels.Dialogs"
+             xmlns:controls="clr-namespace:GenHub.Infrastructure.Controls"
+             xmlns:commonControls="clr-namespace:GenHub.Common.Controls"
+             mc:Ignorable="d" d:DesignWidth="420" d:DesignHeight="260"
+             DragDrop.AllowDrop="True"
+             x:Class="GenHub.Features.Tools.Views.Dialogs.RenameCatalogDialogView"
+             x:DataType="vm:RenameCatalogDialogViewModel">
+
+    <Grid RowDefinitions="Auto, *, Auto" Margin="{DynamicResource DialogPadding}">
+        <!-- Header -->
+        <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="{DynamicResource DialogHeaderSpacing}">
+            <TextBlock Classes="dialog-title" Text="{localization:Localize Tools.PublisherStudio.EditCatalog.Title}"/>
+            <Button Classes="action-secondary icon-action" Grid.Column="1"
+                    Command="{Binding CancelCommand}"
+                    VerticalAlignment="Center"
+                    AutomationProperties.Name="{localization:Localize Common.Button.Close}"
+                    ToolTip.Tip="{localization:Localize Common.Button.Close}">
+                <PathIcon Data="{StaticResource CloseIcon}"/>
+            </Button>
+        </Grid>
+
+        <!-- Form Body -->
+        <StackPanel Grid.Row="1" Spacing="10">
+            <TextBlock Classes="dialog-label" Text="{localization:Localize Tools.PublisherStudio.RenameCatalog.Name}"/>
+            <TextBox Classes="form-field" Text="{Binding CatalogName, Mode=TwoWay}"
+                     Watermark="{localization:Localize Tools.PublisherStudio.RenameCatalog.NamePlaceholder}"/>
+            <TextBlock Text="{localization:Localize Tools.PublisherStudio.RenameCatalog.Description}"
+                       FontSize="11"
+                       Foreground="{DynamicResource TextMuted}"
+                       TextWrapping="Wrap"/>
+
+            <!-- Catalog Icon / Logo URL -->
+            <TextBlock Classes="dialog-label" Text="{localization:Localize Tools.PublisherStudio.Profile.AvatarUrl}"
+                       Margin="0,4,0,0"/>
+            <commonControls:ImageInputBox Text="{Binding IconUrl, Mode=TwoWay}"
+                                         Watermark="{localization:Localize Tools.PublisherStudio.Profile.AvatarPlaceholder}"
+                                         FallbackIconData="{StaticResource ContentIcon}"
+                                         PreviewCornerRadius="6"
+                                         PreviewToolTip="{localization:Localize Tools.PublisherStudio.Profile.AvatarDropTooltip}"
+                                         DropHandler="{Binding HandleIconDropAsync}"/>
+
+            <TextBlock Classes="dialog-error"
+                       Text="{Binding ValidationError}"
+                       IsVisible="{Binding !IsValid}"/>
+        </StackPanel>
+
+        <!-- Actions -->
+        <Grid Grid.Row="2" ColumnDefinitions="Auto,*" Margin="0,14,0,0">
+            <!-- Delete Button (Only when CanDelete is true) -->
+            <Button Classes="action-danger" Grid.Column="0"
+                    Command="{Binding DeleteCommand}"
+                    IsVisible="{Binding CanDelete}">
+                <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                    <PathIcon Data="{StaticResource DeleteIcon}"/>
+                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Studio.DeleteConfirm}"/>
+                </StackPanel>
+            </Button>
+
+            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="12" HorizontalAlignment="Right">
+                <Button Content="{localization:Localize Tools.PublisherStudio.RenameCatalog.Cancel}"
+                        Command="{Binding CancelCommand}"
+                        Classes="action-secondary"/>
+                <Button Classes="action-primary" Content="{localization:Localize Tools.PublisherStudio.RenameCatalog.Save}"
+                        Command="{Binding SaveCommand}"/>
+            </StackPanel>
+        </Grid>
+    </Grid>
+</UserControl>

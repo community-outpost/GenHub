@@ -1,118 +1,135 @@
 <UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:localization="clr-namespace:GenHub.Common.Markup"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:vm="clr-namespace:GenHub.Features.Notifications.ViewModels"
-             mc:Ignorable="d" d:DesignWidth="350" d:DesignHeight="120"
+             xmlns:enums="clr-namespace:GenHub.Core.Models.Enums;assembly=GenHub.Core"
+             mc:Ignorable="d" d:DesignWidth="400" d:DesignHeight="150"
              x:Class="GenHub.Features.Notifications.Views.NotificationToastView"
              x:DataType="vm:NotificationItemViewModel">
 
     <UserControl.Styles>
+        <!-- Base Toast Style with Drop-In Animation -->
         <Style Selector="Border.toast">
+            <Setter Property="RenderTransform" Value="translateY(-12px) scale(0.96)"/>
             <Setter Property="Opacity" Value="0"/>
+            <Setter Property="Transitions">
+                <Transitions>
+                    <DoubleTransition Property="Opacity" Duration="0:0:0.2" Easing="CubicEaseOut"/>
+                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.25" Easing="BackEaseOut"/>
+                </Transitions>
+            </Setter>
         </Style>
 
         <Style Selector="Border.toast[IsVisible=True]">
-            <Style.Animations>
-                <Animation Duration="0:0:0.3" FillMode="Forward">
-                    <KeyFrame Cue="0%">
-                        <Setter Property="Opacity" Value="0"/>
-                    </KeyFrame>
-                    <KeyFrame Cue="100%">
-                        <Setter Property="Opacity" Value="1"/>
-                    </KeyFrame>
-                </Animation>
-            </Style.Animations>
+            <Setter Property="RenderTransform" Value="translateY(0) scale(1)"/>
+            <Setter Property="Opacity" Value="1"/>
         </Style>
 
-        <Style Selector="Border.toast[IsVisible=False]">
-            <Style.Animations>
-                <Animation Duration="0:0:0.2" FillMode="Forward">
-                    <KeyFrame Cue="0%">
-                        <Setter Property="Opacity" Value="1"/>
-                    </KeyFrame>
-                    <KeyFrame Cue="100%">
-                        <Setter Property="Opacity" Value="0"/>
-                    </KeyFrame>
-                </Animation>
-            </Style.Animations>
+        <Style Selector="Border.toast.Info">
+            <Setter Property="BorderBrush" Value="{DynamicResource StatusInfoBrush}" />
+        </Style>
+        <Style Selector="Border.toast.Info Path.icon">
+            <Setter Property="Fill" Value="{DynamicResource StatusInfoBrush}" />
+        </Style>
+        <Style Selector="Border.toast.Success">
+            <Setter Property="BorderBrush" Value="{DynamicResource SuccessBrush}" />
+        </Style>
+        <Style Selector="Border.toast.Success Path.icon">
+            <Setter Property="Fill" Value="{DynamicResource SuccessBrush}" />
+        </Style>
+        <Style Selector="Border.toast.Warning">
+            <Setter Property="BorderBrush" Value="{DynamicResource WarningBrush}" />
+        </Style>
+        <Style Selector="Border.toast.Warning Path.icon">
+            <Setter Property="Fill" Value="{DynamicResource WarningBrush}" />
+        </Style>
+        <Style Selector="Border.toast.Error">
+            <Setter Property="BorderBrush" Value="{DynamicResource ErrorBrush}" />
+        </Style>
+        <Style Selector="Border.toast.Error Path.icon">
+            <Setter Property="Fill" Value="{DynamicResource ErrorBrush}" />
         </Style>
     </UserControl.Styles>
 
     <Border Name="ToastBorder"
             Classes="toast"
+            Background="{DynamicResource SurfaceElevatedBrush}"
+            Classes.Info="{Binding Type, Converter={x:Static ObjectConverters.Equal}, ConverterParameter={x:Static enums:NotificationType.Info}}"
+            Classes.Success="{Binding Type, Converter={x:Static ObjectConverters.Equal}, ConverterParameter={x:Static enums:NotificationType.Success}}"
+            Classes.Warning="{Binding Type, Converter={x:Static ObjectConverters.Equal}, ConverterParameter={x:Static enums:NotificationType.Warning}}"
+            Classes.Error="{Binding Type, Converter={x:Static ObjectConverters.Equal}, ConverterParameter={x:Static enums:NotificationType.Error}}"
             IsVisible="{Binding IsVisible}"
-            Background="{Binding BackgroundBrush}"
-            CornerRadius="8"
-            Padding="16"
-            MaxWidth="350"
-            MinWidth="300"
-            Cursor="Hand">
+            BorderThickness="1.5"
+            CornerRadius="12"
+            Padding="0"
+            MaxWidth="400"
+            MinWidth="320"
+            Margin="0,4"
+            BoxShadow="0 8 32 0 #50000000">
 
-        <Border.Effect>
-            <DropShadowEffect BlurRadius="16"
-                              OffsetX="0"
-                              OffsetY="4"
-                              Opacity="0.3"/>
-        </Border.Effect>
+        <Grid>
+            <Grid RowDefinitions="Auto,Auto,Auto" Margin="16">
+                <!-- Header: Icon, Title, and Close -->
+                <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto">
 
-        <Grid RowDefinitions="Auto,Auto,Auto">
-            <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto">
-                <Path Grid.Column="0"
-                      Data="{Binding IconPath}"
-                      Fill="White"
-                      Width="24"
-                      Height="24"
-                      Stretch="Uniform"
-                      VerticalAlignment="Center"
-                      Margin="0,0,12,0"/>
+                    <!-- Icon Container -->
+                    <Border Grid.Column="0"
+                            Width="32" Height="32"
+                            CornerRadius="8"
+                            Background="{DynamicResource SurfaceHoverBrush}"
+                            Margin="0,0,12,0"
+                            VerticalAlignment="Top">
+                        <Path Classes="icon"
+                              Data="{Binding IconPath}"
+                              Width="18" Height="18"
+                              Stretch="Uniform"
+                              HorizontalAlignment="Center"
+                              VerticalAlignment="Center"/>
+                    </Border>
 
-                <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                    <TextBlock Text="{Binding Title}"
-                               FontWeight="Bold"
-                               FontSize="14"
-                               Foreground="White"
-                               TextWrapping="Wrap"/>
-                </StackPanel>
+                    <!-- Title Wrapper -->
+                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                        <TextBlock Text="{Binding Title}"
+                                   FontWeight="Bold"
+                                   FontSize="14"
+                                   Foreground="{DynamicResource TextPrimary}"
+                                   TextTrimming="CharacterEllipsis"/>
+                    </StackPanel>
 
-                <Button Grid.Column="2"
-                        Command="{Binding DismissCommand}"
-                        Background="Transparent"
-                        BorderThickness="0"
-                        Padding="4"
-                        Cursor="Hand"
-                        VerticalAlignment="Top">
-                    <Path Data="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z"
-                          Fill="White"
-                          Width="16"
-                          Height="16"
-                          Stretch="Uniform"
-                          Opacity="0.8"/>
-                </Button>
+                    <!-- Dismiss Button -->
+                    <Button Grid.Column="2"
+                            Classes="icon-action"
+                            Command="{Binding DismissCommand}"
+                            VerticalAlignment="Top"
+                            HorizontalAlignment="Right"
+                            Margin="4,-4,-4,0" ToolTip.Tip="{localization:Localize Notifications.Tooltip.Dismiss}" AutomationProperties.Name="{localization:Localize Notifications.Tooltip.Dismiss}">
+                        <PathIcon Data="{StaticResource CloseIcon}" />
+                    </Button>
+                </Grid>
+
+                <!-- Message Content -->
+                <TextBlock Grid.Row="1"
+                           Text="{Binding Message}"
+                           FontSize="13"
+                           LineHeight="19"
+                           Foreground="{DynamicResource TextSecondary}"
+                           TextWrapping="Wrap"
+                           Margin="44,4,0,0"/>
+
+                <!-- Action Button -->
+                <Button Grid.Row="2"
+                        Classes="action-compact"
+                        Classes.action-primary="{Binding FirstAction.IsPrimary, FallbackValue=False}"
+                        Classes.action-secondary="{Binding FirstAction.IsSecondary, FallbackValue=False}"
+                        Classes.action-danger="{Binding FirstAction.IsDanger, FallbackValue=False}"
+                        IsVisible="{Binding IsActionable}"
+                        Command="{Binding ActionCommand}"
+                        Content="{Binding ActionText}"
+                        Margin="44,10,0,0"
+                        HorizontalAlignment="Left" />
             </Grid>
-
-            <TextBlock Grid.Row="1"
-                       Text="{Binding Message}"
-                       FontSize="13"
-                       Foreground="White"
-                       TextWrapping="Wrap"
-                       Opacity="0.95"
-                       Margin="36,8,0,0"/>
-
-            <Button Grid.Row="2"
-                    IsVisible="{Binding IsActionable}"
-                    Command="{Binding ActionCommand}"
-                    Content="{Binding ActionText}"
-                    Background="White"
-                    Foreground="{Binding BackgroundBrush}"
-                    BorderThickness="0"
-                    CornerRadius="4"
-                    Padding="12,6"
-                    Margin="36,12,0,0"
-                    HorizontalAlignment="Left"
-                    FontWeight="SemiBold"
-                    FontSize="13"
-                    Cursor="Hand"/>
         </Grid>
     </Border>
 </UserControl>

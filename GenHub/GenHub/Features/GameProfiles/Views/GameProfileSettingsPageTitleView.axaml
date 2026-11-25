@@ -1,0 +1,36 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="clr-namespace:GenHub.Features.GameProfiles.ViewModels"
+             xmlns:conv="clr-namespace:GenHub.Infrastructure.Converters"
+             xmlns:localization="clr-namespace:GenHub.Common.Markup;assembly=GenHub"
+             mc:Ignorable="d" d:DesignWidth="600" d:DesignHeight="40"
+             x:Class="GenHub.Features.GameProfiles.Views.GameProfileSettingsPageTitleView"
+             x:DataType="vm:GameProfileSettingsViewModel">
+
+    <UserControl.Resources>
+        <conv:EqualityConverter x:Key="EqualityConverter" />
+    </UserControl.Resources>
+
+    <UserControl.Styles>
+        <Style Selector="TextBlock.page-title">
+            <Setter Property="FontSize" Value="26" />
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
+        </Style>
+    </UserControl.Styles>
+
+    <Panel>
+        <TextBlock Classes="page-title" Text="{localization:Localize GameProfiles.Navigation.General}"
+                   IsVisible="{Binding SelectedPage, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static vm:ProfileSettingsPage.General}}" />
+        <TextBlock Classes="page-title" Text="{localization:Localize GameProfiles.Navigation.Game}"
+                   IsVisible="{Binding SelectedPage, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static vm:ProfileSettingsPage.Game}}" />
+        <TextBlock Classes="page-title" Text="{localization:Localize GameProfiles.Navigation.Content}"
+                   IsVisible="{Binding SelectedPage, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static vm:ProfileSettingsPage.Content}}" />
+        <TextBlock Classes="page-title" Text="{localization:Localize GameProfiles.General.TabAppearance}"
+                   IsVisible="{Binding SelectedPage, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static vm:ProfileSettingsPage.Appearance}}" />
+        <TextBlock Classes="page-title" Text="{localization:Localize GameProfiles.Navigation.GameSettings}"
+                   IsVisible="{Binding SelectedPage, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static vm:ProfileSettingsPage.GameSettings}}" />
+    </Panel>
+</UserControl>

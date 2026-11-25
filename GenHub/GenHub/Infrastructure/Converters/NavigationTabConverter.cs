@@ -1,7 +1,7 @@
-using System;
-using System.Globalization;
 using Avalonia.Data.Converters;
 using GenHub.Core.Models.Enums;
+using System;
+using System.Globalization;
 
 namespace GenHub.Infrastructure.Converters;
 
@@ -13,7 +13,7 @@ public class NavigationTabConverter : IValueConverter
     /// <summary>
     /// Singleton instance.
     /// </summary>
-    public static readonly NavigationTabConverter Instance = new NavigationTabConverter();
+    public static readonly NavigationTabConverter Instance = new();
 
     /// <inheritdoc/>
     public object? Convert(object? value, Type targetType, object? parameter, CultureInfo? culture)

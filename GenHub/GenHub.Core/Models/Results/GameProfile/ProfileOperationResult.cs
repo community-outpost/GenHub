@@ -1,3 +1,5 @@
+using GenHub.Core.Models.GameProfile;
+
 namespace GenHub.Core.Models.Results;
 
 /// <summary>
@@ -26,14 +28,53 @@ public class ProfileOperationResult<T> : OperationResult<T>
     public string? ErrorCode { get; }
 
     /// <summary>
+    /// Gets a value indicating whether changes were synchronized into an active game session.
+    /// </summary>
+    public bool WasAppliedLive { get; init; }
+
+    /// <summary>
+    /// Gets a value indicating whether a live content rollback was attempted after a save failure.
+    /// </summary>
+    public bool LiveRollbackAttempted { get; init; }
+
+    /// <summary>
+    /// Gets a value indicating whether live content rollback after a save failure succeeded.
+    /// </summary>
+    public bool LiveRollbackSucceeded { get; init; }
+
+    /// <summary>
+    /// Gets details on any failure during live content rollback after a save failure.
+    /// </summary>
+    public string? LiveRollbackError { get; init; }
+
+    /// <summary>
+    /// Gets the required items that blocked the operation. Empty unless it failed for missing dependencies.
+    /// </summary>
+    public IReadOnlyList<ContentDependencyGap> MissingDependencies { get; private init; } = [];
+
+    /// <summary>
+    /// Gets the ID of the profile that was validated when <see cref="MissingDependencies"/> were found.
+    /// Launch can switch to another profile during reconciliation, so this can differ from the requested ID.
+    /// </summary>
+    public string? MissingDependenciesProfileId { get; private init; }
+
+    /// <summary>
     /// Creates a successful profile operation result.
     /// </summary>
     /// <param name="data">The data returned by the operation.</param>
     /// <param name="errorCode">The error code, if any.</param>
     /// <param name="elapsed">The elapsed time.</param>
+    /// <param name="wasAppliedLive">Whether changes were synchronized into an active game session.</param>
     /// <returns>A successful <see cref="ProfileOperationResult{T}"/>.</returns>
-    public static ProfileOperationResult<T> CreateSuccess(T data, string? errorCode = null, TimeSpan elapsed = default)
-        => new(true, data, null, errorCode, elapsed);
+    public static ProfileOperationResult<T> CreateSuccess(
+        T data,
+        string? errorCode = null,
+        TimeSpan elapsed = default,
+        bool wasAppliedLive = false)
+        => new(true, data, null, errorCode, elapsed)
+        {
+            WasAppliedLive = wasAppliedLive,
+        };
 
     /// <summary>
     /// Creates a failed profile operation result.
@@ -41,7 +82,42 @@ public class ProfileOperationResult<T> : OperationResult<T>
     /// <param name="error">The error message.</param>
     /// <param name="errorCode">The error code, if any.</param>
     /// <param name="elapsed">The elapsed time.</param>
+    /// <param name="liveRollbackAttempted">Whether live content rollback was attempted.</param>
+    /// <param name="liveRollbackSucceeded">Whether live content rollback succeeded.</param>
+    /// <param name="liveRollbackError">Details on rollback failure, if any.</param>
     /// <returns>A failed <see cref="ProfileOperationResult{T}"/>.</returns>
-    public static ProfileOperationResult<T> CreateFailure(string error, string? errorCode = null, TimeSpan elapsed = default)
-        => new(false, default, error, errorCode, elapsed);
+    public static ProfileOperationResult<T> CreateFailure(
+        string error,
+        string? errorCode = null,
+        TimeSpan elapsed = default,
+        bool liveRollbackAttempted = false,
+        bool liveRollbackSucceeded = false,
+        string? liveRollbackError = null)
+        => new(false, default, error, errorCode, elapsed)
+        {
+            LiveRollbackAttempted = liveRollbackAttempted,
+            LiveRollbackSucceeded = liveRollbackSucceeded,
+            LiveRollbackError = liveRollbackError,
+        };
+
+    /// <summary>
+    /// Creates a failed result for content whose required items are missing. Nothing was saved.
+    /// </summary>
+    /// <param name="error">The error message.</param>
+    /// <param name="missingDependencies">The missing required items.</param>
+    /// <param name="errorCode">The error code, if any.</param>
+    /// <param name="elapsed">The elapsed time.</param>
+    /// <param name="profileId">The ID of the profile that was validated, if known.</param>
+    /// <returns>A failed <see cref="ProfileOperationResult{T}"/> that lists the missing items.</returns>
+    public static ProfileOperationResult<T> CreateMissingDependencies(
+        string error,
+        IReadOnlyList<ContentDependencyGap> missingDependencies,
+        string? errorCode = null,
+        TimeSpan elapsed = default,
+        string? profileId = null)
+        => new(false, default, error, errorCode, elapsed)
+        {
+            MissingDependencies = missingDependencies,
+            MissingDependenciesProfileId = profileId,
+        };
 }

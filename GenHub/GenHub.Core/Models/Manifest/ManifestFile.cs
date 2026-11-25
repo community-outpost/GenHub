@@ -1,5 +1,5 @@
-using System.Text.Json.Serialization;
 using GenHub.Core.Models.Enums;
+using System.Text.Json.Serialization;
 
 namespace GenHub.Core.Models.Manifest;
 
@@ -8,6 +8,8 @@ namespace GenHub.Core.Models.Manifest;
 /// </summary>
 public class ManifestFile
 {
+    private string _hash = string.Empty;
+
     /// <summary>
     /// Gets or sets the relative path of the file from the root directory.
     /// </summary>
@@ -37,7 +39,17 @@ public class ManifestFile
     /// Gets or sets the SHA256 hash of the file contents.
     /// </summary>
     [JsonPropertyName("hash")]
-    public string Hash { get; set; } = string.Empty;
+    public string Hash
+    {
+        get => _hash;
+        set => _hash = value?.Trim() ?? string.Empty;
+    }
+
+    /// <summary>
+    /// Gets or sets the HTTP ETag or remote MD5 hash of the file contents when available.
+    /// </summary>
+    [JsonPropertyName("etag")]
+    public string? ETag { get; set; }
 
     /// <summary>
     /// Gets or sets the file permissions for cross-platform compatibility.

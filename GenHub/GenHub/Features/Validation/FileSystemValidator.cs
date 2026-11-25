@@ -1,14 +1,14 @@
+using GenHub.Core.Interfaces.Common;
+using GenHub.Core.Models.Manifest;
+using GenHub.Core.Models.Validation;
+using GenHub.Infrastructure.Exceptions;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using GenHub.Core.Interfaces.Common;
-using GenHub.Core.Models.Manifest;
-using GenHub.Core.Models.Validation;
-using GenHub.Infrastructure.Exceptions;
-using Microsoft.Extensions.Logging;
 
 namespace GenHub.Features.Validation;
 
@@ -24,17 +24,6 @@ public abstract class FileSystemValidator(ILogger logger, IFileHashProvider hash
     /// </summary>
     private readonly ILogger _logger = logger;
     private readonly IFileHashProvider _hashProvider = hashProvider;
-
-    /// <summary>
-    /// Computes the SHA256 hash of a file asynchronously.
-    /// </summary>
-    /// <param name="filePath">File path.</param>
-    /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>SHA256 hash string.</returns>
-    protected async Task<string> ComputeSha256Async(string filePath, CancellationToken cancellationToken)
-    {
-        return await _hashProvider.ComputeFileHashAsync(filePath, cancellationToken);
-    }
 
     /// <summary>
     /// Validates that all required directories exist.
@@ -57,6 +46,17 @@ public abstract class FileSystemValidator(ILogger logger, IFileHashProvider hash
         }
 
         return Task.FromResult(issues);
+    }
+
+    /// <summary>
+    /// Computes the SHA256 hash of a file asynchronously.
+    /// </summary>
+    /// <param name="filePath">File path.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>SHA256 hash string.</returns>
+    protected async Task<string> ComputeSha256Async(string filePath, CancellationToken cancellationToken)
+    {
+        return await _hashProvider.ComputeFileHashAsync(filePath, cancellationToken);
     }
 
     /// <summary>

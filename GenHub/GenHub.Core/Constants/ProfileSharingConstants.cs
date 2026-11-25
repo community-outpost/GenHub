@@ -1,0 +1,273 @@
+using System;
+using System.Collections.Generic;
+
+namespace GenHub.Core.Constants;
+
+/// <summary>
+/// Constants used for GameProfile sharing, package packaging, deep linking, and import inspection.
+/// </summary>
+public static class ProfileSharingConstants
+{
+    /// <summary>Resource key for a dependency requiring provider resolution on the recipient's platform.</summary>
+    public const string PlatformResolutionWarningKey = "GameProfiles.Share.Warning.PlatformResolution";
+
+    /// <summary>Fallback error when building a shared dependency fails. {0} is its manifest ID.</summary>
+    public const string DependencyExportFailedMessageKey = "GameProfiles.Share.Error.DependencyExportFailed";
+
+    /// <summary>Error when a profile references a missing manifest. {0} is its manifest ID.</summary>
+    public const string ReferencedManifestMissingMessageKey = "GameProfiles.Share.Error.ReferencedManifestMissing";
+
+    /// <summary>
+    /// The default schema version for shared game profile packages.
+    /// </summary>
+    public const int DefaultSchemaVersion = 1;
+
+    /// <summary>
+    /// The schema version for packages with at least one platform-specific dependency.
+    /// Readers that only understand <see cref="DefaultSchemaVersion"/> reject these packages
+    /// instead of installing files built for another platform.
+    /// </summary>
+    public const int PlatformSpecificSchemaVersion = 2;
+
+    /// <summary>
+    /// The highest schema version this build can read.
+    /// </summary>
+    public const int MaxSupportedSchemaVersion = PlatformSpecificSchemaVersion;
+
+    /// <summary>
+    /// The maximum length in characters allowed for an inline Base64Url data payload (64 KB).
+    /// Payloads exceeding this limit must be exported as .ghprofile files or hosted via URL.
+    /// </summary>
+    public const int MaxInlinePayloadLength = 65536;
+
+    /// <summary>
+    /// The file extension for standalone shared game profile package containers.
+    /// </summary>
+    public const string ProfileFileExtension = ".ghprofile";
+
+    /// <summary>
+    /// The display name for file picker dialogs when filtering for profile packages.
+    /// </summary>
+    public const string ProfileFileTypeDisplayName = "GenHub Profile Package";
+
+    /// <summary>
+    /// File pattern for finding profile package files.
+    /// </summary>
+    public const string ProfileFilePattern = "*.ghprofile";
+
+    /// <summary>
+    /// Maximum allowed length for profile names during import.
+    /// </summary>
+    public const int MaxProfileNameLength = 100;
+
+    /// <summary>
+    /// Default name used for shared profile fallback when input name is empty.
+    /// </summary>
+    public const string DefaultSharedProfileName = "Shared Profile";
+
+    /// <summary>
+    /// Maximum number of search results to request during fallback dependency resolution.
+    /// </summary>
+    public const int FallbackSearchLimit = 10;
+
+    /// <summary>
+    /// Maximum allowed decompressed payload size in bytes (2 MB).
+    /// </summary>
+    public const int MaxDecompressedPayloadBytes = 2 * 1024 * 1024;
+
+    /// <summary>
+    /// Maximum allowed file size for .ghprofile packages (5 MB).
+    /// </summary>
+    public const long MaxProfileFileBytes = 5 * 1024 * 1024;
+
+    /// <summary>
+    /// Maximum allowed size for a single downloaded manifest dependency file (2 GB).
+    /// </summary>
+    public const long MaxDownloadedFileBytes = 2048L * 1024 * 1024;
+
+    /// <summary>
+    /// Maximum allowed total uncompressed size for an extracted package archive (4 GB).
+    /// </summary>
+    public const long MaxExtractedPackageBytes = 4096L * 1024 * 1024;
+
+    /// <summary>
+    /// Category name used when registering uploaded game profile packages in upload history.
+    /// </summary>
+    public const string UploadCategoryProfiles = "Profiles";
+
+    /// <summary>
+    /// Retention period in days for cloud storage uploads.
+    /// </summary>
+    public const int CloudUploadRetentionDays = 14;
+
+    /// <summary>
+    /// Maximum allowed file size for cloud upload packages (10 MB gateway limit).
+    /// </summary>
+    public const long MaxCloudUploadSizeBytes = 10 * 1024 * 1024;
+
+    /// <summary>
+    /// Maximum profile upload size in bytes per rolling period (10 MB).
+    /// </summary>
+    public const long MaxProfileUploadBytesPerPeriod = 10 * 1024 * 1024;
+
+    /// <summary>
+    /// Backwards compatibility alias for <see cref="MaxProfileUploadBytesPerPeriod"/>.
+    /// </summary>
+    public const long MaxUploadBytesPerPeriod = MaxProfileUploadBytesPerPeriod;
+
+    /// <summary>
+    /// Staging directory name used for temporary cloud upload zip packages.
+    /// </summary>
+    public const string CloudUploadStagingDirectoryName = "CloudUploadStaging";
+
+    /// <summary>
+    /// Staging directory name used for temporary CAS blob materialization.
+    /// </summary>
+    public const string CasMaterializeStagingDirectoryName = "CasMaterializeStaging";
+
+    /// <summary>
+    /// Staging directory name used for temporary shared profile package imports.
+    /// </summary>
+    public const string SharedImportStagingDirectoryName = "SharedImportStaging";
+
+    /// <summary>
+    /// Error message when an export or inspection operation is invoked with an empty profile ID.
+    /// </summary>
+    public const string EmptyProfileIdErrorMessage = "Profile identifier cannot be empty.";
+
+    /// <summary>
+    /// Resource key for a dependency shared for another platform.
+    /// {0} is the content name, {1} the platforms it was shared for and {2} the recipient's runtime.
+    /// </summary>
+    public const string DependencyBuiltForOtherPlatformErrorKey = "GameProfiles.Share.Error.BuiltForOtherPlatform";
+
+    /// <summary>
+    /// Resource key for a dependency shared for another platform whose shared version has no build for this platform.
+    /// {0} is the content name, {1} the shared version and {2} the recipient's runtime.
+    /// </summary>
+    public const string NoCompatiblePlatformBuildErrorKey = "GameProfiles.Share.Error.NoCompatiblePlatformBuild";
+
+    /// <summary>Resource key for the inspection warning when other-platform dependencies cannot be named.</summary>
+    public const string BuiltForOtherPlatformGenericWarningKey = "GameProfiles.ImportInspection.Warning.BuiltForOtherPlatformGeneric";
+
+    /// <summary>Fallback text for <see cref="BuiltForOtherPlatformGenericWarningKey"/>.</summary>
+    public const string BuiltForOtherPlatformGenericWarning = "One or more required components were shared for another platform and cannot be installed on this one.";
+
+    /// <summary>Resource key for the inspection warning when dependencies needing provider resolution cannot be named.</summary>
+    public const string PlatformResolutionGenericWarningKey = "GameProfiles.ImportInspection.Warning.PlatformResolutionGeneric";
+
+    /// <summary>Fallback text for <see cref="PlatformResolutionGenericWarningKey"/>.</summary>
+    public const string PlatformResolutionGenericWarning = "One or more required components must be found through a connected provider for this platform. Download size is unknown.";
+
+    /// <summary>
+    /// Resource key for a package whose schema version this build cannot read.
+    /// {0} is the package version and {1} the highest supported version.
+    /// </summary>
+    public const string UnsupportedSchemaVersionErrorKey = "GameProfiles.Share.Error.UnsupportedSchemaVersion";
+
+    /// <summary>
+    /// Resource key for exporting a profile whose manifest has no variant for this platform.
+    /// {0} is the manifest name and {1} the runtime identifier.
+    /// </summary>
+    public const string CannotExportNoHostVariantErrorKey = "GameProfiles.Share.Error.NoHostVariant";
+
+    /// <summary>
+    /// Resource key for the error shown when sharing local content that has no files to upload.
+    /// {0} is the content name.
+    /// </summary>
+    public const string LocalContentHasNoFilesToShareErrorKey = "GameProfiles.Share.Error.LocalContentHasNoFiles";
+
+    /// <summary>
+    /// Parent directory segment in file paths.
+    /// </summary>
+    public const string ParentDirectorySegment = "..";
+
+    /// <summary>
+    /// Default publisher name used for local content attribution in shared packages.
+    /// </summary>
+    public const string DefaultLocalPublisherName = "GenHub (Local)";
+
+    /// <summary>
+    /// Default publisher name used for generic community content in shared packages.
+    /// </summary>
+    public const string DefaultCommunityPublisherName = "Community";
+
+    /// <summary>
+    /// Default fallback version string used when creating fallback content dependencies.
+    /// </summary>
+    public const string DefaultFallbackContentVersion = "1.0";
+
+    /// <summary>
+    /// Default fallback hex theme color for imported profiles when not specified.
+    /// </summary>
+    public const string DefaultThemeColor = "#1976D2";
+
+    /// <summary>
+    /// Default secondary accent hex color used in profile sharing dialogs.
+    /// </summary>
+    public const string DefaultShareAccentColor = "#9575CD";
+
+    /// <summary>
+    /// File extension for JSON manifests and metadata.
+    /// </summary>
+    public const string JsonExtension = ".json";
+
+    /// <summary>
+    /// File extension for ZIP archive packages.
+    /// </summary>
+    public const string ZipExtension = ".zip";
+
+    /// <summary>
+    /// URI scheme delimiter marker.
+    /// </summary>
+    public const string SchemeDelimiter = "://";
+
+    /// <summary>
+    /// Format string for conflict-free profile name suffix.
+    /// </summary>
+    public const string ConflictSuffixFormat = " ({0})";
+
+    /// <summary>
+    /// Prefix for Avalonia resource URIs.
+    /// </summary>
+    public const string AvaresPrefix = "avares://";
+
+    /// <summary>
+    /// Path prefix for assets with leading slash.
+    /// </summary>
+    public const string AssetsLeadingSlashPrefix = "/Assets/";
+
+    /// <summary>
+    /// Path prefix for assets relative path.
+    /// </summary>
+    public const string AssetsPrefix = "Assets/";
+
+    /// <summary>
+    /// Default timeout for remote profile payload metadata fetches (60 seconds).
+    /// </summary>
+    public static readonly TimeSpan RemotePayloadTimeout = TimeSpan.FromSeconds(60);
+
+    /// <summary>
+    /// Default timeout for downloading large package archives or dependency files (1 hour).
+    /// </summary>
+    public static readonly TimeSpan PackageDownloadTimeout = TimeSpan.FromHours(1);
+
+    /// <summary>
+    /// File extensions recognized as executable or script binaries in shared profiles.
+    /// </summary>
+    public static readonly IReadOnlySet<string> ExecutableFileExtensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+    {
+        ".exe", ".dll", ".asi", ".bat", ".cmd", ".ps1", ".vbs",
+        ".msi", ".scr", ".com", ".pif", ".hta", ".jar", ".lnk", ".wsf",
+    };
+
+    /// <summary>
+    /// Built-in asset and resource prefixes allowed in shareable artwork paths.
+    /// </summary>
+    public static readonly IReadOnlyList<string> BuiltInAssetPrefixes =
+    [
+        AvaresPrefix,
+        AssetsLeadingSlashPrefix,
+        AssetsPrefix,
+    ];
+}

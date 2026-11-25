@@ -1,3 +1,4 @@
+using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using Microsoft.Extensions.Logging;
 
@@ -11,6 +12,10 @@ public interface IAppConfiguration
     /// <summary>Gets the root application data path for GenHub.</summary>
     /// <returns>The root application data path.</returns>
     string GetConfiguredDataPath();
+
+    /// <summary>Gets the root application data path used by releases up to v0.0.3, which stored data under the roaming profile.</summary>
+    /// <returns>The legacy root application data path.</returns>
+    string GetLegacyConfiguredDataPath();
 
     /// <summary>Gets the default workspace path for GenHub.</summary>
     /// <returns>The default workspace path.</returns>
@@ -81,4 +86,10 @@ public interface IAppConfiguration
     /// <summary>Gets the maximum allowed download buffer size in bytes.</summary>
     /// <returns>The maximum buffer size in bytes.</returns>
     int GetMaxDownloadBufferSizeBytes();
+
+    /// <summary>
+    /// Gets the CSV catalog configuration.
+    /// </summary>
+    /// <returns>The CSV catalog configuration.</returns>
+    CsvCatalogConfiguration GetCsvCatalogConfiguration();
 }

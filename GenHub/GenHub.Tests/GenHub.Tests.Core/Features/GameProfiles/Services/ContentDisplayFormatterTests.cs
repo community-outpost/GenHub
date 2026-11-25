@@ -1,3 +1,4 @@
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.GameClients;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameClients;
@@ -6,7 +7,6 @@ using GenHub.Core.Models.Manifest;
 using GenHub.Features.GameProfiles.Services;
 using Moq;
 using Xunit;
-
 using ContentType = GenHub.Core.Models.Enums.ContentType;
 
 namespace GenHub.Tests.Core.Features.GameProfiles.Services;
@@ -25,7 +25,7 @@ public class ContentDisplayFormatterTests
     public ContentDisplayFormatterTests()
     {
         _hashRegistryMock = new Mock<IGameClientHashRegistry>();
-        _hashRegistryMock.Setup(x => x.GetGameInfoFromHash(It.IsAny<string>())).Returns((GameType.Unknown, "Unknown"));
+        _hashRegistryMock.Setup(x => x.GetGameInfoFromHash(It.IsAny<string>())).Returns((GameType.Unknown, GameClientConstants.UnknownVersion));
         _formatter = new ContentDisplayFormatter(_hashRegistryMock.Object);
     }
 
@@ -112,7 +112,7 @@ public class ContentDisplayFormatterTests
     [InlineData(GameInstallationType.EaApp, "EA App")]
     [InlineData(GameInstallationType.TheFirstDecade, "The First Decade")]
     [InlineData(GameInstallationType.Retail, "Retail Installation")]
-    [InlineData(GameInstallationType.Unknown, "Unknown")]
+    [InlineData(GameInstallationType.Unknown, GameClientConstants.UnknownVersion)]
     public void GetPublisherFromInstallationType_ReturnsCorrectPublisher(GameInstallationType installationType, string expected)
     {
         // Act
@@ -137,7 +137,7 @@ public class ContentDisplayFormatterTests
             ContentType = ContentType.Mod,
             TargetGame = GameType.ZeroHour,
             Publisher = new PublisherInfo { Name = "Test Publisher" },
-            Files = new List<ManifestFile>(),
+            Files = [],
         };
 
         // Act
@@ -158,6 +158,8 @@ public class ContentDisplayFormatterTests
     [InlineData("Origin Content", "EA App")]
     [InlineData("GeneralsOnline Mod", "GeneralsOnline")]
     [InlineData("CNClabs Map Pack", "CNClabs")]
+    [InlineData("EA-Origin Pack", "EA App")]
+    [InlineData("Generals (EA!)", "EA App")]
     public void GetPublisherFromManifest_InfersFromName(string manifestName, string expectedPublisher)
     {
         // Arrange
@@ -168,7 +170,7 @@ public class ContentDisplayFormatterTests
             Version = "1.0",
             ContentType = ContentType.Mod,
             TargetGame = GameType.ZeroHour,
-            Files = new List<ManifestFile>(),
+            Files = [],
         };
 
         // Act
@@ -176,6 +178,62 @@ public class ContentDisplayFormatterTests
 
         // Assert
         Assert.Equal(expectedPublisher, result);
+    }
+
+    /// <summary>
+    /// Tests that names containing "ea" inside another word are not labelled EA App.
+    /// </summary>
+    /// <param name="manifestName">The manifest name.</param>
+    [Theory]
+    [InlineData("Great Mod")]
+    [InlineData("Real War Map")]
+    [InlineData("Beach Assault")]
+    [InlineData("Original HUD")]
+    [InlineData("Desert Origins Map Pack")]
+    public void GetPublisherFromManifest_EaInsideWord_IsNotEaApp(string manifestName)
+    {
+        var manifest = new ContentManifest
+        {
+            Id = ManifestId.Create("1.0.genhub.mod.testcontent"),
+            Name = manifestName,
+            Version = "1.0",
+            ContentType = ContentType.Mod,
+            TargetGame = GameType.ZeroHour,
+            Files = [],
+        };
+
+        var result = _formatter.GetPublisherFromManifest(manifest);
+
+        Assert.Equal(string.Empty, result);
+    }
+
+    /// <summary>
+    /// Tests that content without a publisher shows no publisher instead of the retail installation name,
+    /// while a game installation without one still falls back to its installation type.
+    /// </summary>
+    /// <param name="contentType">The content type of the manifest.</param>
+    /// <param name="expectedPublisher">The expected publisher text.</param>
+    [Theory]
+    [InlineData(ContentType.Mod, "")]
+    [InlineData(ContentType.Map, "")]
+    [InlineData(ContentType.Patch, "")]
+    [InlineData(ContentType.GameClient, "")]
+    [InlineData(ContentType.GameInstallation, "Retail Installation")]
+    public void GetPublisherFromManifest_WithoutPublisher_OnlyInstallationFallsBackToRetail(ContentType contentType, string expectedPublisher)
+    {
+        var manifest = new ContentManifest
+        {
+            Id = ManifestId.Create("1.0.local.mod.shocktestmod"),
+            Name = "Shock Test Mod",
+            Version = "1.0",
+            ContentType = contentType,
+            TargetGame = GameType.ZeroHour,
+            Publisher = new PublisherInfo { Name = string.Empty },
+            Files = [],
+        };
+
+        Assert.Equal(expectedPublisher, _formatter.GetPublisherFromManifest(manifest));
+        Assert.Equal(expectedPublisher, _formatter.CreateDisplayItem(manifest).Publisher);
     }
 
     /// <summary>
@@ -190,6 +248,16 @@ public class ContentDisplayFormatterTests
     [InlineData("TFD Edition", GameInstallationType.TheFirstDecade)]
     [InlineData("Wine Installation", GameInstallationType.Wine)]
     [InlineData("Random Content", GameInstallationType.Retail)]
+    [InlineData("Great Mod", GameInstallationType.Retail)]
+    [InlineData("Desert Map Pack", GameInstallationType.Retail)]
+    [InlineData("Tactical Team Fortress", GameInstallationType.Retail)]
+    [InlineData("Generals (EA)", GameInstallationType.EaApp)]
+    [InlineData("eaapp_zerohour", GameInstallationType.EaApp)]
+    [InlineData("Zero Hour TFD", GameInstallationType.TheFirstDecade)]
+    [InlineData("Generals (EA!)", GameInstallationType.EaApp)]
+    [InlineData("Zero Hour TFD!", GameInstallationType.TheFirstDecade)]
+    [InlineData("Generals; EA", GameInstallationType.EaApp)]
+    [InlineData("Great!", GameInstallationType.Retail)]
     public void GetInstallationTypeFromManifest_InfersCorrectType(string manifestName, GameInstallationType expected)
     {
         // Arrange
@@ -200,7 +268,7 @@ public class ContentDisplayFormatterTests
             Version = "1.0",
             ContentType = ContentType.GameInstallation,
             TargetGame = GameType.ZeroHour,
-            Files = new List<ManifestFile>(),
+            Files = [],
         };
 
         // Act
@@ -225,7 +293,7 @@ public class ContentDisplayFormatterTests
             ContentType = ContentType.Mod,
             TargetGame = GameType.ZeroHour,
             Publisher = new PublisherInfo { Name = "Test Publisher" },
-            Files = new List<ManifestFile>(),
+            Files = [],
         };
 
         // Act
@@ -293,7 +361,7 @@ public class ContentDisplayFormatterTests
     [InlineData(GameType.ZeroHour, false, "Command & Conquer: Generals Zero Hour")]
     [InlineData(GameType.Generals, true, "Generals")]
     [InlineData(GameType.ZeroHour, true, "Zero Hour")]
-    [InlineData(GameType.Unknown, false, "Unknown")]
+    [InlineData(GameType.Unknown, false, GameClientConstants.UnknownVersion)]
     public void GetGameTypeDisplayName_ReturnsCorrectName(GameType gameType, bool useShortName, string expected)
     {
         // Act
@@ -310,9 +378,11 @@ public class ContentDisplayFormatterTests
     /// <param name="expected">The expected display name.</param>
     [Theory]
     [InlineData(ContentType.GameInstallation, "Game Installation")]
-    [InlineData(ContentType.GameClient, "Game Client")]
-    [InlineData(ContentType.Mod, "Modification")]
-    [InlineData(ContentType.MapPack, "Map Pack")]
+    [InlineData(ContentType.GameClient, "GameClient")]
+    [InlineData(ContentType.Executable, "Executable")]
+    [InlineData(ContentType.ModdingTool, "Tool")]
+    [InlineData(ContentType.Mod, "Mods")]
+    [InlineData(ContentType.MapPack, "Maps")]
     [InlineData(ContentType.Patch, "Patch")]
     public void GetContentTypeDisplayName_ReturnsCorrectName(ContentType contentType, string expected)
     {

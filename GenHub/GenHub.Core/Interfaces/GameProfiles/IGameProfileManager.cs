@@ -2,6 +2,7 @@ using GenHub.Core.Models.GameClients;
 using GenHub.Core.Models.GameProfile;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
+using System.Collections.Generic;
 
 namespace GenHub.Core.Interfaces.GameProfiles;
 
@@ -20,6 +21,11 @@ public interface IGameProfileManager
 
     /// <summary>
     /// Updates an existing game profile with the specified changes.
+    /// When the profile has an active game session and its enabled content changed, the live
+    /// user-data directory is synchronized before persisting so the running game observes the
+    /// change; a synchronization failure aborts the update and leaves storage untouched. Rollback
+    /// restores (<see cref="UpdateProfileRequest.IsRollback"/>) persist without live sync so
+    /// callers can compensate live user data on their own schedule.
     /// </summary>
     /// <param name="profileId">The unique identifier of the profile to update.</param>
     /// <param name="request">The profile update request.</param>
@@ -57,4 +63,15 @@ public interface IGameProfileManager
     /// <param name="cancellationToken">A cancellation token to observe while waiting for the task to complete.</param>
     /// <returns>An operation result containing available content manifests.</returns>
     Task<ProfileOperationResult<IReadOnlyList<ContentManifest>>> GetAvailableContentAsync(GameClient gameClient, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Scrubs references to the specified deleted manifest IDs from all game profiles,
+    /// updating profiles that retain valid content and deleting profiles that become orphaned.
+    /// </summary>
+    /// <param name="deletedManifestIds">The collection of deleted manifest IDs to scrub.</param>
+    /// <param name="cancellationToken">A cancellation token to observe while waiting for the task to complete.</param>
+    /// <returns>An operation result containing the scrub summary.</returns>
+    Task<OperationResult<ProfileScrubResult>> ScrubDeletedManifestReferencesAsync(
+        IEnumerable<string> deletedManifestIds,
+        CancellationToken cancellationToken = default);
 }

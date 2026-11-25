@@ -1,0 +1,18 @@
+{
+  "name": "LeikezeHotkeys",
+  "contentType": "Addon",
+  "version": "1.0.0",
+  "author": "Leikeze",
+  "targetGame": "ZeroHour",
+  "description": "Leikeze tournament hotkey string tables with 3 layout variants (Zero Hour English, Generals English, Zero Hour German)",
+  "directories": {
+    "configs": "config",
+    "gameFilesEdited": "GameFilesEdited",
+    "build": ".Build",
+    "release": ".Release"
+  },
+  "bundleConfigs": [
+    "config/ModBundleItems.json",
+    "config/ModBundlePacks.json"
+  ]
+}

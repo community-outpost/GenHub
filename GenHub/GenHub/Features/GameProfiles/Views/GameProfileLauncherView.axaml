@@ -1,327 +1,158 @@
-<UserControl xmlns="https://github.com/avaloniaui"
-    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-    xmlns:vm="clr-namespace:GenHub.Features.GameProfiles.ViewModels"
-    xmlns:views="clr-namespace:GenHub.Features.GameProfiles.Views"
-    xmlns:local="clr-namespace:GenHub.Features.GameProfiles.Views"
-    xmlns:conv="clr-namespace:GenHub.Infrastructure.Converters"
-    mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="550"
-    x:Class="GenHub.Features.GameProfiles.Views.GameProfileLauncherView"
-    x:Name="ProfileLauncher"
-    x:DataType="vm:GameProfileLauncherViewModel"
-    Background="#1A1A1A">
-
-    <UserControl.Resources>
-        <conv:ContrastTextColorConverter x:Key="ContrastTextColorConverter" />
-        <conv:ProfileCoverConverter x:Key="ProfileCoverConverter" />
-        <conv:StringToImageConverter x:Key="StringToImageConverter" />
-        <conv:BoolToValueConverter x:Key="BoolToVisibilityConverter"
-            TrueValue="Visible"
-            FalseValue="Collapsed" />
-            
-        <conv:BoolToColorConverter x:Key="EditModeToggleBackgroundConverter" TrueColor="#1E88E5" FalseColor="#333333" />
-        <conv:BoolToValueConverter x:Key="NotConverter" TrueValue="False" FalseValue="True" />
-        <conv:NullSafePropertyConverter x:Key="NullSafeConverter"/>
-
-        <!-- Define default colors for Generals and Zero Hour -->
-        <SolidColorBrush x:Key="GeneralsColor" Color="#BD5A0F" /> <!-- Dark orange/yellow -->
-        <SolidColorBrush x:Key="ZeroHourColor" Color="#1B6575" /> <!-- Dark teal/blue -->
-    </UserControl.Resources>
-
-    <UserControl.Styles>
-        <!-- Profile card styles -->
-        <Style Selector="Border.profile-card">
-            <Setter Property="Background" Value="#2A2A2A" />
-            <Setter Property="CornerRadius" Value="8" />
-            <Setter Property="Margin" Value="0 0 20 20" />
-            <Setter Property="Width" Value="400" />
-            <Setter Property="Height" Value="300" />
-            <Setter Property="BoxShadow" Value="0 2 10 0 #30000000" />
-            <Setter Property="Transitions">
-                <Setter.Value>
-                    <Transitions>
-                        <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.2" />
-                    </Transitions>
-                </Setter.Value>
-            </Setter>
-        </Style>
-        <Style Selector="Border.profile-card:pointerover">
-            <Setter Property="BoxShadow" Value="0 4 15 0 #40000000" />
-            <Setter Property="RenderTransform" Value="translate(0px, -2px)" />
-            <Setter Property="Cursor" Value="Hand" />
-        </Style>
-
-        <!-- Button styles -->
-        <Style Selector="Button.profile-action">
-            <Setter Property="Padding" Value="14 8" />
-            <Setter Property="CornerRadius" Value="4" />
-            <Setter Property="Foreground" Value="White" />
-            <Setter Property="HorizontalContentAlignment" Value="Center" />
-            <Setter Property="Background" Value="#44000000" />
-            <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="BorderBrush" Value="#50FFFFFF" />
-            <!-- Use Button Template with Border supporting BoxShadow -->
-            <Setter Property="Template">
-                <ControlTemplate>
-                    <Border BoxShadow="0 1 3 #40000000"
-                        Background="{TemplateBinding Background}"
-                        BorderBrush="{TemplateBinding BorderBrush}"
-                        BorderThickness="{TemplateBinding BorderThickness}"
-                        CornerRadius="{TemplateBinding CornerRadius}">
-                        <ContentPresenter Content="{TemplateBinding Content}"
-                            ContentTemplate="{TemplateBinding ContentTemplate}"
-                            Padding="{TemplateBinding Padding}"
-                            HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"
-                            VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}" />
-                    </Border>
-                </ControlTemplate>
-            </Setter>
-        </Style>
-
-        <Style Selector="Button.launch-button">
-            <Setter Property="FontWeight" Value="SemiBold" />
-            <Setter Property="MinWidth" Value="110" />
-            <Setter Property="Background" Value="#44000000" />
-        </Style>
-
-        <Style Selector="Button.edit-button">
-            <Setter Property="Background" Value="#44444444" />
-            <Setter Property="Width" Value="34" />
-            <Setter Property="Height" Value="34" />
-            <Setter Property="Padding" Value="5" />
-            <Setter Property="CornerRadius" Value="17" />
-            <Setter Property="ToolTip.Tip" Value="Edit profile" />
-            <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="BorderBrush" Value="#30FFFFFF" />
-            <!-- Use Button Template with Border supporting BoxShadow -->
-            <Setter Property="Template">
-                <ControlTemplate>
-                    <Border BoxShadow="0 1 3 #40000000"
-                        Background="{TemplateBinding Background}"
-                        BorderBrush="{TemplateBinding BorderBrush}"
-                        BorderThickness="{TemplateBinding BorderThickness}"
-                        CornerRadius="{TemplateBinding CornerRadius}">
-                        <ContentPresenter Content="{TemplateBinding Content}"
-                            ContentTemplate="{TemplateBinding ContentTemplate}"
-                            Padding="{TemplateBinding Padding}"
-                            HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"
-                            VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}" />
-                    </Border>
-                </ControlTemplate>
-            </Setter>
-            <Setter Property="Transitions">
-                <Setter.Value>
-                    <Transitions>
-                        <BrushTransition Property="Background" Duration="0:0:0.2" />
-                    </Transitions>
-                </Setter.Value>
-            </Setter>
-        </Style>
-        <Style Selector="Button.edit-button:pointerover">
-            <Setter Property="Background" Value="#66555555" />
-        </Style>
-
-        <!-- Plus button style -->
-        <Style Selector="Button.add-profile-button">
-            <Setter Property="Background" Value="#333333" />
-            <Setter Property="Width" Value="400" />
-            <Setter Property="Height" Value="300" />
-            <Setter Property="CornerRadius" Value="12" />
-            <Setter Property="VerticalContentAlignment" Value="Center" />
-            <Setter Property="HorizontalContentAlignment" Value="Center" />
-            <Setter Property="BorderBrush" Value="#444444" />
-            <Setter Property="BorderThickness" Value="2" />
-            <Setter Property="Margin" Value="0 0 20 20" />
-            <Setter Property="Transitions">
-                <Setter.Value>
-                    <Transitions>
-                        <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.2" />
-                    </Transitions>
-                </Setter.Value>
-            </Setter>
-        </Style>
-        <Style Selector="Button.add-profile-button:pointerover">
-            <Setter Property="RenderTransform" Value="scale(1.02)" />
-            <Setter Property="Background" Value="#383838" />
-        </Style>
-
-        <!-- Delete button style - make it use accent red -->
-        <Style Selector="Button.delete-button">
-            <Setter Property="Background" Value="#EF4444" /> <!-- Red accent -->
-            <Setter Property="Foreground" Value="White" />
-            <Setter Property="BorderBrush" Value="#B91C1C" /> <!-- Darker red border -->
-            <Setter Property="BorderThickness" Value="1" />
-        </Style>
-        <Style Selector="Button.delete-button:pointerover">
-            <Setter Property="Background" Value="#B91C1C" /> <!-- Even darker red on hover -->
-        </Style>
-
-        <!-- Enhanced badge style for profile cards -->
-        <Style Selector="Border.profile-badge">
-            <Setter Property="Background" Value="#50000000" />
-            <Setter Property="CornerRadius" Value="4" />
-            <Setter Property="Padding" Value="6,2" />
-            <Setter Property="Margin" Value="0,0,6,6" />
-            <Setter Property="BorderBrush" Value="{Binding $parent[Border].Background}" />
-            <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="BoxShadow" Value="0 1 3 0 #20000000" />
-        </Style>
-
-        <Style Selector="TextBlock.badge-text">
-            <Setter Property="FontSize" Value="11" />
-            <Setter Property="FontWeight" Value="SemiBold" />
-            <Setter Property="Foreground" Value="White" />
-        </Style>
-
-        <!-- Source badge styles -->
-        <Style Selector="Border.source-badge">
-            <Setter Property="Background" Value="#40000000" />
-            <Setter Property="CornerRadius" Value="3" />
-            <Setter Property="Padding" Value="5,1" />
-            <Setter Property="Margin" Value="0,4,5,0" />
-        </Style>
-    </UserControl.Styles>
-
-    <Grid RowDefinitions="Auto,*">
-        <!-- Header with Title and Actions -->
-        <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="16 16 16 8">
-            <StackPanel Grid.Column="0" Orientation="Vertical" VerticalAlignment="Center">
-                <TextBlock Text="Game Profiles" FontSize="20" FontWeight="SemiBold"
-                    Foreground="White" Margin="0 0 0 4" />
-                <TextBlock Text="Select a profile to launch or create a new one"
-                    Foreground="#AAAAAA" FontSize="13" />
-            </StackPanel>
-
-            <!-- Action buttons section in header -->
-            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10">
-                <!-- Edit Mode Toggle button -->
-               <Button Name="EditModeToggle"
-                    Command="{Binding ToggleEditModeCommand, Mode=OneWay}"
-                    Background="{Binding IsEditMode, Converter={StaticResource EditModeToggleBackgroundConverter}, Mode=OneWay}"
-                    ToolTip.Tip="Toggle Edit Mode"
-                    Width="42" Height="42"
-                    CornerRadius="21"
-                    Padding="0">
-                    <Grid>
-                        <!-- Use a different icon based on edit mode state -->
-                        <PathIcon
-                            Data="M20.71,4.04C21.1,3.65 21.1,3 20.71,2.63L18.37,0.29C18,-.1 17.35,-.1 16.96,0.29L15.12,2.12L18.87,5.87M3,17.25V21H6.75L17.81,9.93L14.06,6.18L3,17.25Z"
-                            Width="18" Height="18"
-                            Foreground="White"
-                            IsVisible="{Binding !IsEditMode, Mode=OneWay}" />
-                        <PathIcon
-                            Data="M19,3H5C3.89,3 3,3.89 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19V5C21,3.89 20.1,3 19,3M19,19H5V5H19V19M17,11V13H7V11H17M13,15V17H7V15H13Z"
-                            Width="18" Height="18"
-                            Foreground="White"
-                            IsVisible="{Binding IsEditMode, Mode=OneWay}" />
+<UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:controls="clr-namespace:GenHub.Common.Controls" xmlns:views="clr-namespace:GenHub.Features.GameProfiles.Views" xmlns:vm="clr-namespace:GenHub.Features.GameProfiles.ViewModels" xmlns:enums="clr-namespace:GenHub.Core.Models.Enums;assembly=GenHub.Core" xmlns:localization="clr-namespace:GenHub.Common.Markup" xmlns:constants="clr-namespace:GenHub.Core.Constants;assembly=GenHub.Core" xmlns:material="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia" x:Class="GenHub.Features.GameProfiles.Views.GameProfileLauncherView" x:DataType="vm:GameProfileLauncherViewModel" x:CompileBindings="True" x:Name="ProfileLibrary" DragDrop.AllowDrop="True" Background="{DynamicResource SurfaceBackgroundBrush}">
+    <Panel>
+        <controls:SidebarLayout x:Name="ProfileLibraryLayout" IsVisible="{Binding IsLibraryLayout}" PaneTitle="{Binding LibraryProfileCount}" PaneTitleForeground="{DynamicResource TextSecondaryBrush}" IsPaneCollapsible="False" ItemsSource="{Binding LibraryProfiles}" SelectedItem="{Binding DisplayedProfile, Mode=TwoWay}" OpenPaneLength="260" MinPaneLength="220" MaxPaneLength="360">
+            <controls:SidebarLayout.PaneHeader>
+                <StackPanel Spacing="10">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <TextBox Classes="form-field" Text="{Binding ProfileSearchText, Mode=TwoWay}" Watermark="{localization:Localize GameProfiles.Library.Search}" AutomationProperties.Name="{localization:Localize GameProfiles.Library.Search}" MinHeight="38"/>
+                        <Button x:Name="ProfileSortButton" Grid.Column="1" Classes="action-secondary library-action" Margin="6,0,0,0" ToolTip.Tip="{Binding SelectedSortModeItem.DisplayName}" AutomationProperties.Name="{localization:Localize GameProfiles.Launcher.Tooltip.Sort}">
+                            <material:MaterialIcon Kind="Sort" Width="16" Height="16"/>
+                            <Button.Flyout>
+                                <MenuFlyout>
+                                    <MenuItem Header="{localization:Localize GameProfiles.Sort.LastPlayed}" Command="{Binding SetLibrarySortModeCommand}" CommandParameter="{x:Static enums:ProfileSortMode.LastPlayed}"/>
+                                    <MenuItem Header="{localization:Localize GameProfiles.Sort.DateCreated}" Command="{Binding SetLibrarySortModeCommand}" CommandParameter="{x:Static enums:ProfileSortMode.DateCreated}"/>
+                                    <MenuItem Header="{localization:Localize GameProfiles.Sort.Alphabetical}" Command="{Binding SetLibrarySortModeCommand}" CommandParameter="{x:Static enums:ProfileSortMode.Alphabetical}"/>
+                                    <MenuItem Header="{localization:Localize GameProfiles.Sort.AlphabeticalDesc}" Command="{Binding SetLibrarySortModeCommand}" CommandParameter="{x:Static enums:ProfileSortMode.AlphabeticalDesc}"/>
+                                    <MenuItem Header="{localization:Localize GameProfiles.Sort.Free}" Command="{Binding SetLibrarySortModeCommand}" CommandParameter="{x:Static enums:ProfileSortMode.Free}"/>
+                                </MenuFlyout>
+                            </Button.Flyout>
+                        </Button>
                     </Grid>
-                </Button>
-
-                <!-- Scan button -->
-                <Button Command="{Binding ScanForGamesCommand}"
-                    Background="#333333"
-                    Padding="16 8"
-                    CornerRadius="4" 
-                    IsEnabled="{Binding !IsScanning}">
-                    <StackPanel Orientation="Horizontal" Spacing="8">
-                        <TextBlock Text="Scan" IsVisible="{Binding !IsScanning}" />
-                        <TextBlock Text="Scanning..." IsVisible="{Binding IsScanning}" />
-                        <ProgressBar IsVisible="{Binding IsScanning}" 
-                                     IsIndeterminate="True" 
-                                     Width="60" 
-                                     Height="4" 
-                                     VerticalAlignment="Center" />
-                    </StackPanel>
-                </Button>
-            </StackPanel>
-        </Grid>
-
-        <!-- Profiles Grid -->
-        <ScrollViewer Grid.Row="1" Padding="10">
-            <StackPanel>
-                <ItemsControl ItemsSource="{Binding Profiles}">
-                    <ItemsControl.ItemsPanel>
-                        <ItemsPanelTemplate>
-                            <!-- Wrap panel for responsive layout -->
-                            <WrapPanel Orientation="Horizontal"
-                                      HorizontalAlignment="Center" />
-                        </ItemsPanelTemplate>
-                    </ItemsControl.ItemsPanel>
-
-                    <ItemsControl.DataTemplates>
-                        <!-- Template for Add New Profile Item (Must be first to match subclass) -->
-                        <DataTemplate DataType="vm:AddProfileItemViewModel">
-                            <Button Classes="add-profile-button"
-                                    Command="{Binding $parent[ItemsControl].((vm:GameProfileLauncherViewModel)DataContext).CreateNewProfileCommand}">
-                                <StackPanel>
-                                    <PathIcon Data="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z"
-                                        Foreground="#BBBBBB"
-                                        Width="32"
-                                        Height="32" />
-                                    <TextBlock Text="Add New Profile"
-                                        Foreground="#BBBBBB"
-                                        Margin="0,10,0,0"
-                                        FontSize="13" />
-                                </StackPanel>
-                            </Button>
-                        </DataTemplate>
-
-                        <!-- Template for Profile Items -->
-                        <DataTemplate DataType="vm:GameProfileItemViewModel">
-                            <views:GameProfileCardView DataContext="{Binding}"/>
-                        </DataTemplate>
-                    </ItemsControl.DataTemplates>
-                </ItemsControl>
-            </StackPanel>
-        </ScrollViewer>
-        <!-- Patch Installation Prompt Overlay -->
-        <Grid Grid.Row="0" Grid.RowSpan="2" 
-              Background="#CC000000"
-              IsVisible="{Binding IsShowingPatchPrompt}">
-            <Border Background="#252525" 
-                    BorderBrush="#444444"
-                    BorderThickness="1"
-                    CornerRadius="8"
-                    Width="450"
-                    VerticalAlignment="Center"
-                    HorizontalAlignment="Center"
-                    BoxShadow="0 4 20 0 #80000000"
-                    Padding="24">
-                <StackPanel Spacing="16">
-                    <TextBlock Text="{Binding PromptTitle}" 
-                               FontSize="20" 
-                               FontWeight="SemiBold" 
-                               Foreground="White"/>
-                    
-                    <TextBlock Text="{Binding PromptMessage}" 
-                               FontSize="14" 
-                               TextWrapping="Wrap" 
-                               Foreground="#CCCCCC"/>
-                    
-                    <StackPanel Orientation="Horizontal" 
-                                Spacing="12" 
-                                HorizontalAlignment="Right"
-                                Margin="0,8,0,0">
-                        <Button Content="No, Thanks"
-                                Command="{Binding DeclinePatchPromptCommand}"
-                                Background="Transparent"
-                                BorderThickness="1"
-                                BorderBrush="#666666"
-                                Foreground="#CCCCCC"
-                                Padding="16,8"
-                                CornerRadius="4"/>
-                                
-                        <Button Content="Yes, Install"
-                                Command="{Binding AcceptPatchPromptCommand}"
-                                Background="#1E88E5"
-                                Foreground="White"
-                                Padding="16,8"
-                                CornerRadius="4"
-                                FontWeight="SemiBold"/>
-                    </StackPanel>
+                    <TextBlock Text="{localization:Localize GameProfiles.Library.NoMatches}" Classes="library-secondary" IsVisible="{Binding !HasLibraryProfiles}"/>
                 </StackPanel>
-            </Border>
-        </Grid>
-    </Grid>
+            </controls:SidebarLayout.PaneHeader>
+            <controls:SidebarLayout.PaneFooter>
+                <StackPanel Spacing="8">
+                    <Button Classes="action-secondary library-action" Command="{Binding CreateNewProfileCommand}" HorizontalAlignment="Stretch">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <material:MaterialIcon Kind="Plus" Width="16" Height="16" VerticalAlignment="Center"/>
+                            <TextBlock Text="{localization:Localize GameProfiles.Library.NewProfile}" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+                </StackPanel>
+            </controls:SidebarLayout.PaneFooter>
+            <controls:SidebarLayout.ItemTemplate>
+                <DataTemplate x:DataType="vm:GameProfileItemViewModel">
+                    <Border Classes="library-row" BorderBrush="{Binding ColorValue, Converter={StaticResource ColorToBrushConverter}}" BorderThickness="3,0,0,0" Padding="8,0,0,0">
+                        <Border.ContextMenu>
+                            <ContextMenu>
+                                <MenuItem Header="{localization:Localize GameProfiles.Library.EditProfile}" Command="{Binding EditProfileCommand}" IsEnabled="{Binding CanEdit}"/>
+                                <MenuItem Header="{localization:Localize GameProfiles.Card.Menu.ShareProfile}" Command="{Binding ShareProfileCommand}"/>
+                                <MenuItem Header="{localization:Localize GameProfiles.Card.Tooltip.CopyProfile}" Command="{Binding CopyProfileCommand}"/>
+                                <MenuItem Header="{localization:Localize GameProfiles.Card.Tooltip.CreateShortcut}" Command="{Binding CreateShortcutCommand}"/>
+                                <MenuItem Header="{localization:Localize GameProfiles.Library.MoveEarlier}" Command="{Binding MoveLeftCommand}" IsVisible="{Binding IsFreeReorderMode}"/>
+                                <MenuItem Header="{localization:Localize GameProfiles.Library.MoveLater}" Command="{Binding MoveRightCommand}" IsVisible="{Binding IsFreeReorderMode}"/>
+                                <Separator/>
+                                <MenuItem Header="{localization:Localize GameProfiles.Card.Tooltip.DeleteProfile}" Command="{Binding DeleteProfileCommand}" Foreground="{DynamicResource ErrorBrush}"/>
+                            </ContextMenu>
+                        </Border.ContextMenu>
+                        <Grid ColumnDefinitions="42,*,Auto">
+                            <Image Source="{Binding IconPath, Converter={StaticResource StringToImageConverter}}" Width="32" Height="32" VerticalAlignment="Center"/>
+                            <TextBlock Grid.Column="1" Text="{Binding Name}" FontSize="13" FontWeight="Medium" TextWrapping="Wrap" VerticalAlignment="Center"/>
+                            <Button Grid.Column="2" Classes="action-primary icon-action library-row-action library-row-play" Command="{Binding LaunchProfileCommand}" IsVisible="{Binding !IsProcessRunning}" IsEnabled="{Binding !IsPreparingWorkspace}" ToolTip.Tip="{Binding LibraryLaunchMethod}" AutomationProperties.Name="{localization:Localize GameProfiles.Library.Play}">
+                                <material:MaterialIcon Kind="Play" Width="16" Height="16"/>
+                            </Button>
+                            <Button Grid.Column="2" Classes="action-danger icon-action library-row-action library-row-stop" Command="{Binding StopProfileCommand}" IsVisible="{Binding IsProcessRunning}" ToolTip.Tip="{localization:Localize GameProfiles.Card.Action.Stop}" AutomationProperties.Name="{localization:Localize GameProfiles.Card.Action.Stop}">
+                                <material:MaterialIcon Kind="Stop" Width="16" Height="16"/>
+                            </Button>
+                        </Grid>
+                    </Border>
+                </DataTemplate>
+            </controls:SidebarLayout.ItemTemplate>
+            <Grid>
+                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                    <Grid>
+                    <ProgressBar IsIndeterminate="True" Height="3" VerticalAlignment="Center" Margin="30" IsVisible="{Binding IsLibraryInitializing}"/>
+                    <TextBlock Text="{localization:Localize GameProfiles.Library.LoadError}" Classes="library-secondary" Margin="30" VerticalAlignment="Center" IsVisible="{Binding HasLibraryLoadError}"/>
+                    <StackPanel IsVisible="{Binding IsLibraryEmpty}" Margin="30" Spacing="16" VerticalAlignment="Center" MaxWidth="560">
+                        <TextBlock Text="{localization:Localize GameProfiles.Library.EmptyTitle}" FontSize="24" FontWeight="SemiBold" TextWrapping="Wrap"/>
+                        <TextBlock Text="{localization:Localize GameProfiles.Library.EmptyHelp}" Classes="library-secondary"/>
+                        <WrapPanel>
+                            <Button Classes="action-primary library-action library-play" Content="{localization:Localize GameProfiles.Library.NewProfile}" Command="{Binding CreateNewProfileCommand}" Margin="0,0,8,8"/>
+                            <Button Classes="action-secondary library-action" Content="{localization:Localize GameProfiles.Button.Scan}" Command="{Binding ScanForGamesCommand}" IsEnabled="{Binding !IsScanning}" Margin="0,0,0,8"/>
+                        </WrapPanel>
+                        <ProgressBar IsIndeterminate="True" Height="2" IsVisible="{Binding IsScanning}"/>
+                        <TextBlock Text="{localization:Localize GameProfiles.ScanPrompt.Description}" Classes="library-secondary" IsVisible="{Binding ShouldShowScanPrompt}"/>
+                        <StackPanel IsVisible="{Binding ShouldShowScanFailure}" Spacing="12">
+                            <TextBlock Text="{localization:Localize GameProfiles.ScanFailure.Title}" FontSize="16" FontWeight="SemiBold" TextWrapping="Wrap"/>
+                            <TextBlock Text="{localization:Localize GameProfiles.ScanFailure.Description}" Classes="library-secondary"/>
+                            <Expander Header="{localization:Localize GameProfiles.ScanFailure.Details}" IsExpanded="False" HorizontalAlignment="Stretch">
+                                <SelectableTextBlock Text="{Binding ScanFailureMessage}" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap"/>
+                            </Expander>
+                            <Button Classes="action-secondary library-action" Command="{Binding ChooseGameFolderCommand}" Content="{localization:Localize GameProfiles.ScanFailure.ChooseFolderButton}" Margin="0,0,0,8"/>
+                        </StackPanel>
+                        <StackPanel IsVisible="{Binding ShouldShowStorefrontBanner}" Spacing="12">
+                            <TextBlock Text="{localization:Localize GameProfiles.Storefront.BannerDescription}" Classes="library-secondary"/>
+                            <WrapPanel>
+                                <Button Classes="action-secondary library-action" Command="{Binding ChooseGameFolderCommand}" Content="{localization:Localize GameProfiles.ScanFailure.ChooseFolderButton}" Margin="0,0,8,8"/>
+                                <Button Classes="action-secondary library-action" Command="{Binding OpenSteamStoreCommand}" Content="{localization:Localize GameProfiles.Storefront.SteamButton}" Margin="0,0,8,8"/>
+                                <Button Classes="action-secondary library-action" Command="{Binding OpenEaStoreCommand}" Content="{localization:Localize GameProfiles.Storefront.EaAppButton}" Margin="0,0,0,8"/>
+                            </WrapPanel>
+                        </StackPanel>
+                    </StackPanel>
+                    </Grid>
+                </ScrollViewer>
+                    <Grid IsVisible="{Binding HasDisplayedProfile}">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="*" MaxHeight="220"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+                        <Grid DataContext="{Binding DisplayedProfile}" x:DataType="vm:GameProfileItemViewModel" ClipToBounds="True">
+                            <Border Height="220" ClipToBounds="True" VerticalAlignment="Top">
+                                <Image Source="{Binding CoverImagePath, Converter={StaticResource StringToImageConverter}}" Stretch="UniformToFill" Opacity="0.65"/>
+                            </Border>
+                            <Border>
+                                <Border.Background>
+                                    <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%">
+                                        <GradientStop Color="Transparent" Offset="0"/>
+                                        <GradientStop Color="{DynamicResource SurfaceBackgroundDark}" Offset="1"/>
+                                    </LinearGradientBrush>
+                                </Border.Background>
+                            </Border>
+                            <StackPanel Margin="30,36,30,22" Spacing="8" VerticalAlignment="Bottom">
+                                <TextBlock Text="{Binding Name}" FontSize="32" FontWeight="SemiBold" TextWrapping="Wrap" MaxLines="3" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Name}"/>
+                                <Border Classes="library-compatibility" Classes.compatibility-retail="{Binding IsRetailCompatible}" Classes.compatibility-nonretail="{Binding !IsRetailCompatible}" IsVisible="{Binding HasCompatibilityBadge}" ToolTip.Tip="{Binding CompatibilityTooltip}">
+                                    <TextBlock Text="{Binding CompatibilityBadgeText}"/>
+                                </Border>
+                                <TextBlock Text="{Binding LibraryHeaderMetadata}" Classes="library-secondary" IsVisible="{Binding LibraryHeaderMetadata, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                            </StackPanel>
+                        </Grid>
+                            <Grid Grid.Row="1" Margin="30,0,30,0" DataContext="{Binding DisplayedProfile}" x:DataType="vm:GameProfileItemViewModel" ColumnDefinitions="*,Auto">
+                                <WrapPanel Orientation="Horizontal">
+                                    <Button Classes="action-primary library-action library-play" Command="{Binding LaunchProfileCommand}" IsVisible="{Binding !IsProcessRunning}" IsEnabled="{Binding !IsPreparingWorkspace}" Margin="0,0,12,8" ToolTip.Tip="{Binding LibraryLaunchMethod}" AutomationProperties.Name="{localization:Localize GameProfiles.Library.Play}">
+                                        <StackPanel Orientation="Horizontal" Spacing="8">
+                                            <material:MaterialIcon Kind="Play" Width="18" Height="18" VerticalAlignment="Center"/>
+                                            <TextBlock Text="{localization:Localize GameProfiles.Library.Play}" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                    </Button>
+                                    <Button Classes="action-danger library-action library-play library-stop" Command="{Binding StopProfileCommand}" IsVisible="{Binding IsProcessRunning}" Margin="0,0,20,8">
+                                        <StackPanel Orientation="Horizontal" Spacing="8">
+                                            <material:MaterialIcon Kind="Stop" Width="18" Height="18" VerticalAlignment="Center"/>
+                                            <TextBlock Text="{localization:Localize GameProfiles.Card.Action.Stop}" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                    </Button>
+                                    <TextBlock Text="{Binding LibraryLaunchStatus}" Classes="library-secondary" VerticalAlignment="Center" IsVisible="{Binding IsPreparingWorkspace}" Margin="0,0,12,8"/>
+                                </WrapPanel>
+                                <Button Grid.Column="1" Classes="action-secondary library-action" Padding="16,9" MinWidth="46" MinHeight="38" VerticalAlignment="Top" AutomationProperties.Name="{localization:Localize GameProfiles.Library.Actions}">
+                                    <material:MaterialIcon Kind="DotsHorizontal" Width="18" Height="18"/>
+                                    <Button.Flyout>
+                                        <MenuFlyout>
+                                            <MenuItem Header="{localization:Localize GameProfiles.Library.EditProfile}" Command="{Binding EditProfileCommand}" IsEnabled="{Binding CanEdit}"/>
+                                            <MenuItem Header="{localization:Localize GameProfiles.Card.Menu.ShareProfile}" Command="{Binding ShareProfileCommand}"/>
+                                            <MenuItem Header="{localization:Localize GameProfiles.Card.Tooltip.CopyProfile}" Command="{Binding CopyProfileCommand}"/>
+                                            <MenuItem Header="{localization:Localize GameProfiles.Card.Tooltip.CreateShortcut}" Command="{Binding CreateShortcutCommand}"/>
+                                            <MenuItem Header="{localization:Localize GameProfiles.Library.MoveEarlier}" Command="{Binding MoveLeftCommand}" IsVisible="{Binding IsFreeReorderMode}"/>
+                                            <MenuItem Header="{localization:Localize GameProfiles.Library.MoveLater}" Command="{Binding MoveRightCommand}" IsVisible="{Binding IsFreeReorderMode}"/>
+                                            <Separator/>
+                                            <MenuItem Header="{localization:Localize GameProfiles.Card.Tooltip.DeleteProfile}" Command="{Binding DeleteProfileCommand}" Foreground="{DynamicResource ErrorBrush}"/>
+                                        </MenuFlyout>
+                                    </Button.Flyout>
+                                </Button>
+                            </Grid>
+                    </Grid>
+            </Grid>
+        </controls:SidebarLayout>
+        <views:GameProfileCardsView IsVisible="{Binding IsCardLayout}"/>
+    </Panel>
 </UserControl>

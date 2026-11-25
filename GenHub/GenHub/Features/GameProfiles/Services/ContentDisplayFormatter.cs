@@ -2,6 +2,7 @@ using GenHub.Core.Constants;
 using GenHub.Core.Extensions;
 using GenHub.Core.Extensions.Enums;
 using GenHub.Core.Extensions.GameInstallations;
+using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.GameClients;
 using GenHub.Core.Models.Content;
@@ -9,7 +10,9 @@ using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameClients;
 using GenHub.Core.Models.GameInstallations;
 using GenHub.Core.Models.Manifest;
+using GenHub.Core.Services.Content;
 using System;
+using System.Linq;
 
 namespace GenHub.Features.GameProfiles.Services;
 
@@ -22,12 +25,19 @@ public sealed class ContentDisplayFormatter(IGameClientHashRegistry hashRegistry
     private const string CommunityPatchIdentifier = "CommunityPatch";
     private const string VersionPrefix = "v";
 
+    private static readonly char[] NameWordSeparators = [' ', '\t', '-', '_', '.', ',', ':', ';', '!', '?', '\'', '"', '&', '+', '/', '\\', '(', ')', '[', ']', '{', '}'];
+
     /// <inheritdoc/>
     public ContentDisplayItem CreateDisplayItem(ContentManifest manifest, bool isEnabled = false)
     {
         var publisher = GetPublisherFromManifest(manifest);
         var installationType = GetInstallationTypeFromManifest(manifest);
-        var normalizedVersion = NormalizeVersion(manifest.Version);
+
+        // Suppress version display for local content to reduce UI clutter
+        var isLocal = manifest.Publisher?.PublisherType?.Equals(LocalContentService.LocalPublisherType, StringComparison.OrdinalIgnoreCase) == true
+            || (string.IsNullOrEmpty(manifest.Publisher?.PublisherType) && !string.IsNullOrEmpty(manifest.SourcePath)); // Fallback only for legacy local content without PublisherType
+        var normalizedVersion = isLocal ? string.Empty : NormalizeVersion(manifest.Version);
+
         var displayName = BuildDisplayName(manifest.TargetGame, normalizedVersion, manifest.Name);
 
         return new ContentDisplayItem
@@ -42,6 +52,8 @@ public sealed class ContentDisplayFormatter(IGameClientHashRegistry hashRegistry
             Version = normalizedVersion,
             IsEnabled = isEnabled,
             Manifest = manifest,
+            IsEditable = isLocal,
+            SourcePath = manifest.SourcePath,
         };
     }
 
@@ -54,7 +66,9 @@ public sealed class ContentDisplayFormatter(IGameClientHashRegistry hashRegistry
     {
         var publisherName = GetPublisherFromInstallationType(installation.InstallationType);
         var normalizedVersion = NormalizeVersion(gameClient.Version);
-        var displayName = BuildDisplayName(gameClient.GameType, normalizedVersion);
+        var displayName = installation.InstallationType == GameInstallationType.Custom
+            ? installation.DisplayName
+            : BuildDisplayName(gameClient.GameType, normalizedVersion);
 
         return new ContentDisplayItem
         {
@@ -83,7 +97,7 @@ public sealed class ContentDisplayFormatter(IGameClientHashRegistry hashRegistry
         var trimmedVersion = version.Trim();
 
         // Return empty for special case versions
-        if (trimmedVersion.Equals("Unknown", StringComparison.OrdinalIgnoreCase) ||
+        if (trimmedVersion.Equals(GameClientConstants.UnknownVersion, StringComparison.OrdinalIgnoreCase) ||
             trimmedVersion.Equals("Auto-Updated", StringComparison.OrdinalIgnoreCase) ||
             trimmedVersion.Equals(GameClientConstants.AutoDetectedVersion, StringComparison.OrdinalIgnoreCase) ||
             trimmedVersion.Contains("Automatically", StringComparison.OrdinalIgnoreCase))
@@ -91,14 +105,15 @@ public sealed class ContentDisplayFormatter(IGameClientHashRegistry hashRegistry
             return string.Empty;
         }
 
-        // Handle Auto-Updated versions (GeneralsOnline) - return empty string
-        if (trimmedVersion.Equals("Auto-Updated", StringComparison.OrdinalIgnoreCase))
+        // Remove 'v' prefix if present (case-insensitive)
+        if (trimmedVersion.StartsWith(VersionPrefix, StringComparison.OrdinalIgnoreCase))
         {
-            return string.Empty;
+            trimmedVersion = trimmedVersion[VersionPrefix.Length..].Trim();
         }
 
-        // Handle auto-detected GeneralsOnline clients - return empty string to avoid showing "vAutomatically added"
-        if (trimmedVersion.Equals(GameClientConstants.AutoDetectedVersion, StringComparison.OrdinalIgnoreCase))
+        // Handle zero versions (local content) - return empty string
+        // Check this AFTER stripping the prefix to correctly handle "v0.0" etc.
+        if (Version.TryParse(trimmedVersion, out var v) && v is { Major: 0, Minor: 0, Build: <= 0, Revision: <= 0 })
         {
             return string.Empty;
         }
@@ -108,12 +123,6 @@ public sealed class ContentDisplayFormatter(IGameClientHashRegistry hashRegistry
         if (detectedGameType != GameType.Unknown && !string.IsNullOrEmpty(hashVersion))
         {
             return hashVersion;
-        }
-
-        // Remove 'v' prefix if present (case-insensitive)
-        if (trimmedVersion.StartsWith(VersionPrefix, StringComparison.OrdinalIgnoreCase))
-        {
-            return trimmedVersion.Substring(VersionPrefix.Length).Trim();
         }
 
         return trimmedVersion;
@@ -169,6 +178,12 @@ public sealed class ContentDisplayFormatter(IGameClientHashRegistry hashRegistry
             return string.Empty;
         }
 
+        // Don't display default versions like 0, 1.0, etc.
+        if (GameVersionHelper.IsDefaultVersion(normalizedVersion))
+        {
+            return string.Empty;
+        }
+
         return IsCommunityVersion(normalizedVersion)
             ? normalizedVersion
             : $"{VersionPrefix}{normalizedVersion}";
@@ -212,6 +227,7 @@ public sealed class ContentDisplayFormatter(IGameClientHashRegistry hashRegistry
             GameInstallationType.Wine => Publisher.Wine.GetDisplayName(),
             GameInstallationType.CDISO => Publisher.CdRom.GetDisplayName(),
             GameInstallationType.Retail => Publisher.Retail.GetDisplayName(),
+            GameInstallationType.Custom => Publisher.GenHubLocal.GetDisplayName(),
             _ => Publisher.Unknown.GetDisplayName(),
         };
     }
@@ -237,26 +253,45 @@ public sealed class ContentDisplayFormatter(IGameClientHashRegistry hashRegistry
         var lowerName = manifest.Name.ToLowerInvariant();
 
         if (lowerName.Contains("steam")) return Publisher.Steam.GetDisplayName();
-        if (lowerName.Contains("ea") || lowerName.Contains("origin")) return Publisher.EaApp.GetDisplayName();
+        if (IsEaAppName(lowerName)) return Publisher.EaApp.GetDisplayName();
         if (lowerName.Contains("generalsonline")) return Publisher.GeneralsOnline.GetDisplayName();
         if (lowerName.Contains("thesuperhackers") || lowerName.Contains("superhacker")) return Publisher.SuperHackers.GetDisplayName();
         if (lowerName.Contains("cnclabs")) return Publisher.CncLabs.GetDisplayName();
+        if (lowerName.Contains("genhublocal") || lowerName.Contains("genhub local")) return Publisher.GenHubLocal.GetDisplayName();
 
-        // Priority 4: Default to installation type display name (handles Retail and Unknown)
-        return installationType.GetDisplayName();
+        // Only a game installation can fall back to its installation type; other content with no publisher shows none.
+        return manifest.ContentType == ContentType.GameInstallation ? installationType.GetDisplayName() : string.Empty;
     }
 
     /// <inheritdoc/>
     public GameInstallationType GetInstallationTypeFromManifest(ContentManifest manifest)
     {
+        if (manifest.Id.Value.Contains(".genhublocal.") || manifest.Id.Value.Contains(".custom."))
+        {
+            return GameInstallationType.Custom;
+        }
+
         var lowerName = manifest.Name.ToLowerInvariant();
 
         if (lowerName.Contains("steam")) return GameInstallationType.Steam;
-        if (lowerName.Contains("ea") || lowerName.Contains("origin")) return GameInstallationType.EaApp;
-        if (lowerName.Contains("tfd") || lowerName.Contains("firstdecade")) return GameInstallationType.TheFirstDecade;
+        if (IsEaAppName(lowerName)) return GameInstallationType.EaApp;
+        if (HasWord(lowerName, "tfd") || lowerName.Contains("firstdecade")) return GameInstallationType.TheFirstDecade;
         if (lowerName.Contains("wine") || lowerName.Contains("proton")) return GameInstallationType.Wine;
+        if (lowerName.Contains("genhublocal") || lowerName.Contains("genhub local")) return GameInstallationType.Custom;
 
         return GameInstallationType.Retail;
+    }
+
+    private static bool IsEaAppName(string lowerName)
+    {
+        return HasWord(lowerName, "ea") || HasWord(lowerName, "eaapp") || HasWord(lowerName, "origin");
+    }
+
+    private static bool HasWord(string lowerName, string word)
+    {
+        return lowerName
+            .Split(NameWordSeparators, StringSplitOptions.RemoveEmptyEntries)
+            .Contains(word, StringComparer.Ordinal);
     }
 
     private static bool IsCommunityVersion(string version)

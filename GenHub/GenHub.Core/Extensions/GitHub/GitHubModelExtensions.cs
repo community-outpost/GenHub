@@ -1,7 +1,7 @@
-using System.Text.RegularExpressions;
 using GenHub.Core.Constants;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GitHub;
+using System.Text.RegularExpressions;
 
 namespace GenHub.Core.Extensions.GitHub;
 

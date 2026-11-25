@@ -1,0 +1,170 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:localization="clr-namespace:GenHub.Common.Markup"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:GenHub.Features.Tools.ViewModels.Dialogs"
+             mc:Ignorable="d" d:DesignWidth="500" d:DesignHeight="550"
+             x:Class="GenHub.Features.Tools.Views.Dialogs.AddDependencyDialogView"
+             x:DataType="vm:AddDependencyDialogViewModel"
+             x:Name="Root">
+
+    <UserControl.Styles>
+
+        <Style Selector="CheckBox">
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+        </Style>
+        <Style Selector="RadioButton">
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+        </Style>
+    </UserControl.Styles>
+
+    <Grid RowDefinitions="Auto,*,Auto" Margin="{DynamicResource DialogPadding}">
+        <!-- Header -->
+        <!-- Header -->
+        <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="{DynamicResource DialogHeaderSpacing}">
+            <TextBlock Classes="dialog-title" Text="{localization:Localize Tools.PublisherStudio.Dependency.AddTitle}"/>
+            <Button Classes="action-secondary icon-action" Grid.Column="1"
+                    Command="{Binding CloseCommand}"
+                    VerticalAlignment="Center"
+                    AutomationProperties.Name="{localization:Localize Common.Button.Close}"
+                    ToolTip.Tip="{localization:Localize Common.Button.Close}">
+                <PathIcon Data="{StaticResource CloseIcon}"/>
+            </Button>
+        </Grid>
+
+        <!-- Form -->
+        <ScrollViewer Classes="dialog-scroll" Grid.Row="1" Margin="0,0,0,24">
+            <StackPanel Spacing="16">
+                <!-- Source Selection -->
+                <StackPanel Spacing="8">
+                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Dependency.Source}" Classes="dialog-label"/>
+                    <RadioButton Content="{localization:Localize Tools.PublisherStudio.Dependency.FromMyCatalog}" IsChecked="{Binding IsFromMyCatalog}" GroupName="Source"/>
+                    <RadioButton Content="{localization:Localize Tools.PublisherStudio.Dependency.ExternalPublisher}" IsChecked="{Binding !IsFromMyCatalog}" GroupName="Source"/>
+                </StackPanel>
+
+                <Separator Background="{DynamicResource GlassStrongBrush}" Height="1"/>
+
+                <!-- Internal -->
+                <StackPanel Spacing="16" IsVisible="{Binding IsFromMyCatalog}">
+                     <StackPanel Spacing="8">
+                         <TextBlock Text="{localization:Localize Tools.PublisherStudio.Dependency.SelectContentItem}" Classes="dialog-label"/>
+                         <ComboBox Classes="form-field" ItemsSource="{Binding AvailableContent}"
+                                   SelectedItem="{Binding SelectedContent}"
+                                   HorizontalAlignment="Stretch"
+                                   PlaceholderText="{localization:Localize Tools.PublisherStudio.Dependency.SelectContentItem}">
+                             <ComboBox.ItemTemplate>
+                                 <DataTemplate>
+                                     <TextBlock Text="{Binding Name}"/>
+                                 </DataTemplate>
+                             </ComboBox.ItemTemplate>
+                         </ComboBox>
+                         <TextBlock Text="{localization:Localize Tools.PublisherStudio.Dependency.NoOtherItems}" IsVisible="{Binding !AvailableContent.Count}" Foreground="{DynamicResource ErrorBrush}"/>
+                     </StackPanel>
+                </StackPanel>
+
+                <!-- External -->
+                <StackPanel Spacing="16" IsVisible="{Binding !IsFromMyCatalog}">
+                     <StackPanel Spacing="8">
+                         <StackPanel Orientation="Horizontal" Spacing="4">
+                             <TextBlock Text="{localization:Localize Tools.PublisherStudio.Dependency.PublisherId}" Classes="dialog-label"/>
+                             <TextBlock Text="*" Foreground="{DynamicResource ErrorBrush}"/>
+                         </StackPanel>
+                         <TextBox Classes="form-field" Text="{Binding ExternalPublisherId}" Watermark="{localization:Localize Tools.PublisherStudio.Dependency.PublisherIdPlaceholder}"/>
+                     </StackPanel>
+                     <StackPanel Spacing="8">
+                         <StackPanel Orientation="Horizontal" Spacing="4">
+                             <TextBlock Text="{localization:Localize Tools.PublisherStudio.Dependency.ContentId}" Classes="dialog-label"/>
+                             <TextBlock Text="*" Foreground="{DynamicResource ErrorBrush}"/>
+                         </StackPanel>
+                         <TextBox Classes="form-field" Text="{Binding ExternalContentId}" Watermark="{localization:Localize Tools.PublisherStudio.Dependency.ContentIdPlaceholder}"/>
+                     </StackPanel>
+                     <StackPanel Spacing="8">
+                         <TextBlock Text="{localization:Localize Tools.PublisherStudio.Dependency.CatalogUrl}" Classes="dialog-label"/>
+                         <Grid ColumnDefinitions="*, Auto" RowDefinitions="Auto, Auto">
+                            <TextBox Classes="form-field" Grid.Column="0" Text="{Binding ExternalCatalogUrl}"
+                                     Watermark="{localization:Localize Tools.PublisherStudio.Dependency.CatalogUrlPlaceholder}"/>
+                            <Button Grid.Column="1" Content="{localization:Localize Tools.PublisherStudio.Dependency.Discover}"
+                                    Command="{Binding DiscoverContentCommand}"
+                                    Margin="8,0,0,0"
+                                    Classes="action-secondary action-compact"
+                                    IsEnabled="{Binding !IsBusy}"/>
+
+                            <ProgressBar Grid.Row="1" Grid.ColumnSpan="2"
+                                         IsIndeterminate="True"
+                                         IsVisible="{Binding IsBusy}"
+                                         Margin="0,4,0,0"/>
+                         </Grid>
+                         <TextBlock Text="{localization:Localize Tools.PublisherStudio.Dependency.DiscoverHint}" Classes="dialog-hint"/>
+                     </StackPanel>
+
+                     <!-- Discovery Results -->
+                     <StackPanel Spacing="8" IsVisible="{Binding DiscoveredContent.Count}">
+                         <TextBlock Text="{localization:Localize Tools.PublisherStudio.Dependency.DiscoveredContent}" Classes="dialog-label"/>
+                         <ListBox ItemsSource="{Binding DiscoveredContent}"
+                                  Height="120"
+                                  Background="{DynamicResource GlassDarkFillBrush}"
+                                  BorderBrush="{DynamicResource GlassFillBrush}"
+                                  BorderThickness="1"
+                                  CornerRadius="6">
+                             <ListBox.ItemTemplate>
+                                 <DataTemplate>
+                                     <Grid ColumnDefinitions="*, Auto">
+                                         <TextBlock Text="{Binding Name}" VerticalAlignment="Center"/>
+                                         <Button Grid.Column="1" Content="{localization:Localize Tools.PublisherStudio.Dependency.Select}"
+                                                 Command="{Binding $parent[UserControl].((vm:AddDependencyDialogViewModel)DataContext).SelectDiscoveredContentCommand}"
+                                                 CommandParameter="{Binding}"
+                                                 Classes="action-secondary action-compact"/>
+                                     </Grid>
+                                 </DataTemplate>
+                             </ListBox.ItemTemplate>
+                         </ListBox>
+                     </StackPanel>
+                </StackPanel>
+
+                <Separator Background="{DynamicResource GlassStrongBrush}" Height="1"/>
+
+                <!-- Version Constraints -->
+                <StackPanel Spacing="8">
+                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Dependency.VersionConstraint}" Classes="dialog-label"/>
+                    <TextBox Classes="form-field" Text="{Binding VersionConstraint}" Watermark="{localization:Localize Tools.PublisherStudio.Dependency.VersionConstraintPlaceholder}"/>
+                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Dependency.Examples}" Classes="dialog-hint"/>
+                    <ItemsControl ItemsSource="{Binding VersionConstraintExamples}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <WrapPanel Orientation="Horizontal"/>
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Button Content="{Binding}"
+                                        Command="{ReflectionBinding DataContext.ApplyVersionConstraintExampleCommand, ElementName=Root}"
+                                        CommandParameter="{Binding}"
+                                        Classes="action-secondary action-compact" Margin="0,0,8,8"/>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+
+                <CheckBox Content="{localization:Localize Tools.PublisherStudio.Dependency.OptionalDependency}" IsChecked="{Binding IsOptional}"/>
+
+                <StackPanel Spacing="8">
+                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Dependency.ConflictsWith}" Classes="dialog-label"/>
+                    <TextBox Classes="form-field" Text="{Binding ConflictsWithIds}" Watermark="{localization:Localize Tools.PublisherStudio.Dependency.ConflictsWithPlaceholder}"/>
+                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Dependency.ConflictsWithHint}" Classes="dialog-hint"/>
+                </StackPanel>
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- Footer -->
+        <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="12" HorizontalAlignment="Right">
+             <TextBlock Classes="dialog-error"
+                        Text="{Binding ValidationError}"
+                        VerticalAlignment="Center"
+                        MaxWidth="300"/>
+
+             <Button Classes="action-primary" Content="{localization:Localize Tools.PublisherStudio.Dependency.AddTitle}"
+                     Command="{Binding CreateDependencyCommand}"/>
+        </StackPanel>
+    </Grid>
+</UserControl>

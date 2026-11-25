@@ -1,0 +1,10 @@
+[build]
+  command = "pnpm run build"
+  publish = "docs/.vitepress/dist"
+  ignore = "bash ./scripts/netlify-ignore.sh"
+
+[context.deploy-preview]
+  ignore = "bash ./scripts/netlify-ignore.sh"
+
+[build.environment]
+  NODE_VERSION = "20"

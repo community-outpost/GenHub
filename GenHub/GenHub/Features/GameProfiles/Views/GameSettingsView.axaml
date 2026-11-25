@@ -3,9 +3,11 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:vm="clr-namespace:GenHub.Features.GameProfiles.ViewModels"
-             xmlns:enums="clr-namespace:GenHub.Core.Models.Enums;assembly=GenHub.Core"
              xmlns:conv="clr-namespace:GenHub.Infrastructure.Converters"
-             mc:Ignorable="d" d:DesignWidth="1200" d:DesignHeight="800"
+             xmlns:converters="clr-namespace:Avalonia.Data.Converters;assembly=Avalonia.Base"
+             xmlns:localization="clr-namespace:GenHub.Common.Markup;assembly=GenHub"
+             xmlns:material="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
+             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="4000"
              x:Class="GenHub.Features.GameProfiles.Views.GameSettingsView"
              x:DataType="vm:GameSettingsViewModel">
 
@@ -13,462 +15,798 @@
         <conv:ThemeBackgroundConverter x:Key="ThemeBackgroundConverter" />
         <conv:ThemeBorderConverter x:Key="ThemeBorderConverter" />
         <conv:ColorToBrushConverter x:Key="ColorToBrushConverter" />
+        <conv:EqualityConverter x:Key="EqualityConverter" />
     </UserControl.Resources>
 
     <UserControl.Styles>
-        <!-- Settings card for brick layout -->
-        <Style Selector="Border.settings-card">
-            <Setter Property="Background" Value="#14FFFFFF" />
-            <Setter Property="BorderBrush" Value="#20FFFFFF" />
-            <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="CornerRadius" Value="10" />
-            <Setter Property="Padding" Value="16" />
-            <Setter Property="Margin" Value="0,0,12,12" />
-            <Setter Property="MinWidth" Value="350" />
-            <Setter Property="MaxWidth" Value="500" />
+        <Style Selector="Border.settings-card.setting-row">
+            <Setter Property="Margin" Value="0,0,0,6" />
+            <Setter Property="Padding" Value="20,12" />
+            <Setter Property="MinHeight" Value="56" />
+            <Setter Property="CornerRadius" Value="{DynamicResource CardCornerRadius}" />
+            <Setter Property="BorderThickness" Value="0" />
         </Style>
-        
-        <!-- Section header -->
-        <Style Selector="TextBlock.section-header">
+        <Style Selector="Border.settings-card.setting-row:pointerover">
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
+        </Style>
+        <Style Selector="TextBlock.row-label">
             <Setter Property="FontSize" Value="15" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+        <Style Selector="TextBlock.section-header">
+            <Setter Property="FontSize" Value="18" />
             <Setter Property="FontWeight" Value="SemiBold" />
-            <Setter Property="Margin" Value="0,0,0,12" />
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
+            <Setter Property="Margin" Value="0,24,0,8" />
         </Style>
-        
-        <!-- Subsection header -->
-        <Style Selector="TextBlock.subsection-header">
+        <Style Selector="TextBlock.section-header.first">
+            <Setter Property="Margin" Value="0,0,0,8" />
+        </Style>
+        <Style Selector="TextBlock.group-label">
             <Setter Property="FontSize" Value="13" />
-            <Setter Property="FontWeight" Value="Medium" />
-            <Setter Property="Opacity" Value="0.9" />
-            <Setter Property="Margin" Value="0,0,0,8" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="{DynamicResource TextSecondary}" />
+            <Setter Property="Margin" Value="4,12,0,6" />
         </Style>
-        
-        <!-- Setting row -->
-        <Style Selector="Grid.setting-row">
-            <Setter Property="Margin" Value="0,0,0,8" />
+        <Style Selector=":is(Control).row-control">
+            <Setter Property="HorizontalAlignment" Value="Stretch" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="Margin" Value="24,0,0,0" />
         </Style>
-        
-        <!-- Expander style for collapsible sections -->
-        <Style Selector="Expander">
-            <Setter Property="Background" Value="Transparent" />
-        </Style>
-        <Style Selector="Expander /template/ ToggleButton">
-            <Setter Property="Background" Value="#14FFFFFF" />
-            <Setter Property="BorderBrush" Value="#20FFFFFF" />
-            <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="CornerRadius" Value="6" />
-            <Setter Property="Padding" Value="12,10" />
-        </Style>
-        <Style Selector="Expander /template/ ToggleButton:pointerover">
-            <Setter Property="Background" Value="#20FFFFFF" />
-            <Setter Property="BorderBrush" Value="#30FFFFFF" />
-        </Style>
-        <Style Selector="Expander /template/ ToggleButton:pointerover /template/ ContentPresenter#PART_ContentPresenter">
-            <Setter Property="Background" Value="Transparent" />
-        </Style>
-        <Style Selector="Expander /template/ ToggleButton:pressed">
-            <Setter Property="Background" Value="#18FFFFFF" />
-            <Setter Property="Opacity" Value="0.9" />
-        </Style>
-        
-        <!-- Slider style -->
-        <Style Selector="Slider">
-            <Setter Property="Margin" Value="8,0" />
-        </Style>
-        
-        <!-- Info box style -->
-        <Style Selector="Border.info-box">
-            <Setter Property="Background" Value="#15FFFFFF" />
-            <Setter Property="CornerRadius" Value="6" />
-            <Setter Property="Padding" Value="12" />
-            <Setter Property="Margin" Value="0,0,0,12" />
+        <Style Selector=":is(Control).search-hidden">
+            <Setter Property="IsVisible" Value="False" />
         </Style>
     </UserControl.Styles>
 
-    <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="4">
-        <StackPanel Spacing="0" Margin="12">
-            
-            <!-- Header with game type selector -->
-            <Border Classes="info-box"
-                    Background="{Binding ColorValue, Converter={StaticResource ThemeBackgroundConverter}, Mode=OneWay}"
-                    BorderBrush="{Binding ColorValue, Converter={StaticResource ThemeBorderConverter}, Mode=OneWay}"
-                    BorderThickness="1">
-                <Grid ColumnDefinitions="*,Auto">
-                    <StackPanel Grid.Column="0" Spacing="4">
-                        <TextBlock Text="Game Settings" FontSize="18" FontWeight="Bold" />
-                        <TextBlock Text="Configure video, audio, and client-specific settings for this profile."
-                                   FontSize="12" Opacity="0.7" />
-                    </StackPanel>
+    <DockPanel>
+        <TextBox x:Name="SettingsSearchBox"
+                 DockPanel.Dock="Top"
+                 Classes="form-field"
+                 Margin="32,0,32,16"
+                 Text="{Binding SearchQuery, Mode=TwoWay}"
+                 Watermark="{localization:Localize GameSettings.Search.Watermark}"
+                 AutomationProperties.Name="{localization:Localize GameSettings.Search.Watermark}">
+            <TextBox.InnerLeftContent>
+                <material:MaterialIcon Kind="Magnify" Width="18" Height="18" Margin="12,0,0,0" Opacity="0.7" />
+            </TextBox.InnerLeftContent>
+            <TextBox.InnerRightContent>
+                <Button x:Name="ClearSearchButton"
+                        Classes="icon-action"
+                        Margin="0,0,6,0"
+                        IsVisible="{Binding SearchQuery, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                        ToolTip.Tip="{localization:Localize GameSettings.Search.Clear}"
+                        AutomationProperties.Name="{localization:Localize GameSettings.Search.Clear}">
+                    <material:MaterialIcon Kind="Close" Width="16" Height="16" />
+                </Button>
+            </TextBox.InnerRightContent>
+        </TextBox>
+        <ScrollViewer x:Name="SettingsScrollViewer" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" BringIntoViewOnFocusChange="False">
+            <StackPanel x:Name="SettingsRows" Margin="32,0,32,24">
+                <TextBlock x:Name="NoSearchResults"
+                           Classes="search-hidden"
+                           Text="{localization:Localize GameSettings.Search.NoResults}"
+                           Foreground="{DynamicResource TextSecondary}"
+                           FontSize="15"
+                           Margin="0,8,0,0"
+                           TextWrapping="Wrap" />
+                <TextBlock Classes="section-header first" Text="{localization:Localize GameSettings.Category.Video}" />
+                <Border x:Name="ResolutionRow" Classes="settings-card setting-row" ToolTip.Tip="{localization:Localize GameSettings.Video.ResolutionToolTip}">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" MinWidth="140" />
+                            <ColumnDefinition Width="2*" MaxWidth="324" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Classes="row-label" Text="{localization:Localize GameSettings.Video.Resolution}" />
+                        <ComboBox Grid.Column="1" Classes="form-field row-control" ItemsSource="{Binding ResolutionPresets}" SelectedItem="{Binding SelectedResolutionPreset}" AutomationProperties.Name="{localization:Localize GameSettings.Video.Resolution}" />
+                    </Grid>
+                </Border>
+                <Border Classes="settings-card setting-row" ToolTip.Tip="{localization:Localize GameSettings.Video.DetailLevelToolTip}">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" MinWidth="140" />
+                            <ColumnDefinition Width="2*" MaxWidth="324" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Classes="row-label" Text="{localization:Localize GameSettings.Video.DetailLevel}" />
+                        <ComboBox Grid.Column="1" Classes="form-field row-control" ItemsSource="{Binding LodOptions}" SelectedItem="{Binding StaticGameLOD}" AutomationProperties.Name="{localization:Localize GameSettings.Video.DetailLevel}" />
+                    </Grid>
+                </Border>
+                <Border Classes="settings-card setting-row" ToolTip.Tip="{localization:Localize GameSettings.Video.TextureQualityToolTip}">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" MinWidth="140" />
+                            <ColumnDefinition Width="2*" MaxWidth="324" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Classes="row-label" Text="{localization:Localize GameSettings.Video.TextureQuality}" />
+                        <ComboBox Grid.Column="1" Classes="form-field row-control" ItemsSource="{x:Static vm:GameSettingsViewModel.TextureQualityValues}" SelectedItem="{Binding TextureQuality}" AutomationProperties.Name="{localization:Localize GameSettings.Video.TextureQuality}" />
+                    </Grid>
+                </Border>
+                <Border Classes="settings-card setting-row" ToolTip.Tip="{localization:Localize GameSettings.Video.AntiAliasingToolTip}">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" MinWidth="140" />
+                            <ColumnDefinition Width="2*" MaxWidth="324" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Classes="row-label" Text="{localization:Localize GameSettings.Video.AntiAliasing}" />
+                        <ComboBox Grid.Column="1" Classes="form-field row-control" ItemsSource="{Binding AaOptions}" SelectedItem="{Binding AntiAliasing}" AutomationProperties.Name="{localization:Localize GameSettings.Video.AntiAliasing}" />
+                    </Grid>
+                </Border>
+                <Border Classes="settings-card setting-row" ToolTip.Tip="{localization:Localize GameSettings.Video.BrightnessToolTip}">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" MinWidth="140" />
+                            <ColumnDefinition Width="2*" MaxWidth="324" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Classes="row-label" Text="{localization:Localize GameSettings.Video.Brightness}" />
+                        <Grid Grid.Column="1" Classes="row-control" ColumnDefinitions="*,Auto">
+                            <Slider Value="{Binding Gamma}" Minimum="0" Maximum="100" VerticalAlignment="Center" Margin="0,0,12,0" AutomationProperties.Name="{localization:Localize GameSettings.Video.Brightness}" />
+                            <NumericUpDown Grid.Column="1" Value="{Binding Gamma}" Minimum="0" Maximum="100" Classes="slider-input" />
+                        </Grid>
+                    </Grid>
+                </Border>
+                <Border Classes="settings-card setting-row" ToolTip.Tip="{localization:Localize GameSettings.Video.MaxParticleCountToolTip}">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" MinWidth="140" />
+                            <ColumnDefinition Width="2*" MaxWidth="324" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Classes="row-label" Text="{localization:Localize GameSettings.Video.MaxParticleCount}" />
+                        <Grid Grid.Column="1" Classes="row-control" ColumnDefinitions="*,Auto">
+                            <Slider Value="{Binding MaxParticleCount}" Minimum="100" Maximum="10000" VerticalAlignment="Center" Margin="0,0,12,0" AutomationProperties.Name="{localization:Localize GameSettings.Video.MaxParticleCount}" />
+                            <NumericUpDown Grid.Column="1" Value="{Binding MaxParticleCount}" Minimum="100" Maximum="10000" Increment="100" Classes="slider-input" />
+                        </Grid>
+                    </Grid>
+                </Border>
+                <Border Classes="settings-card setting-row" ToolTip.Tip="{localization:Localize GameSettings.Video.WindowedModeToolTip}">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <TextBlock Classes="row-label" Text="{localization:Localize GameSettings.Video.WindowedMode}" />
+                        <ToggleSwitch Grid.Column="1" IsChecked="{Binding Windowed}" OnContent="{x:Null}" OffContent="{x:Null}" HorizontalAlignment="Right" VerticalAlignment="Center" AutomationProperties.Name="{localization:Localize GameSettings.Video.WindowedMode}" />
+                    </Grid>
+                </Border>
+                <Border Classes="settings-card setting-row" ToolTip.Tip="{localization:Localize GameSettings.Video.DynamicLodToolTip}">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <TextBlock Classes="row-label" Text="{localization:Localize GameSettings.Video.DynamicLod}" />
+                        <ToggleSwitch Grid.Column="1" IsChecked="{Binding DynamicLOD}" OnContent="{x:Null}" OffContent="{x:Null}" HorizontalAlignment="Right" VerticalAlignment="Center" AutomationProperties.Name="{localization:Localize GameSettings.Video.DynamicLod}" />
+                    </Grid>
+                </Border>
+                <Border Classes="settings-card setting-row" ToolTip.Tip="{localization:Localize GameSettings.Video.SkipIntroToolTip}">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <TextBlock Classes="row-label" Text="{localization:Localize GameSettings.Video.SkipIntro}" />
+                        <ToggleSwitch Grid.Column="1" IsChecked="{Binding SkipEALogo}" OnContent="{x:Null}" OffContent="{x:Null}" HorizontalAlignment="Right" VerticalAlignment="Center" AutomationProperties.Name="{localization:Localize GameSettings.Video.SkipIntro}" />
+                    </Grid>
+                </Border>
+                <StackPanel IsVisible="{Binding IsCustomLodSelected}">
+                    <TextBlock Classes="group-label" Text="{localization:Localize GameSettings.Video.AdvancedDisplayOptions}" />
+                    <Border Classes="settings-card setting-row" ToolTip.Tip="{localization:Localize GameSettings.Video.3DShadowsToolTip}">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <TextBlock Classes="row-label" Text="{localization:Localize GameSettings.Video.3DShadows}" />
+                            <ToggleSwitch Grid.Column="1" IsChecked="{Binding Shadows}" OnContent="{x:Null}" OffContent="{x:Null}" HorizontalAlignment="Right" VerticalAlignment="Center" AutomationProperties.Name="{localization:Localize GameSettings.Video.3DShadows}" />
+                        </Grid>
+                    </Border>
+                    <Border Classes="settings-card setting-row" ToolTip.Tip="{localization:Localize GameSettings.Video.2DShadowsToolTip}">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <TextBlock Classes="row-label" Text="{localization:Localize GameSettings.Video.2DShadows}" />
+                            <ToggleSwitch Grid.Column="1" IsChecked="{Binding UseShadowDecals}" OnContent="{x:Null}" OffContent="{x:Null}" HorizontalAlignment="Right" VerticalAlignment="Center" AutomationProperties.Name="{localization:Localize GameSettings.Video.2DShadows}" />
+                        </Grid>
+                    </Border>
+                    <Border Classes="settings-card setting-row" ToolTip.Tip="{localization:Localize GameSettings.Video.CloudShadowsToolTip}">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <TextBlock Classes="row-label" Text="{localization:Localize GameSettings.Video.CloudShadows}" />
+                            <ToggleSwitch Grid.Column="1" IsChecked="{Binding UseCloudMap}" OnContent="{x:Null}" OffContent="{x:Null}" HorizontalAlignment="Right" VerticalAlignment="Center" AutomationProperties.Name="{localization:Localize GameSettings.Video.CloudShadows}" />
+                        </Grid>
+                    </Border>
+                    <Border Classes="settings-card setting-row" ToolTip.Tip="{localization:Localize GameSettings.Video.ExtraGroundLightingToolTip}">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <TextBlock Classes="row-label" Text="{localization:Localize GameSettings.Video.ExtraGroundLighting}" />
+                            <ToggleSwitch Grid.Column="1" IsChecked="{Binding UseLightMap}" OnContent="{x:Null}" OffContent="{x:Null}" HorizontalAlignment="Right" VerticalAlignment="Center" AutomationProperties.Name="{localization:Localize GameSettings.Video.ExtraGroundLighting}" />
+                        </Grid>
+                    </Border>
+                    <Border Classes="settings-card setting-row" ToolTip.Tip="{localization:Localize GameSettings.Video.SmoothWaterBordersToolTip}">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <TextBlock Classes="row-label" Text="{localization:Localize GameSettings.Video.SmoothWaterBorders}" />
+                            <ToggleSwitch Grid.Column="1" IsChecked="{Binding ShowSoftWaterEdge}" OnContent="{x:Null}" OffContent="{x:Null}" HorizontalAlignment="Right" VerticalAlignment="Center" AutomationProperties.Name="{localization:Localize GameSettings.Video.SmoothWaterBorders}" />
+                        </Grid>
+                    </Border>
+                    <Border Classes="settings-card setting-row" ToolTip.Tip="{localization:Localize GameSettings.Video.BehindBuildingsToolTip}">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <TextBlock Classes="row-label" Text="{localization:Localize GameSettings.Video.BehindBuildings}" />
+                            <ToggleSwitch Grid.Column="1" IsChecked="{Binding BuildingOcclusion}" OnContent="{x:Null}" OffContent="{x:Null}" HorizontalAlignment="Right" VerticalAlignment="Center" AutomationProperties.Name="{localization:Localize GameSettings.Video.BehindBuildings}" />
+                        </Grid>
+                    </Border>
+                    <Panel IsVisible="{Binding IsZeroHour}">
+                        <Border Classes="settings-card setting-row" ToolTip.Tip="{localization:Localize GameSettings.Video.HeatEffectsToolTip}">
+                            <Grid ColumnDefinitions="*,Auto">
+                                <TextBlock Classes="row-label" Text="{localization:Localize GameSettings.Video.HeatEffects}" />
+                                <ToggleSwitch Grid.Column="1" IsChecked="{Binding HeatEffects}" OnContent="{x:Null}" OffContent="{x:Null}" HorizontalAlignment="Right" VerticalAlignment="Center" AutomationProperties.Name="{localization:Localize GameSettings.Video.HeatEffects}" />
+                            </Grid>
+                        </Border>
+                    </Panel>
+                    <Border Classes="settings-card setting-row" ToolTip.Tip="{localization:Localize GameSettings.Video.BuildingAnimationsToolTip}">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <TextBlock Classes="row-label" Text="{localization:Localize GameSettings.Video.BuildingAnimations}" />
+                            <ToggleSwitch Grid.Column="1" IsChecked="{Binding BuildingAnimations}" OnContent="{x:Null}" OffContent="{x:Null}" HorizontalAlignment="Right" VerticalAlignment="Center" AutomationProperties.Name="{localization:Localize GameSettings.Video.BuildingAnimations}" />
+                        </Grid>
+                    </Border>
+                    <Border Classes="settings-card setting-row" ToolTip.Tip="{localization:Localize GameSettings.Video.ExtraAnimationsToolTip}">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <TextBlock Classes="row-label" Text="{localization:Localize GameSettings.Video.ExtraAnimations}" />
+                            <ToggleSwitch Grid.Column="1" IsChecked="{Binding ExtraAnimations}" OnContent="{x:Null}" OffContent="{x:Null}" HorizontalAlignment="Right" VerticalAlignment="Center" AutomationProperties.Name="{localization:Localize GameSettings.Video.ExtraAnimations}" />
+                        </Grid>
+                    </Border>
+                    <Border Classes="settings-card setting-row" ToolTip.Tip="{localization:Localize GameSettings.Video.ParticleEffectsToolTip}">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <TextBlock Classes="row-label" Text="{localization:Localize GameSettings.Video.ParticleEffects}" />
+                            <ToggleSwitch Grid.Column="1" IsChecked="{Binding ParticleEffects}" OnContent="{x:Null}" OffContent="{x:Null}" HorizontalAlignment="Right" VerticalAlignment="Center" AutomationProperties.Name="{localization:Localize GameSettings.Video.ParticleEffects}" />
+                        </Grid>
+                    </Border>
+                    <Border Classes="settings-card setting-row" ToolTip.Tip="{localization:Localize GameSettings.Video.ShowPropsToolTip}">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <TextBlock Classes="row-label" Text="{localization:Localize GameSettings.Video.ShowProps}" />
+                            <ToggleSwitch Grid.Column="1" IsChecked="{Binding ShowProps}" OnContent="{x:Null}" OffContent="{x:Null}" HorizontalAlignment="Right" VerticalAlignment="Center" AutomationProperties.Name="{localization:Localize GameSettings.Video.ShowProps}" />
+                        </Grid>
+                    </Border>
+                    <Border Classes="settings-card setting-row" ToolTip.Tip="{localization:Localize GameSettings.Video.ShowTreesToolTip}">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <TextBlock Classes="row-label" Text="{localization:Localize GameSettings.Video.ShowTrees}" />
+                            <ToggleSwitch Grid.Column="1" IsChecked="{Binding ShowTrees}" OnContent="{x:Null}" OffContent="{x:Null}" HorizontalAlignment="Right" VerticalAlignment="Center" AutomationProperties.Name="{localization:Localize GameSettings.Video.ShowTrees}" />
+                        </Grid>
+                    </Border>
+                </StackPanel>
+                <Panel IsVisible="{Binding IsGeneralsOnlineVisible}">
+                    <Border Classes="settings-card setting-row" ToolTip.Tip="{localization:Localize GameSettings.Go.FpsCapToolTip}">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <TextBlock Classes="row-label" Text="{localization:Localize GameSettings.Go.FpsCap}" />
+                            <ToggleSwitch Grid.Column="1" IsChecked="{Binding GoRenderLimitFramerate}" OnContent="{x:Null}" OffContent="{x:Null}" HorizontalAlignment="Right" VerticalAlignment="Center" AutomationProperties.Name="{localization:Localize GameSettings.Go.FpsCap}" />
+                        </Grid>
+                    </Border>
+                </Panel>
+                <Panel IsVisible="{Binding IsGeneralsOnlineVisible}">
+                    <Border Classes="settings-card setting-row" IsEnabled="{Binding GoRenderLimitFramerate}">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" MinWidth="140" />
+                                <ColumnDefinition Width="2*" MaxWidth="324" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Classes="row-label" Text="{localization:Localize GameSettings.Go.EngineFpsLimit}" />
+                            <Grid Grid.Column="1" Classes="row-control" ColumnDefinitions="*,Auto">
+                                <Slider Value="{Binding GoRenderFpsLimit}" Minimum="30" Maximum="500" VerticalAlignment="Center" Margin="0,0,12,0" AutomationProperties.Name="{localization:Localize GameSettings.Go.EngineFpsLimit}" />
+                                <NumericUpDown Grid.Column="1" Value="{Binding GoRenderFpsLimit}" Minimum="30" Maximum="500" Classes="slider-input" />
+                            </Grid>
+                        </Grid>
+                    </Border>
+                </Panel>
+                <Panel IsVisible="{Binding IsGeneralsOnlineVisible}">
+                    <Border x:Name="GoShowFpsRow" Classes="settings-card setting-row" ToolTip.Tip="{localization:Localize GameSettings.Go.ShowFpsToolTip}">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <TextBlock Classes="row-label" Text="{localization:Localize GameSettings.Go.ShowFps}" />
+                            <ToggleSwitch Grid.Column="1" IsChecked="{Binding GoShowFps}" OnContent="{x:Null}" OffContent="{x:Null}" HorizontalAlignment="Right" VerticalAlignment="Center" AutomationProperties.Name="{localization:Localize GameSettings.Go.ShowFps}" />
+                        </Grid>
+                    </Border>
+                </Panel>
+                <Panel IsVisible="{Binding IsGeneralsOnlineVisible}">
+                    <Border Classes="settings-card setting-row" ToolTip.Tip="{localization:Localize GameSettings.Go.StatsOverlayToolTip}">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <TextBlock Classes="row-label" Text="{localization:Localize GameSettings.Go.StatsOverlay}" />
+                            <ToggleSwitch Grid.Column="1" IsChecked="{Binding GoRenderStatsOverlay}" OnContent="{x:Null}" OffContent="{x:Null}" HorizontalAlignment="Right" VerticalAlignment="Center" AutomationProperties.Name="{localization:Localize GameSettings.Go.StatsOverlay}" />
+                        </Grid>
+                    </Border>
+                </Panel>
+                <TextBlock Classes="section-header" Text="{localization:Localize GameSettings.Category.Audio}" />
+                <Border Classes="settings-card setting-row">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <TextBlock Classes="row-label" Text="{localization:Localize GameSettings.Audio.AudioEnabled}" />
+                        <ToggleSwitch Grid.Column="1" IsChecked="{Binding AudioEnabled}" OnContent="{x:Null}" OffContent="{x:Null}" HorizontalAlignment="Right" VerticalAlignment="Center" AutomationProperties.Name="{localization:Localize GameSettings.Audio.AudioEnabled}" />
+                    </Grid>
+                </Border>
+                <StackPanel IsEnabled="{Binding AudioEnabled}">
+                    <Border Classes="settings-card setting-row" ToolTip.Tip="{localization:Localize GameSettings.Audio.SoundVolumeToolTip}">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" MinWidth="140" />
+                                <ColumnDefinition Width="2*" MaxWidth="324" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Classes="row-label" Text="{localization:Localize GameSettings.Audio.SoundVolume}" />
+                            <Grid Grid.Column="1" Classes="row-control" ColumnDefinitions="*,Auto">
+                                <Slider Value="{Binding SoundVolume}" Minimum="0" Maximum="100" VerticalAlignment="Center" Margin="0,0,12,0" AutomationProperties.Name="{localization:Localize GameSettings.Audio.SoundVolume}" />
+                                <NumericUpDown Grid.Column="1" Value="{Binding SoundVolume}" Minimum="0" Maximum="100" Classes="slider-input" />
+                            </Grid>
+                        </Grid>
+                    </Border>
+                    <Border Classes="settings-card setting-row" ToolTip.Tip="{localization:Localize GameSettings.Audio.ThreeDSoundVolumeToolTip}">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" MinWidth="140" />
+                                <ColumnDefinition Width="2*" MaxWidth="324" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Classes="row-label" Text="{localization:Localize GameSettings.Audio.ThreeDSoundVolume}" />
+                            <Grid Grid.Column="1" Classes="row-control" ColumnDefinitions="*,Auto">
+                                <Slider Value="{Binding ThreeDSoundVolume}" Minimum="0" Maximum="100" VerticalAlignment="Center" Margin="0,0,12,0" AutomationProperties.Name="{localization:Localize GameSettings.Audio.ThreeDSoundVolume}" />
+                                <NumericUpDown Grid.Column="1" Value="{Binding ThreeDSoundVolume}" Minimum="0" Maximum="100" Classes="slider-input" />
+                            </Grid>
+                        </Grid>
+                    </Border>
+                    <Border Classes="settings-card setting-row" ToolTip.Tip="{localization:Localize GameSettings.Audio.MusicVolumeToolTip}">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" MinWidth="140" />
+                                <ColumnDefinition Width="2*" MaxWidth="324" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Classes="row-label" Text="{localization:Localize GameSettings.Audio.MusicVolume}" />
+                            <Grid Grid.Column="1" Classes="row-control" ColumnDefinitions="*,Auto">
+                                <Slider Value="{Binding MusicVolume}" Minimum="0" Maximum="100" VerticalAlignment="Center" Margin="0,0,12,0" AutomationProperties.Name="{localization:Localize GameSettings.Audio.MusicVolume}" />
+                                <NumericUpDown Grid.Column="1" Value="{Binding MusicVolume}" Minimum="0" Maximum="100" Classes="slider-input" />
+                            </Grid>
+                        </Grid>
+                    </Border>
+                    <Border Classes="settings-card setting-row" ToolTip.Tip="{localization:Localize GameSettings.Audio.SpeechVolumeToolTip}">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" MinWidth="140" />
+                                <ColumnDefinition Width="2*" MaxWidth="324" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Classes="row-label" Text="{localization:Localize GameSettings.Audio.SpeechVolume}" />
+                            <Grid Grid.Column="1" Classes="row-control" ColumnDefinitions="*,Auto">
+                                <Slider Value="{Binding SpeechVolume}" Minimum="0" Maximum="100" VerticalAlignment="Center" Margin="0,0,12,0" AutomationProperties.Name="{localization:Localize GameSettings.Audio.SpeechVolume}" />
+                                <NumericUpDown Grid.Column="1" Value="{Binding SpeechVolume}" Minimum="0" Maximum="100" Classes="slider-input" />
+                            </Grid>
+                        </Grid>
+                    </Border>
+                    <Border Classes="settings-card setting-row" ToolTip.Tip="{localization:Localize GameSettings.Audio.AudioChannelsToolTip}">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" MinWidth="140" />
+                                <ColumnDefinition Width="2*" MaxWidth="324" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Classes="row-label" Text="{localization:Localize GameSettings.Audio.AudioChannels}" />
+                            <Grid Grid.Column="1" Classes="row-control" ColumnDefinitions="*,Auto">
+                                <Slider Value="{Binding NumSounds}" Minimum="16" Maximum="64" VerticalAlignment="Center" Margin="0,0,12,0" AutomationProperties.Name="{localization:Localize GameSettings.Audio.AudioChannels}" />
+                                <NumericUpDown Grid.Column="1" Value="{Binding NumSounds}" Minimum="16" Maximum="64" Classes="slider-input" />
+                            </Grid>
+                        </Grid>
+                    </Border>
+                    <Panel IsVisible="{Binding IsTheSuperHackersVisible}">
+                        <Border Classes="settings-card setting-row" ToolTip.Tip="{localization:Localize GameSettings.Tsh.TransactionVolumeToolTip}">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" MinWidth="140" />
+                                    <ColumnDefinition Width="2*" MaxWidth="324" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Classes="row-label" Text="{localization:Localize GameSettings.Tsh.TransactionVolume}" />
+                                <Grid Grid.Column="1" Classes="row-control" ColumnDefinitions="*,Auto">
+                                    <Slider Value="{Binding TshMoneyTransactionVolume}" Minimum="0" Maximum="100" VerticalAlignment="Center" Margin="0,0,12,0" AutomationProperties.Name="{localization:Localize GameSettings.Tsh.TransactionVolume}" />
+                                    <NumericUpDown Grid.Column="1" Value="{Binding TshMoneyTransactionVolume}" Minimum="0" Maximum="100" Classes="slider-input" />
+                                </Grid>
+                            </Grid>
+                        </Border>
+                    </Panel>
+                </StackPanel>
+                <TextBlock Classes="section-header" Text="{localization:Localize GameSettings.Section.Game}" />
+                <Border Classes="settings-card setting-row" ToolTip.Tip="{localization:Localize GameSettings.Controls.ScrollSpeedToolTip}">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" MinWidth="140" />
+                            <ColumnDefinition Width="2*" MaxWidth="324" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Classes="row-label" Text="{localization:Localize GameSettings.Controls.ScrollSpeed}" />
+                        <Grid Grid.Column="1" Classes="row-control" ColumnDefinitions="*,Auto">
+                            <Slider Value="{Binding ScrollFactor}" Minimum="0" Maximum="200" VerticalAlignment="Center" Margin="0,0,12,0" AutomationProperties.Name="{localization:Localize GameSettings.Controls.ScrollSpeed}" />
+                            <NumericUpDown Grid.Column="1" Value="{Binding ScrollFactor}" Minimum="0" Maximum="200" Classes="slider-input" />
+                        </Grid>
+                    </Grid>
+                </Border>
+                <Border Classes="settings-card setting-row" ToolTip.Tip="{localization:Localize GameSettings.Controls.AlternateMouseSetupToolTip}">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <TextBlock Classes="row-label" Text="{localization:Localize GameSettings.Controls.AlternateMouseSetup}" />
+                        <ToggleSwitch Grid.Column="1" IsChecked="{Binding AlternateMouseSetup}" OnContent="{x:Null}" OffContent="{x:Null}" HorizontalAlignment="Right" VerticalAlignment="Center" AutomationProperties.Name="{localization:Localize GameSettings.Controls.AlternateMouseSetup}" />
+                    </Grid>
+                </Border>
+                <Border Classes="settings-card setting-row" ToolTip.Tip="{localization:Localize GameSettings.Controls.DoubleClickAttackToolTip}">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <TextBlock Classes="row-label" Text="{localization:Localize GameSettings.Controls.DoubleClickAttack}" />
+                        <ToggleSwitch Grid.Column="1" IsChecked="{Binding UseDoubleClickAttackMove}" OnContent="{x:Null}" OffContent="{x:Null}" HorizontalAlignment="Right" VerticalAlignment="Center" AutomationProperties.Name="{localization:Localize GameSettings.Controls.DoubleClickAttack}" />
+                    </Grid>
+                </Border>
+                <Border Classes="settings-card setting-row" ToolTip.Tip="{localization:Localize GameSettings.Controls.AutoRetaliationToolTip}">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <TextBlock Classes="row-label" Text="{localization:Localize GameSettings.Controls.AutoRetaliation}" />
+                        <ToggleSwitch Grid.Column="1" IsChecked="{Binding Retaliation}" OnContent="{x:Null}" OffContent="{x:Null}" HorizontalAlignment="Right" VerticalAlignment="Center" AutomationProperties.Name="{localization:Localize GameSettings.Controls.AutoRetaliation}" />
+                    </Grid>
+                </Border>
+                <Border Classes="settings-card setting-row" ToolTip.Tip="{localization:Localize GameSettings.Controls.FastSendDelayToolTip}">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <TextBlock Classes="row-label" Text="{localization:Localize GameSettings.Controls.FastSendDelay}" />
+                        <ToggleSwitch Grid.Column="1" IsChecked="{Binding SendDelay}" OnContent="{x:Null}" OffContent="{x:Null}" HorizontalAlignment="Right" VerticalAlignment="Center" AutomationProperties.Name="{localization:Localize GameSettings.Controls.FastSendDelay}" />
+                    </Grid>
+                </Border>
+                <Border Classes="settings-card setting-row" ToolTip.Tip="{localization:Localize GameSettings.Controls.DrawScrollAnchorToolTip}">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <TextBlock Classes="row-label" Text="{localization:Localize GameSettings.Controls.DrawScrollAnchor}" />
+                        <ToggleSwitch Grid.Column="1" IsChecked="{Binding DrawScrollAnchor}" OnContent="{x:Null}" OffContent="{x:Null}" HorizontalAlignment="Right" VerticalAlignment="Center" AutomationProperties.Name="{localization:Localize GameSettings.Controls.DrawScrollAnchor}" />
+                    </Grid>
+                </Border>
+                <Border Classes="settings-card setting-row" ToolTip.Tip="{localization:Localize GameSettings.Controls.MoveScrollAnchorToolTip}">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <TextBlock Classes="row-label" Text="{localization:Localize GameSettings.Controls.MoveScrollAnchor}" />
+                        <ToggleSwitch Grid.Column="1" IsChecked="{Binding MoveScrollAnchor}" OnContent="{x:Null}" OffContent="{x:Null}" HorizontalAlignment="Right" VerticalAlignment="Center" AutomationProperties.Name="{localization:Localize GameSettings.Controls.MoveScrollAnchor}" />
+                    </Grid>
+                </Border>
+                <Border Classes="settings-card setting-row" ToolTip.Tip="{localization:Localize GameSettings.Controls.LanguageFilterToolTip}">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <TextBlock Classes="row-label" Text="{localization:Localize GameSettings.Controls.LanguageFilter}" />
+                        <ToggleSwitch Grid.Column="1" IsChecked="{Binding LanguageFilter}" OnContent="{x:Null}" OffContent="{x:Null}" HorizontalAlignment="Right" VerticalAlignment="Center" AutomationProperties.Name="{localization:Localize GameSettings.Controls.LanguageFilter}" />
+                    </Grid>
+                </Border>
+                <Border Classes="settings-card setting-row" ToolTip.Tip="{localization:Localize GameSettings.Controls.GameTimeFontSizeToolTip}">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" MinWidth="140" />
+                            <ColumnDefinition Width="2*" MaxWidth="324" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Classes="row-label" Text="{localization:Localize GameSettings.Controls.GameTimeFontSize}" />
+                        <Grid Grid.Column="1" Classes="row-control" ColumnDefinitions="*,Auto">
+                            <Slider Value="{Binding GameTimeFontSize}" Minimum="8" Maximum="24" VerticalAlignment="Center" Margin="0,0,12,0" AutomationProperties.Name="{localization:Localize GameSettings.Controls.GameTimeFontSize}" />
+                            <NumericUpDown Grid.Column="1" Value="{Binding GameTimeFontSize}" Minimum="8" Maximum="24" Classes="slider-input" />
+                        </Grid>
+                    </Grid>
+                </Border>
+                <Panel IsVisible="{Binding IsTheSuperHackersVisible}">
+                    <Border x:Name="TshArchiveReplaysRow" Classes="settings-card setting-row" ToolTip.Tip="{localization:Localize GameSettings.Tsh.ArchiveReplaysToolTip}">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <TextBlock Classes="row-label" Text="{localization:Localize GameSettings.Tsh.ArchiveReplays}" />
+                            <ToggleSwitch Grid.Column="1" IsChecked="{Binding TshArchiveReplays}" OnContent="{x:Null}" OffContent="{x:Null}" HorizontalAlignment="Right" VerticalAlignment="Center" AutomationProperties.Name="{localization:Localize GameSettings.Tsh.ArchiveReplays}" />
+                        </Grid>
+                    </Border>
+                </Panel>
+                <Panel IsVisible="{Binding IsTheSuperHackersVisible}">
+                    <Border Classes="settings-card setting-row" ToolTip.Tip="{localization:Localize GameSettings.Tsh.ShowMoneyPerMinToolTip}">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <TextBlock Classes="row-label" Text="{localization:Localize GameSettings.Tsh.ShowMoneyPerMin}" />
+                            <ToggleSwitch Grid.Column="1" IsChecked="{Binding TshShowMoneyPerMinute}" OnContent="{x:Null}" OffContent="{x:Null}" HorizontalAlignment="Right" VerticalAlignment="Center" AutomationProperties.Name="{localization:Localize GameSettings.Tsh.ShowMoneyPerMin}" />
+                        </Grid>
+                    </Border>
+                </Panel>
+                <Panel IsVisible="{Binding IsTheSuperHackersVisible}">
+                    <Border Classes="settings-card setting-row" ToolTip.Tip="{localization:Localize GameSettings.Tsh.ObserverModeToolTip}">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <TextBlock Classes="row-label" Text="{localization:Localize GameSettings.Tsh.ObserverMode}" />
+                            <ToggleSwitch Grid.Column="1" IsChecked="{Binding TshPlayerObserverEnabled}" OnContent="{x:Null}" OffContent="{x:Null}" HorizontalAlignment="Right" VerticalAlignment="Center" AutomationProperties.Name="{localization:Localize GameSettings.Tsh.ObserverMode}" />
+                        </Grid>
+                    </Border>
+                </Panel>
+                <Panel IsVisible="{Binding IsTheSuperHackersVisible}">
+                    <Border Classes="settings-card setting-row" ToolTip.Tip="{localization:Localize GameSettings.Tsh.TransitionSpeedToolTip}">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" MinWidth="140" />
+                                <ColumnDefinition Width="2*" MaxWidth="324" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Classes="row-label" Text="{localization:Localize GameSettings.Tsh.TransitionSpeed}" />
+                            <Grid Grid.Column="1" Classes="row-control" ColumnDefinitions="*,Auto">
+                                <Slider Value="{Binding TshGameWindowTransitionSpeedMultiplier}" Minimum="1.0" Maximum="4.0" TickFrequency="0.05" IsSnapToTickEnabled="True" SmallChange="0.05" LargeChange="0.5" VerticalAlignment="Center" Margin="0,0,12,0" AutomationProperties.Name="{localization:Localize GameSettings.Tsh.TransitionSpeed}" />
+                                <NumericUpDown Grid.Column="1" Value="{Binding TshGameWindowTransitionSpeedMultiplier}" Minimum="1.0" Maximum="4.0" Increment="0.05" FormatString="F2" Classes="slider-input" />
+                            </Grid>
+                        </Grid>
+                    </Border>
+                </Panel>
+                <Panel IsVisible="{Binding IsTheSuperHackersVisible}">
+                    <Border Classes="settings-card setting-row">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" MinWidth="140" />
+                                <ColumnDefinition Width="2*" MaxWidth="324" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Classes="row-label" Text="{localization:Localize GameSettings.Tsh.SystemTime}" />
+                            <NumericUpDown Grid.Column="1" Classes="row-control" Value="{Binding TshSystemTimeFontSize}" Minimum="8" Maximum="32" AutomationProperties.Name="{localization:Localize GameSettings.Tsh.SystemTime}" />
+                        </Grid>
+                    </Border>
+                </Panel>
+                <Panel IsVisible="{Binding IsTheSuperHackersVisible}">
+                    <Border Classes="settings-card setting-row">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" MinWidth="140" />
+                                <ColumnDefinition Width="2*" MaxWidth="324" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Classes="row-label" Text="{localization:Localize GameSettings.Tsh.PingDisplay}" />
+                            <NumericUpDown Grid.Column="1" Classes="row-control" Value="{Binding TshNetworkLatencyFontSize}" Minimum="8" Maximum="32" AutomationProperties.Name="{localization:Localize GameSettings.Tsh.PingDisplay}" />
+                        </Grid>
+                    </Border>
+                </Panel>
+                <Panel IsVisible="{Binding IsTheSuperHackersVisible}">
+                    <Border Classes="settings-card setting-row">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" MinWidth="140" />
+                                <ColumnDefinition Width="2*" MaxWidth="324" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Classes="row-label" Text="{localization:Localize GameSettings.Tsh.FpsDisplay}" />
+                            <NumericUpDown Grid.Column="1" Classes="row-control" Value="{Binding TshRenderFpsFontSize}" Minimum="8" Maximum="32" AutomationProperties.Name="{localization:Localize GameSettings.Tsh.FpsDisplay}" />
+                        </Grid>
+                    </Border>
+                </Panel>
+                <Panel IsVisible="{Binding IsTheSuperHackersVisible}">
+                    <Border Classes="settings-card setting-row">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" MinWidth="140" />
+                                <ColumnDefinition Width="2*" MaxWidth="324" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Classes="row-label" Text="{localization:Localize GameSettings.Tsh.ResolutionFontOffset}" />
+                            <NumericUpDown Grid.Column="1" Classes="row-control" Value="{Binding TshResolutionFontAdjustment}" Minimum="-500" Maximum="500" AutomationProperties.Name="{localization:Localize GameSettings.Tsh.ResolutionFontOffset}" />
+                        </Grid>
+                    </Border>
+                </Panel>
+                <StackPanel IsVisible="{Binding IsTheSuperHackersVisible}">
+                    <TextBlock Classes="group-label" Text="{localization:Localize GameSettings.Tsh.CursorCapture}" ToolTip.Tip="{localization:Localize GameSettings.Tsh.CursorCaptureToolTip}" />
+                    <Border Classes="settings-card setting-row">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <TextBlock Classes="row-label" Text="{localization:Localize GameSettings.Tsh.FullscreenGame}" />
+                            <ToggleSwitch Grid.Column="1" IsChecked="{Binding TshCursorCaptureEnabledInFullscreenGame}" OnContent="{x:Null}" OffContent="{x:Null}" HorizontalAlignment="Right" VerticalAlignment="Center" AutomationProperties.Name="{localization:Localize GameSettings.Tsh.FullscreenGame}" />
+                        </Grid>
+                    </Border>
+                    <Border Classes="settings-card setting-row">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <TextBlock Classes="row-label" Text="{localization:Localize GameSettings.Tsh.FullscreenMenu}" />
+                            <ToggleSwitch Grid.Column="1" IsChecked="{Binding TshCursorCaptureEnabledInFullscreenMenu}" OnContent="{x:Null}" OffContent="{x:Null}" HorizontalAlignment="Right" VerticalAlignment="Center" AutomationProperties.Name="{localization:Localize GameSettings.Tsh.FullscreenMenu}" />
+                        </Grid>
+                    </Border>
+                    <Border Classes="settings-card setting-row">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <TextBlock Classes="row-label" Text="{localization:Localize GameSettings.Tsh.WindowedGame}" />
+                            <ToggleSwitch Grid.Column="1" IsChecked="{Binding TshCursorCaptureEnabledInWindowedGame}" OnContent="{x:Null}" OffContent="{x:Null}" HorizontalAlignment="Right" VerticalAlignment="Center" AutomationProperties.Name="{localization:Localize GameSettings.Tsh.WindowedGame}" />
+                        </Grid>
+                    </Border>
+                    <Border Classes="settings-card setting-row">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <TextBlock Classes="row-label" Text="{localization:Localize GameSettings.Tsh.WindowedMenu}" />
+                            <ToggleSwitch Grid.Column="1" IsChecked="{Binding TshCursorCaptureEnabledInWindowedMenu}" OnContent="{x:Null}" OffContent="{x:Null}" HorizontalAlignment="Right" VerticalAlignment="Center" AutomationProperties.Name="{localization:Localize GameSettings.Tsh.WindowedMenu}" />
+                        </Grid>
+                    </Border>
+                    <TextBlock Classes="group-label" Text="{localization:Localize GameSettings.Tsh.ScreenEdgeScroll}" ToolTip.Tip="{localization:Localize GameSettings.Tsh.ScreenEdgeScrollToolTip}" />
+                    <Border Classes="settings-card setting-row">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <TextBlock Classes="row-label" Text="{localization:Localize GameSettings.Tsh.InFullscreen}" />
+                            <ToggleSwitch Grid.Column="1" IsChecked="{Binding TshScreenEdgeScrollEnabledInFullscreenApp}" OnContent="{x:Null}" OffContent="{x:Null}" HorizontalAlignment="Right" VerticalAlignment="Center" AutomationProperties.Name="{localization:Localize GameSettings.Tsh.InFullscreen}" />
+                        </Grid>
+                    </Border>
+                    <Border Classes="settings-card setting-row">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <TextBlock Classes="row-label" Text="{localization:Localize GameSettings.Tsh.InWindowed}" />
+                            <ToggleSwitch Grid.Column="1" IsChecked="{Binding TshScreenEdgeScrollEnabledInWindowedApp}" OnContent="{x:Null}" OffContent="{x:Null}" HorizontalAlignment="Right" VerticalAlignment="Center" AutomationProperties.Name="{localization:Localize GameSettings.Tsh.InWindowed}" />
+                        </Grid>
+                    </Border>
+                </StackPanel>
+                <Grid ColumnDefinitions="*,Auto" Classes="section-header-row">
+                    <TextBlock Classes="section-header" Text="{localization:Localize GameSettings.Section.Camera}" />
+                    <Button Grid.Column="1" Classes="action-secondary" VerticalAlignment="Bottom" Margin="0,0,0,6" IsVisible="{Binding IsCustomCameraVisible}" Command="{Binding ResetCameraDefaultsCommand}"
+                            ToolTip.Tip="{localization:Localize GameSettings.Camera.ResetDefaultsToolTip}" AutomationProperties.Name="{localization:Localize GameSettings.Camera.ResetDefaults}">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <PathIcon Data="{StaticResource RefreshIcon}" VerticalAlignment="Center" />
+                            <TextBlock Text="{localization:Localize GameSettings.Camera.ResetDefaults}" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Button>
                 </Grid>
-            </Border>
-            
-            <!-- Status Message -->
-            <Border Background="{Binding ColorValue, Converter={StaticResource ThemeBackgroundConverter}, Mode=OneWay}"
-                    BorderBrush="{Binding ColorValue, Converter={StaticResource ThemeBorderConverter}, Mode=OneWay}"
-                    BorderThickness="1"
-                    CornerRadius="6" Padding="10" Margin="0,0,0,12"
-                    IsVisible="{Binding StatusMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
-                <TextBlock Text="{Binding StatusMessage}" TextWrapping="Wrap" FontSize="12" />
-            </Border>
-
-            <!-- Brick Layout Container -->
-            <WrapPanel Orientation="Horizontal">
-                
-                <!-- ═══════════════════════════════════════════════════════════ -->
-                <!-- VIDEO SETTINGS CARD -->
-                <!-- ═══════════════════════════════════════════════════════════ -->
-                <StackPanel VerticalAlignment="Top">
-                <Expander IsExpanded="False">
-                    <Expander.Header>
-                        <TextBlock Text="🎬 Video Settings" FontWeight="SemiBold" FontSize="14" />
-                    </Expander.Header>
-                    
-                    <Border Classes="settings-card"
-                            Background="{Binding ColorValue, Converter={StaticResource ThemeBackgroundConverter}, Mode=OneWay}"
-                            BorderBrush="{Binding ColorValue, Converter={StaticResource ThemeBorderConverter}, Mode=OneWay}">
-                        <StackPanel>
-                            <!-- Resolution -->
-                            <Grid ColumnDefinitions="110,*" Classes="setting-row">
-                                <TextBlock Grid.Column="0" Text="Resolution" VerticalAlignment="Center" />
-                                <ComboBox Grid.Column="1"
-                                          ItemsSource="{Binding ResolutionPresets}"
-                                          SelectedItem="{Binding SelectedResolutionPreset}"
-                                          PlaceholderText="Select Resolution"
-                                          HorizontalAlignment="Stretch"
-                                          Height="34">
-                                    <ComboBox.ItemTemplate>
-                                        <DataTemplate>
-                                            <TextBlock Text="{Binding}" />
-                                        </DataTemplate>
-                                    </ComboBox.ItemTemplate>
-                                </ComboBox>
+                <StackPanel IsVisible="{Binding IsCustomCameraVisible}">
+                    <Border Classes="settings-card setting-row" ToolTip.Tip="{localization:Localize GameSettings.Camera.HeightToolTip}">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" MinWidth="140" />
+                                <ColumnDefinition Width="2*" MaxWidth="324" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Classes="row-label" Text="{localization:Localize GameSettings.Camera.Height}" />
+                            <Grid Grid.Column="1" Classes="row-control" ColumnDefinitions="*,Auto">
+                                <Slider Value="{Binding CameraHeight}" Minimum="50" Maximum="1500" IsSnapToTickEnabled="True" TickFrequency="1" VerticalAlignment="Center" Margin="0,0,12,0" AutomationProperties.Name="{localization:Localize GameSettings.Camera.Height}" />
+                                <NumericUpDown Grid.Column="1" Value="{Binding CameraHeight}" Minimum="50" Maximum="1500" Increment="5" FormatString="0" Classes="slider-input" />
                             </Grid>
-                            
-                            <!-- Windowed Mode -->
-                            <CheckBox Content="Run in Windowed Mode" IsChecked="{Binding Windowed}" Margin="0,4,0,8" />
-                            
-                            <!-- Graphics Options -->
-                            <TextBlock Classes="subsection-header" Text="Graphics Options" Margin="0,8,0,8" />
-                            <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto">
-                                <CheckBox Grid.Column="0" Grid.Row="0" Content="Shadows" IsChecked="{Binding Shadows}" Margin="0,0,8,6" />
-                                <CheckBox Grid.Column="1" Grid.Row="0" Content="Particles" IsChecked="{Binding ParticleEffects}" Margin="0,0,0,6" />
-                                <CheckBox Grid.Column="0" Grid.Row="1" Content="Extra Anims" IsChecked="{Binding ExtraAnimations}" Margin="0,0,8,0" />
-                                <CheckBox Grid.Column="1" Grid.Row="1" Content="Building Anims" IsChecked="{Binding BuildingAnimations}" />
-                            </Grid>
-                            
-                            <!-- Gamma Slider -->
-                            <Grid ColumnDefinitions="110,*,40" Margin="0,12,0,0">
-                                <TextBlock Grid.Column="0" Text="Gamma" VerticalAlignment="Center" />
-                                <Slider Grid.Column="1" Value="{Binding Gamma}" Minimum="0" Maximum="100" 
-                                        TickFrequency="10" IsSnapToTickEnabled="True" VerticalAlignment="Center" />
-                                <TextBlock Grid.Column="2" Text="{Binding Gamma}" FontWeight="Bold" 
-                                           VerticalAlignment="Center" HorizontalAlignment="Right" />
-                            </Grid>
-                        </StackPanel>
+                        </Grid>
                     </Border>
-                </Expander>
-                </StackPanel>
-
-                <!-- ═══════════════════════════════════════════════════════════ -->
-                <!-- AUDIO SETTINGS CARD -->
-                <!-- ═══════════════════════════════════════════════════════════ -->
-                <StackPanel VerticalAlignment="Top">
-                <Expander IsExpanded="False">
-                    <Expander.Header>
-                        <TextBlock Text="🔊 Audio Settings" FontWeight="SemiBold" FontSize="14" />
-                    </Expander.Header>
-                    
-                    <Border Classes="settings-card"
-                            Background="{Binding ColorValue, Converter={StaticResource ThemeBackgroundConverter}, Mode=OneWay}"
-                            BorderBrush="{Binding ColorValue, Converter={StaticResource ThemeBorderConverter}, Mode=OneWay}">
-                        <StackPanel>
-                            <CheckBox Content="Audio Enabled" IsChecked="{Binding AudioEnabled}" FontWeight="Medium" Margin="0,0,0,12" />
-                            
-                            <!-- Volume sliders grid -->
-                            <Grid ColumnDefinitions="100,*,40" RowDefinitions="Auto,Auto,Auto,Auto,Auto" IsEnabled="{Binding AudioEnabled}">
-                                <!-- Sound Volume -->
-                                <TextBlock Grid.Column="0" Grid.Row="0" Text="Sound" VerticalAlignment="Center" Margin="0,0,0,10" />
-                                <Slider Grid.Column="1" Grid.Row="0" Value="{Binding SoundVolume}" Minimum="0" Maximum="100" 
-                                        TickFrequency="5" IsSnapToTickEnabled="True" VerticalAlignment="Center" Margin="0,0,0,10" />
-                                <TextBlock Grid.Column="2" Grid.Row="0" Text="{Binding SoundVolume}" FontWeight="Bold" 
-                                           VerticalAlignment="Center" HorizontalAlignment="Right" Margin="0,0,0,10" />
-
-                                <!-- 3D Sound Volume -->
-                                <TextBlock Grid.Column="0" Grid.Row="1" Text="3D Sound" VerticalAlignment="Center" Margin="0,0,0,10" />
-                                <Slider Grid.Column="1" Grid.Row="1" Value="{Binding ThreeDSoundVolume}" Minimum="0" Maximum="100" 
-                                        TickFrequency="5" IsSnapToTickEnabled="True" VerticalAlignment="Center" Margin="0,0,0,10" />
-                                <TextBlock Grid.Column="2" Grid.Row="1" Text="{Binding ThreeDSoundVolume}" FontWeight="Bold" 
-                                           VerticalAlignment="Center" HorizontalAlignment="Right" Margin="0,0,0,10" />
-
-                                <!-- Speech Volume -->
-                                <TextBlock Grid.Column="0" Grid.Row="2" Text="Speech" VerticalAlignment="Center" Margin="0,0,0,10" />
-                                <Slider Grid.Column="1" Grid.Row="2" Value="{Binding SpeechVolume}" Minimum="0" Maximum="100" 
-                                        TickFrequency="5" IsSnapToTickEnabled="True" VerticalAlignment="Center" Margin="0,0,0,10" />
-                                <TextBlock Grid.Column="2" Grid.Row="2" Text="{Binding SpeechVolume}" FontWeight="Bold" 
-                                           VerticalAlignment="Center" HorizontalAlignment="Right" Margin="0,0,0,10" />
-
-                                <!-- Music Volume -->
-                                <TextBlock Grid.Column="0" Grid.Row="3" Text="Music" VerticalAlignment="Center" Margin="0,0,0,10" />
-                                <Slider Grid.Column="1" Grid.Row="3" Value="{Binding MusicVolume}" Minimum="0" Maximum="100" 
-                                        TickFrequency="5" IsSnapToTickEnabled="True" VerticalAlignment="Center" Margin="0,0,0,10" />
-                                <TextBlock Grid.Column="2" Grid.Row="3" Text="{Binding MusicVolume}" FontWeight="Bold" 
-                                           VerticalAlignment="Center" HorizontalAlignment="Right" Margin="0,0,0,10" />
-
-                                <!-- Number of Sounds -->
-                                <TextBlock Grid.Column="0" Grid.Row="4" Text="Channels" VerticalAlignment="Center" />
-                                <Slider Grid.Column="1" Grid.Row="4" Value="{Binding NumSounds}" Minimum="2" Maximum="32" 
-                                        TickFrequency="2" IsSnapToTickEnabled="True" VerticalAlignment="Center" />
-                                <TextBlock Grid.Column="2" Grid.Row="4" Text="{Binding NumSounds}" FontWeight="Bold" 
-                                           VerticalAlignment="Center" HorizontalAlignment="Right" />
+                    <Border Classes="settings-card setting-row" ToolTip.Tip="{localization:Localize GameSettings.Camera.MaxHeightToolTip}">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" MinWidth="140" />
+                                <ColumnDefinition Width="2*" MaxWidth="324" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Classes="row-label" Text="{localization:Localize GameSettings.Camera.MaxHeight}" />
+                            <Grid Grid.Column="1" Classes="row-control" ColumnDefinitions="*,Auto">
+                                <Slider Value="{Binding CameraMaxHeight}" Minimum="50" Maximum="1500" IsSnapToTickEnabled="True" TickFrequency="1" VerticalAlignment="Center" Margin="0,0,12,0" AutomationProperties.Name="{localization:Localize GameSettings.Camera.MaxHeight}" />
+                                <NumericUpDown Grid.Column="1" Value="{Binding CameraMaxHeight}" Minimum="50" Maximum="1500" Increment="10" FormatString="0" Classes="slider-input" />
                             </Grid>
-                        </StackPanel>
+                        </Grid>
                     </Border>
-                </Expander>
-                </StackPanel>
-
-                <!-- ═══════════════════════════════════════════════════════════ -->
-                <!-- NETWORK SETTINGS CARD -->
-                <!-- ═══════════════════════════════════════════════════════════ -->
-                <StackPanel VerticalAlignment="Top">
-                <Expander IsExpanded="False">
-                    <Expander.Header>
-                        <TextBlock Text="🌐 Network Settings" FontWeight="SemiBold" FontSize="14" />
-                    </Expander.Header>
-                    
-                    <Border Classes="settings-card"
-                            Background="{Binding ColorValue, Converter={StaticResource ThemeBackgroundConverter}, Mode=OneWay}"
-                            BorderBrush="{Binding ColorValue, Converter={StaticResource ThemeBorderConverter}, Mode=OneWay}">
-                        <StackPanel>
-                            <TextBlock Text="Network configuration for online and LAN play."
-                                       FontSize="11" Opacity="0.7" TextWrapping="Wrap" Margin="0,0,0,12" />
-                            
-                            <!-- GameSpy IP Address -->
-                            <Grid RowDefinitions="Auto,Auto" Classes="setting-row">
-                                <TextBlock Grid.Row="0" Text="GameSpy IP Address" FontSize="12" Margin="0,0,0,4" />
-                                <TextBox Grid.Row="1" Text="{Binding GameSpyIPAddress}" 
-                                         Watermark="for connecting to a GameSpy server"
-                                         HorizontalAlignment="Stretch" />
+                    <Border Classes="settings-card setting-row" ToolTip.Tip="{localization:Localize GameSettings.Camera.MinHeightToolTip}">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" MinWidth="140" />
+                                <ColumnDefinition Width="2*" MaxWidth="324" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Classes="row-label" Text="{localization:Localize GameSettings.Camera.MinHeight}" />
+                            <Grid Grid.Column="1" Classes="row-control" ColumnDefinitions="*,Auto">
+                                <Slider Value="{Binding CameraMinHeight}" Minimum="50" Maximum="1500" IsSnapToTickEnabled="True" TickFrequency="1" VerticalAlignment="Center" Margin="0,0,12,0" AutomationProperties.Name="{localization:Localize GameSettings.Camera.MinHeight}" />
+                                <NumericUpDown Grid.Column="1" Value="{Binding CameraMinHeight}" Minimum="50" Maximum="1500" Increment="5" FormatString="0" Classes="slider-input" />
                             </Grid>
-                        </StackPanel>
+                        </Grid>
                     </Border>
-                </Expander>
-                </StackPanel>
-
-                <!-- ═══════════════════════════════════════════════════════════ -->
-                <!-- THESUPERHACKERS CLIENT SETTINGS CARD -->
-                <!-- ═══════════════════════════════════════════════════════════ -->
-                <StackPanel VerticalAlignment="Top">
-                <Expander IsExpanded="False">
-                    <Expander.Header>
-                        <StackPanel Orientation="Horizontal" Spacing="8">
-                            <Image Source="avares://GenHub/Assets/Logos/thesuperhackers-logo.png" 
-                                   Width="20" Height="20" />
-                            <TextBlock Text="TheSuperHackers" FontWeight="SemiBold" FontSize="13" VerticalAlignment="Center" />
-                        </StackPanel>
-                    </Expander.Header>
-                    
-                    <Border Classes="settings-card"
-                            Background="{Binding ColorValue, Converter={StaticResource ThemeBackgroundConverter}, Mode=OneWay}"
-                            BorderBrush="{Binding ColorValue, Converter={StaticResource ThemeBorderConverter}, Mode=OneWay}">
-                        <StackPanel Spacing="8">
-                            <TextBlock Text="Options.ini settings for TheSuperHackers client"
-                                       FontSize="11" Opacity="0.7" TextWrapping="Wrap" Margin="0,0,0,8" />
-                            
-                            <!-- Texture Quality Override (TSH Only) -->
-                            <TextBlock Classes="subsection-header" Text="Texture Quality (TSH Only)" />
-                            <StackPanel Orientation="Horizontal" Spacing="10" Margin="0,0,0,8">
-                                <RadioButton Content="Low" GroupName="TshTextureQuality"
-                                             IsChecked="{Binding TextureQuality, Converter={StaticResource IntToBoolConverter}, ConverterParameter=0}" />
-                                <RadioButton Content="Med" GroupName="TshTextureQuality"
-                                             IsChecked="{Binding TextureQuality, Converter={StaticResource IntToBoolConverter}, ConverterParameter=1}" />
-                                <RadioButton Content="High" GroupName="TshTextureQuality"
-                                             IsChecked="{Binding TextureQuality, Converter={StaticResource IntToBoolConverter}, ConverterParameter=2}" />
-                                <RadioButton Content="Very High" GroupName="TshTextureQuality"
-                                             IsChecked="{Binding TextureQuality, Converter={StaticResource IntToBoolConverter}, ConverterParameter=3}" />
-                            </StackPanel>
-                            
-                            <!-- Display & Replays -->
-                            <TextBlock Classes="subsection-header" Text="Display &amp; Replays" />
-                            <CheckBox Content="Archive Replays" IsChecked="{Binding TshArchiveReplays}" Margin="0,0,0,4" />
-                            <CheckBox Content="Show Money/Min" IsChecked="{Binding TshShowMoneyPerMinute}" Margin="0,0,0,4" />
-                            <CheckBox Content="Observer Mode" IsChecked="{Binding TshPlayerObserverEnabled}" Margin="0,0,0,8" />
-                            
-                            <!-- Font Sizes -->
-                            <TextBlock Classes="subsection-header" Text="Font Sizes" />
-                            <Grid ColumnDefinitions="110,*,40" RowDefinitions="Auto,Auto,Auto,Auto">
-                                <TextBlock Grid.Column="0" Grid.Row="0" Text="System Time" VerticalAlignment="Center" Margin="0,0,0,8" />
-                                <Slider Grid.Column="1" Grid.Row="0" Value="{Binding TshSystemTimeFontSize}" Minimum="0" Maximum="24" TickFrequency="1" IsSnapToTickEnabled="True" Margin="0,0,0,8" />
-                                <TextBlock Grid.Column="2" Grid.Row="0" Text="{Binding TshSystemTimeFontSize}" FontWeight="Bold" VerticalAlignment="Center" Margin="0,0,0,8" />
-                                
-                                <TextBlock Grid.Column="0" Grid.Row="1" Text="Latency" VerticalAlignment="Center" Margin="0,0,0,8" />
-                                <Slider Grid.Column="1" Grid.Row="1" Value="{Binding TshNetworkLatencyFontSize}" Minimum="0" Maximum="24" TickFrequency="1" IsSnapToTickEnabled="True" Margin="0,0,0,8" />
-                                <TextBlock Grid.Column="2" Grid.Row="1" Text="{Binding TshNetworkLatencyFontSize}" FontWeight="Bold" VerticalAlignment="Center" Margin="0,0,0,8" />
-                                
-                                <TextBlock Grid.Column="0" Grid.Row="2" Text="FPS" VerticalAlignment="Center" Margin="0,0,0,8" />
-                                <Slider Grid.Column="1" Grid.Row="2" Value="{Binding TshRenderFpsFontSize}" Minimum="0" Maximum="24" TickFrequency="1" IsSnapToTickEnabled="True" Margin="0,0,0,8" />
-                                <TextBlock Grid.Column="2" Grid.Row="2" Text="{Binding TshRenderFpsFontSize}" FontWeight="Bold" VerticalAlignment="Center" Margin="0,0,0,8" />
-                                
-                                <TextBlock Grid.Column="0" Grid.Row="3" Text="Adjustment" VerticalAlignment="Center" />
-                                <Slider Grid.Column="1" Grid.Row="3" Value="{Binding TshResolutionFontAdjustment}" Minimum="-100" Maximum="100" TickFrequency="10" IsSnapToTickEnabled="True" />
-                                <TextBlock Grid.Column="2" Grid.Row="3" Text="{Binding TshResolutionFontAdjustment}" FontWeight="Bold" VerticalAlignment="Center" />
+                    <Border Classes="settings-card setting-row" ToolTip.Tip="{localization:Localize GameSettings.Camera.PitchToolTip}">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" MinWidth="140" />
+                                <ColumnDefinition Width="2*" MaxWidth="324" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Classes="row-label" Text="{localization:Localize GameSettings.Camera.Pitch}" />
+                            <Grid Grid.Column="1" Classes="row-control" ColumnDefinitions="*,Auto">
+                                <Slider Value="{Binding CameraPitch}" Minimum="10" Maximum="89" IsSnapToTickEnabled="True" TickFrequency="0.5" VerticalAlignment="Center" Margin="0,0,12,0" AutomationProperties.Name="{localization:Localize GameSettings.Camera.Pitch}" />
+                                <NumericUpDown Grid.Column="1" Value="{Binding CameraPitch}" Minimum="10" Maximum="89" Increment="0.5" FormatString="0.#" Classes="slider-input" />
                             </Grid>
-                            
-                            <!-- Cursor Capture -->
-                            <TextBlock Classes="subsection-header" Text="Cursor Capture" Margin="0,8,0,8" />
-                            <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto">
-                                <CheckBox Grid.Column="0" Grid.Row="0" Content="FS Game" IsChecked="{Binding TshCursorCaptureEnabledInFullscreenGame}" Margin="0,0,8,4" />
-                                <CheckBox Grid.Column="1" Grid.Row="0" Content="FS Menu" IsChecked="{Binding TshCursorCaptureEnabledInFullscreenMenu}" Margin="0,0,0,4" />
-                                <CheckBox Grid.Column="0" Grid.Row="1" Content="Win Game" IsChecked="{Binding TshCursorCaptureEnabledInWindowedGame}" Margin="0,0,8,0" />
-                                <CheckBox Grid.Column="1" Grid.Row="1" Content="Win Menu" IsChecked="{Binding TshCursorCaptureEnabledInWindowedMenu}" />
-                            </Grid>
-                            
-                            <!-- Screen Edge Scroll -->
-                            <TextBlock Classes="subsection-header" Text="Edge Scroll" Margin="0,8,0,8" />
-                            <StackPanel Orientation="Horizontal" Spacing="16">
-                                <CheckBox Content="Fullscreen" IsChecked="{Binding TshScreenEdgeScrollEnabledInFullscreenApp}" />
-                                <CheckBox Content="Windowed" IsChecked="{Binding TshScreenEdgeScrollEnabledInWindowedApp}" />
-                            </StackPanel>
-                            
-                            <!-- Money Alert Volume -->
-                            <Grid ColumnDefinitions="110,*,40" Margin="0,12,0,0">
-                                <TextBlock Grid.Column="0" Text="Money Alert" VerticalAlignment="Center" />
-                                <Slider Grid.Column="1" Value="{Binding TshMoneyTransactionVolume}" Minimum="0" Maximum="100" TickFrequency="5" IsSnapToTickEnabled="True" />
-                                <TextBlock Grid.Column="2" Text="{Binding TshMoneyTransactionVolume}" FontWeight="Bold" VerticalAlignment="Center" HorizontalAlignment="Right" />
-                            </Grid>
-                        </StackPanel>
+                        </Grid>
                     </Border>
-                </Expander>
                 </StackPanel>
-
-                <!-- ═══════════════════════════════════════════════════════════ -->
-                <!-- GENERALSONLINE CLIENT SETTINGS CARD -->
-                <!-- ═══════════════════════════════════════════════════════════ -->
-                <StackPanel VerticalAlignment="Top">
-                <Expander IsExpanded="False">
-                    <Expander.Header>
-                        <StackPanel Orientation="Horizontal" Spacing="8">
-                            <Image Source="avares://GenHub/Assets/Logos/generalsonline-logo.png" 
-                                   Width="20" Height="20" />
-                            <TextBlock Text="GeneralsOnline" FontWeight="SemiBold" FontSize="13" VerticalAlignment="Center" />
-                        </StackPanel>
-                    </Expander.Header>
-                    
-                    <Border Classes="settings-card"
-                            Background="{Binding ColorValue, Converter={StaticResource ThemeBackgroundConverter}, Mode=OneWay}"
-                            BorderBrush="{Binding ColorValue, Converter={StaticResource ThemeBorderConverter}, Mode=OneWay}">
-                        <StackPanel Spacing="8">
-                            <TextBlock Text="settings.json for GeneralsOnline client (includes TSH settings)"
-                                       FontSize="11" Opacity="0.7" TextWrapping="Wrap" Margin="0,0,0,8" />
-                            
-                            <!-- Display Options -->
-                            <TextBlock Classes="subsection-header" Text="Display" />
-                            <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto">
-                                <CheckBox Grid.Column="0" Grid.Row="0" Content="Show FPS" IsChecked="{Binding GoShowFps}" Margin="0,0,8,4" />
-                                <CheckBox Grid.Column="1" Grid.Row="0" Content="Show Ping" IsChecked="{Binding GoShowPing}" Margin="0,0,0,4" />
-                                <CheckBox Grid.Column="0" Grid.Row="1" Content="Show Ranks" IsChecked="{Binding GoShowPlayerRanks}" Margin="0,0,8,0" />
-                                <CheckBox Grid.Column="1" Grid.Row="1" Content="Stats Overlay" IsChecked="{Binding GoRenderStatsOverlay}" Margin="0,0,0,0" />
+                <StackPanel IsVisible="{Binding IsGeneralsOnlineVisible}">
+                    <Border Classes="settings-card setting-row" ToolTip.Tip="{localization:Localize GameSettings.Go.MinCameraHeightToolTip}">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" MinWidth="140" />
+                                <ColumnDefinition Width="2*" MaxWidth="324" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Classes="row-label" Text="{localization:Localize GameSettings.Go.MinCameraHeight}" />
+                            <Grid Grid.Column="1" Classes="row-control" ColumnDefinitions="*,Auto">
+                                <Slider Value="{Binding GoCameraMinHeight}" Minimum="50" Maximum="1000" IsSnapToTickEnabled="True" TickFrequency="1" VerticalAlignment="Center" Margin="0,0,12,0" AutomationProperties.Name="{localization:Localize GameSettings.Go.MinCameraHeight}" />
+                                <NumericUpDown Grid.Column="1" Value="{Binding GoCameraMinHeight}" Minimum="50" Maximum="1000" FormatString="0" Classes="slider-input" />
                             </Grid>
-                            
-                            <!-- Render Settings -->
-                            <TextBlock Classes="subsection-header" Text="Render" Margin="0,8,0,8" />
-                            <CheckBox Content="Limit Framerate" IsChecked="{Binding GoRenderLimitFramerate}" Margin="0,0,0,4" />
-                            <Grid ColumnDefinitions="110,*,40" Margin="0,0,0,8">
-                                <TextBlock Grid.Column="0" Text="FPS Limit" VerticalAlignment="Center" />
-                                <Slider Grid.Column="1" Value="{Binding GoRenderFpsLimit}" Minimum="30" Maximum="240" TickFrequency="10" IsSnapToTickEnabled="True" 
-                                        IsEnabled="{Binding GoRenderLimitFramerate}" />
-                                <TextBlock Grid.Column="2" Text="{Binding GoRenderFpsLimit}" FontWeight="Bold" VerticalAlignment="Center" HorizontalAlignment="Right" />
-                            </Grid>
-                            
-                            <!-- Camera Settings -->
-                            <TextBlock Classes="subsection-header" Text="Camera" Margin="0,0,0,8" />
-                            <Grid ColumnDefinitions="110,*,50" RowDefinitions="Auto,Auto,Auto">
-                                <TextBlock Grid.Column="0" Grid.Row="0" Text="Max Height" VerticalAlignment="Center" Margin="0,0,0,8" />
-                                <Slider Grid.Column="1" Grid.Row="0" Value="{Binding GoCameraMaxHeightOnlyWhenLobbyHost}" Minimum="100" Maximum="500" TickFrequency="10" IsSnapToTickEnabled="True" Margin="0,0,0,8" />
-                                <TextBlock Grid.Column="2" Grid.Row="0" Text="{Binding GoCameraMaxHeightOnlyWhenLobbyHost, StringFormat={}{0:F0}}" FontWeight="Bold" VerticalAlignment="Center" HorizontalAlignment="Right" Margin="0,0,0,8" />
-                                
-                                <TextBlock Grid.Column="0" Grid.Row="1" Text="Min Height" VerticalAlignment="Center" Margin="0,0,0,8" />
-                                <Slider Grid.Column="1" Grid.Row="1" Value="{Binding GoCameraMinHeight}" Minimum="100" Maximum="500" TickFrequency="10" IsSnapToTickEnabled="True" Margin="0,0,0,8" />
-                                <TextBlock Grid.Column="2" Grid.Row="1" Text="{Binding GoCameraMinHeight, StringFormat={}{0:F0}}" FontWeight="Bold" VerticalAlignment="Center" HorizontalAlignment="Right" Margin="0,0,0,8" />
-                                
-                                <TextBlock Grid.Column="0" Grid.Row="2" Text="Move Speed" VerticalAlignment="Center" />
-                                <Slider Grid.Column="1" Grid.Row="2" Value="{Binding GoCameraMoveSpeedRatio}" Minimum="0.5" Maximum="3.0" TickFrequency="0.1" IsSnapToTickEnabled="True" />
-                                <TextBlock Grid.Column="2" Grid.Row="2" Text="{Binding GoCameraMoveSpeedRatio, StringFormat={}{0:F1}}" FontWeight="Bold" VerticalAlignment="Center" HorizontalAlignment="Right" />
-                            </Grid>
-                            
-                            <!-- Account Options -->
-                            <TextBlock Classes="subsection-header" Text="Account" Margin="0,8,0,8" />
-                            <Grid ColumnDefinitions="*,*" RowDefinitions="Auto">
-                                <CheckBox Grid.Column="0" Grid.Row="0" Content="Auto-Login" IsChecked="{Binding GoAutoLogin}" Margin="0,0,8,4" />
-                                <CheckBox Grid.Column="1" Grid.Row="0" Content="Remember User" IsChecked="{Binding GoRememberUsername}" Margin="0,0,0,4" />
-                            </Grid>
-                            
-                            <!-- Chat Settings -->
-                            <TextBlock Classes="subsection-header" Text="Chat" Margin="0,8,0,8" />
-                            <Grid ColumnDefinitions="110,*,40" RowDefinitions="Auto,Auto">
-                                <TextBlock Grid.Column="0" Grid.Row="0" Text="Font Size" VerticalAlignment="Center" Margin="0,0,0,8" />
-                                <Slider Grid.Column="1" Grid.Row="0" Value="{Binding GoChatFontSize}" Minimum="8" Maximum="24" TickFrequency="1" IsSnapToTickEnabled="True" Margin="0,0,0,8" />
-                                <TextBlock Grid.Column="2" Grid.Row="0" Text="{Binding GoChatFontSize}" FontWeight="Bold" VerticalAlignment="Center" HorizontalAlignment="Right" Margin="0,0,0,8" />
-                                
-                                <TextBlock Grid.Column="0" Grid.Row="1" Text="Fade Out (s)" VerticalAlignment="Center" />
-                                <Slider Grid.Column="1" Grid.Row="1" Value="{Binding GoChatDurationSecondsUntilFadeOut}" Minimum="5" Maximum="120" TickFrequency="5" IsSnapToTickEnabled="True" />
-                                <TextBlock Grid.Column="2" Grid.Row="1" Text="{Binding GoChatDurationSecondsUntilFadeOut}" FontWeight="Bold" VerticalAlignment="Center" HorizontalAlignment="Right" />
-                            </Grid>
-                            
-                            <!-- Notifications -->
-                            <TextBlock Classes="subsection-header" Text="Notifications" Margin="0,8,0,8" />
-                            <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto">
-                                <CheckBox Grid.Column="0" Grid.Row="0" Content="Enable Notifs" IsChecked="{Binding GoEnableNotifications}" Margin="0,0,8,4" />
-                                <CheckBox Grid.Column="1" Grid.Row="0" Content="Sound Notifs" IsChecked="{Binding GoEnableSoundNotifications}" Margin="0,0,0,4" />
-                            </Grid>
-                            
-                            <!-- Social Notifications -->
-                            <TextBlock Classes="subsection-header" Text="Social Notifications" Margin="0,8,0,8" />
-                            <TextBlock Text="Friend Online" FontSize="11" FontWeight="SemiBold" Margin="0,0,0,4" />
-                            <Grid ColumnDefinitions="*,*" RowDefinitions="Auto">
-                                <CheckBox Grid.Column="0" Grid.Row="0" Content="In Gameplay" IsChecked="{Binding GoSocialNotificationFriendComesOnlineGameplay}" Margin="0,0,8,4" />
-                                <CheckBox Grid.Column="1" Grid.Row="0" Content="In Menus" IsChecked="{Binding GoSocialNotificationFriendComesOnlineMenus}" Margin="0,0,0,4" />
-                            </Grid>
-                            
-                            <TextBlock Text="Friend Offline" FontSize="11" FontWeight="SemiBold" Margin="0,4,0,4" />
-                            <Grid ColumnDefinitions="*,*" RowDefinitions="Auto">
-                                <CheckBox Grid.Column="0" Grid.Row="0" Content="In Gameplay" IsChecked="{Binding GoSocialNotificationFriendGoesOfflineGameplay}" Margin="0,0,8,4" />
-                                <CheckBox Grid.Column="1" Grid.Row="0" Content="In Menus" IsChecked="{Binding GoSocialNotificationFriendGoesOfflineMenus}" Margin="0,0,0,4" />
-                            </Grid>
-                            
-                            <TextBlock Text="Player Accepts Request" FontSize="11" FontWeight="SemiBold" Margin="0,4,0,4" />
-                            <Grid ColumnDefinitions="*,*" RowDefinitions="Auto">
-                                <CheckBox Grid.Column="0" Grid.Row="0" Content="In Gameplay" IsChecked="{Binding GoSocialNotificationPlayerAcceptsRequestGameplay}" Margin="0,0,8,4" />
-                                <CheckBox Grid.Column="1" Grid.Row="0" Content="In Menus" IsChecked="{Binding GoSocialNotificationPlayerAcceptsRequestMenus}" Margin="0,0,0,4" />
-                            </Grid>
-                            
-                            <TextBlock Text="Player Sends Request" FontSize="11" FontWeight="SemiBold" Margin="0,4,0,4" />
-                            <Grid ColumnDefinitions="*,*" RowDefinitions="Auto">
-                                <CheckBox Grid.Column="0" Grid.Row="0" Content="In Gameplay" IsChecked="{Binding GoSocialNotificationPlayerSendsRequestGameplay}" Margin="0,0,8,4" />
-                                <CheckBox Grid.Column="1" Grid.Row="0" Content="In Menus" IsChecked="{Binding GoSocialNotificationPlayerSendsRequestMenus}" Margin="0,0,0,4" />
-                            </Grid>
-                            
-                            <!-- Debug Settings -->
-                            <TextBlock Classes="subsection-header" Text="Debug" Margin="0,8,0,8" />
-                            <CheckBox Content="Verbose Logging" IsChecked="{Binding GoDebugVerboseLogging}" />
-                        </StackPanel>
+                        </Grid>
                     </Border>
-                </Expander>
+                    <Border Classes="settings-card setting-row" ToolTip.Tip="{localization:Localize GameSettings.Go.MaxCameraHeightToolTip}">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" MinWidth="140" />
+                                <ColumnDefinition Width="2*" MaxWidth="324" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Classes="row-label" Text="{localization:Localize GameSettings.Go.MaxCameraHeight}" />
+                            <Grid Grid.Column="1" Classes="row-control" ColumnDefinitions="*,Auto">
+                                <Slider Value="{Binding GoCameraMaxHeightOnlyWhenLobbyHost}" Minimum="50" Maximum="1000" IsSnapToTickEnabled="True" TickFrequency="1" VerticalAlignment="Center" Margin="0,0,12,0" AutomationProperties.Name="{localization:Localize GameSettings.Go.MaxCameraHeight}" />
+                                <NumericUpDown Grid.Column="1" Value="{Binding GoCameraMaxHeightOnlyWhenLobbyHost}" Minimum="50" Maximum="1000" FormatString="0" Classes="slider-input" />
+                            </Grid>
+                        </Grid>
+                    </Border>
+                    <Border Classes="settings-card setting-row" ToolTip.Tip="{localization:Localize GameSettings.Go.CameraMoveSpeedToolTip}">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" MinWidth="140" />
+                                <ColumnDefinition Width="2*" MaxWidth="324" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Classes="row-label" Text="{localization:Localize GameSettings.Go.CameraMoveSpeed}" />
+                            <Grid Grid.Column="1" Classes="row-control" ColumnDefinitions="*,Auto">
+                                <Slider Value="{Binding GoCameraMoveSpeedRatio}" Minimum="0.5" Maximum="5.0" IsSnapToTickEnabled="True" TickFrequency="0.1" VerticalAlignment="Center" Margin="0,0,12,0" AutomationProperties.Name="{localization:Localize GameSettings.Go.CameraMoveSpeed}" />
+                                <NumericUpDown Grid.Column="1" Value="{Binding GoCameraMoveSpeedRatio}" Minimum="0.5" Maximum="5.0" Increment="0.1" FormatString="0.#" Classes="slider-input" />
+                            </Grid>
+                        </Grid>
+                    </Border>
                 </StackPanel>
-                
-            </WrapPanel>
-
-            <!-- Footer Note -->
-            <Border Classes="info-box" Margin="0,4,0,0"
-                    Background="{Binding ColorValue, Converter={StaticResource ThemeBackgroundConverter}, Mode=OneWay}"
-                    BorderBrush="{Binding ColorValue, Converter={StaticResource ThemeBorderConverter}, Mode=OneWay}"
-                    BorderThickness="1">
-                <StackPanel Orientation="Horizontal" Spacing="8">
-                    <TextBlock Text="ℹ️" FontSize="14" />
-                    <TextBlock Text="Settings are saved to this profile and applied when launching. Click Save at the top to save changes."
-                               FontSize="11" Opacity="0.8" TextWrapping="Wrap" VerticalAlignment="Center" />
+                <StackPanel IsVisible="{Binding IsGeneralsOnlineVisible}">
+                    <TextBlock x:Name="MultiplayerHeader" Classes="section-header" Text="{localization:Localize GameSettings.Section.Multiplayer}" />
+                    <Border Classes="settings-card setting-row" ToolTip.Tip="{localization:Localize GameSettings.Go.AutoLoginToolTip}">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <TextBlock Classes="row-label" Text="{localization:Localize GameSettings.Go.AutoLogin}" />
+                            <ToggleSwitch Grid.Column="1" IsChecked="{Binding GoAutoLogin}" OnContent="{x:Null}" OffContent="{x:Null}" HorizontalAlignment="Right" VerticalAlignment="Center" AutomationProperties.Name="{localization:Localize GameSettings.Go.AutoLogin}" />
+                        </Grid>
+                    </Border>
+                    <Border Classes="settings-card setting-row" ToolTip.Tip="{localization:Localize GameSettings.Go.RememberMeToolTip}">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <TextBlock Classes="row-label" Text="{localization:Localize GameSettings.Go.RememberMe}" />
+                            <ToggleSwitch Grid.Column="1" IsChecked="{Binding GoRememberUsername}" OnContent="{x:Null}" OffContent="{x:Null}" HorizontalAlignment="Right" VerticalAlignment="Center" AutomationProperties.Name="{localization:Localize GameSettings.Go.RememberMe}" />
+                        </Grid>
+                    </Border>
+                    <Border Classes="settings-card setting-row" ToolTip.Tip="{localization:Localize GameSettings.Go.ShowRanksToolTip}">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <TextBlock Classes="row-label" Text="{localization:Localize GameSettings.Go.ShowRanks}" />
+                            <ToggleSwitch Grid.Column="1" IsChecked="{Binding GoShowPlayerRanks}" OnContent="{x:Null}" OffContent="{x:Null}" HorizontalAlignment="Right" VerticalAlignment="Center" AutomationProperties.Name="{localization:Localize GameSettings.Go.ShowRanks}" />
+                        </Grid>
+                    </Border>
+                    <Border Classes="settings-card setting-row" ToolTip.Tip="{localization:Localize GameSettings.Go.ShowPingToolTip}">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <TextBlock Classes="row-label" Text="{localization:Localize GameSettings.Go.ShowPing}" />
+                            <ToggleSwitch Grid.Column="1" IsChecked="{Binding GoShowPing}" OnContent="{x:Null}" OffContent="{x:Null}" HorizontalAlignment="Right" VerticalAlignment="Center" AutomationProperties.Name="{localization:Localize GameSettings.Go.ShowPing}" />
+                        </Grid>
+                    </Border>
+                    <Border Classes="settings-card setting-row" ToolTip.Tip="{localization:Localize GameSettings.Go.GlobalNotificationsToolTip}">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <TextBlock Classes="row-label" Text="{localization:Localize GameSettings.Go.GlobalNotifications}" />
+                            <ToggleSwitch Grid.Column="1" IsChecked="{Binding GoEnableNotifications}" OnContent="{x:Null}" OffContent="{x:Null}" HorizontalAlignment="Right" VerticalAlignment="Center" AutomationProperties.Name="{localization:Localize GameSettings.Go.GlobalNotifications}" />
+                        </Grid>
+                    </Border>
+                    <Border Classes="settings-card setting-row" ToolTip.Tip="{localization:Localize GameSettings.Go.SoundNotificationsToolTip}">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <TextBlock Classes="row-label" Text="{localization:Localize GameSettings.Go.SoundNotifications}" />
+                            <ToggleSwitch Grid.Column="1" IsChecked="{Binding GoEnableSoundNotifications}" OnContent="{x:Null}" OffContent="{x:Null}" HorizontalAlignment="Right" VerticalAlignment="Center" AutomationProperties.Name="{localization:Localize GameSettings.Go.SoundNotifications}" />
+                        </Grid>
+                    </Border>
+                    <Border Classes="settings-card setting-row" ToolTip.Tip="{localization:Localize GameSettings.Go.ChatFontSizeToolTip}">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" MinWidth="140" />
+                                <ColumnDefinition Width="2*" MaxWidth="324" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Classes="row-label" Text="{localization:Localize GameSettings.Go.ChatFontSize}" />
+                            <NumericUpDown Grid.Column="1" Classes="row-control" Value="{Binding GoChatFontSize}" Minimum="{Binding MinGoChatFontSize}" Maximum="{Binding MaxGoChatFontSize}" ClipValueToMinMax="True" AutomationProperties.Name="{localization:Localize GameSettings.Go.ChatFontSize}" />
+                        </Grid>
+                    </Border>
+                    <Border Classes="settings-card setting-row" ToolTip.Tip="{localization:Localize GameSettings.Go.ChatFadeoutToolTip}">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" MinWidth="140" />
+                                <ColumnDefinition Width="2*" MaxWidth="324" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Classes="row-label" Text="{localization:Localize GameSettings.Go.ChatFadeout}" />
+                            <NumericUpDown Grid.Column="1" Classes="row-control" Value="{Binding GoChatDurationSecondsUntilFadeOut}" Minimum="5" Maximum="300" AutomationProperties.Name="{localization:Localize GameSettings.Go.ChatFadeout}" />
+                        </Grid>
+                    </Border>
+                    <TextBlock Classes="group-label" Text="{localization:Localize GameSettings.Go.DetailedNotifications}" />
+                    <Border Classes="settings-card setting-row">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <TextBlock Classes="row-label" Text="{localization:Localize GameSettings.Go.FriendOnlineInGame}" />
+                            <ToggleSwitch Grid.Column="1" IsChecked="{Binding GoSocialNotificationFriendComesOnlineGameplay}" OnContent="{x:Null}" OffContent="{x:Null}" HorizontalAlignment="Right" VerticalAlignment="Center" AutomationProperties.Name="{localization:Localize GameSettings.Go.FriendOnlineInGame}" />
+                        </Grid>
+                    </Border>
+                    <Border Classes="settings-card setting-row">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <TextBlock Classes="row-label" Text="{localization:Localize GameSettings.Go.FriendOfflineInGame}" />
+                            <ToggleSwitch Grid.Column="1" IsChecked="{Binding GoSocialNotificationFriendGoesOfflineGameplay}" OnContent="{x:Null}" OffContent="{x:Null}" HorizontalAlignment="Right" VerticalAlignment="Center" AutomationProperties.Name="{localization:Localize GameSettings.Go.FriendOfflineInGame}" />
+                        </Grid>
+                    </Border>
+                    <Border Classes="settings-card setting-row">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <TextBlock Classes="row-label" Text="{localization:Localize GameSettings.Go.AcceptInGame}" />
+                            <ToggleSwitch Grid.Column="1" IsChecked="{Binding GoSocialNotificationPlayerAcceptsRequestGameplay}" OnContent="{x:Null}" OffContent="{x:Null}" HorizontalAlignment="Right" VerticalAlignment="Center" AutomationProperties.Name="{localization:Localize GameSettings.Go.AcceptInGame}" />
+                        </Grid>
+                    </Border>
+                    <Border Classes="settings-card setting-row">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <TextBlock Classes="row-label" Text="{localization:Localize GameSettings.Go.RequestInGame}" />
+                            <ToggleSwitch Grid.Column="1" IsChecked="{Binding GoSocialNotificationPlayerSendsRequestGameplay}" OnContent="{x:Null}" OffContent="{x:Null}" HorizontalAlignment="Right" VerticalAlignment="Center" AutomationProperties.Name="{localization:Localize GameSettings.Go.RequestInGame}" />
+                        </Grid>
+                    </Border>
+                    <Border Classes="settings-card setting-row">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <TextBlock Classes="row-label" Text="{localization:Localize GameSettings.Go.FriendOnlineMenu}" />
+                            <ToggleSwitch Grid.Column="1" IsChecked="{Binding GoSocialNotificationFriendComesOnlineMenus}" OnContent="{x:Null}" OffContent="{x:Null}" HorizontalAlignment="Right" VerticalAlignment="Center" AutomationProperties.Name="{localization:Localize GameSettings.Go.FriendOnlineMenu}" />
+                        </Grid>
+                    </Border>
+                    <Border Classes="settings-card setting-row">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <TextBlock Classes="row-label" Text="{localization:Localize GameSettings.Go.FriendOfflineMenu}" />
+                            <ToggleSwitch Grid.Column="1" IsChecked="{Binding GoSocialNotificationFriendGoesOfflineMenus}" OnContent="{x:Null}" OffContent="{x:Null}" HorizontalAlignment="Right" VerticalAlignment="Center" AutomationProperties.Name="{localization:Localize GameSettings.Go.FriendOfflineMenu}" />
+                        </Grid>
+                    </Border>
+                    <Border Classes="settings-card setting-row">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <TextBlock Classes="row-label" Text="{localization:Localize GameSettings.Go.AcceptMenu}" />
+                            <ToggleSwitch Grid.Column="1" IsChecked="{Binding GoSocialNotificationPlayerAcceptsRequestMenus}" OnContent="{x:Null}" OffContent="{x:Null}" HorizontalAlignment="Right" VerticalAlignment="Center" AutomationProperties.Name="{localization:Localize GameSettings.Go.AcceptMenu}" />
+                        </Grid>
+                    </Border>
+                    <Border Classes="settings-card setting-row">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <TextBlock Classes="row-label" Text="{localization:Localize GameSettings.Go.RequestMenu}" />
+                            <ToggleSwitch Grid.Column="1" IsChecked="{Binding GoSocialNotificationPlayerSendsRequestMenus}" OnContent="{x:Null}" OffContent="{x:Null}" HorizontalAlignment="Right" VerticalAlignment="Center" AutomationProperties.Name="{localization:Localize GameSettings.Go.RequestMenu}" />
+                        </Grid>
+                    </Border>
+                    <Border Classes="settings-card setting-row" ToolTip.Tip="{localization:Localize GameSettings.Go.GameSpyIpOverrideToolTip}">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" MinWidth="140" />
+                                <ColumnDefinition Width="2*" MaxWidth="324" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Classes="row-label" Text="{localization:Localize GameSettings.Go.GameSpyIpOverride}" />
+                            <TextBox Grid.Column="1" Classes="form-field row-control" Text="{Binding GameSpyIPAddress}" Watermark="{localization:Localize GameSettings.Go.GameSpyIpWatermark}" AutomationProperties.Name="{localization:Localize GameSettings.Go.GameSpyIpOverride}" />
+                        </Grid>
+                    </Border>
+                    <Border Classes="settings-card setting-row" ToolTip.Tip="{localization:Localize GameSettings.Go.VerboseLoggingToolTip}">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <TextBlock Classes="row-label" Text="{localization:Localize GameSettings.Go.VerboseLogging}" />
+                            <ToggleSwitch Grid.Column="1" IsChecked="{Binding GoDebugVerboseLogging}" OnContent="{x:Null}" OffContent="{x:Null}" HorizontalAlignment="Right" VerticalAlignment="Center" AutomationProperties.Name="{localization:Localize GameSettings.Go.VerboseLogging}" />
+                        </Grid>
+                    </Border>
                 </StackPanel>
-            </Border>
-            
-        </StackPanel>
-    </ScrollViewer>
+            </StackPanel>
+        </ScrollViewer>
+    </DockPanel>
 </UserControl>
