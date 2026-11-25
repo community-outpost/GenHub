@@ -3446,7 +3446,7 @@
     <value>كل المحتوى</value>
   </data>
   <data name="GameProfiles.Content.FilterLabel" xml:space="preserve">
-    <value>نوع المحتوى</value>
+    <value>فئة المحتوى</value>
   </data>
   <data name="GameProfiles.Content.Empty" xml:space="preserve">
     <value>لم يتم العثور على محتوى لهذه اللعبة.</value>

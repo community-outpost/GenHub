@@ -3446,7 +3446,7 @@ Applied: {2} / {3} applicable fixes.</value>
     <value>All content</value>
   </data>
   <data name="GameProfiles.Content.FilterLabel" xml:space="preserve">
-    <value>Content type</value>
+    <value>Content category</value>
   </data>
   <data name="GameProfiles.Content.Empty" xml:space="preserve">
     <value>No content found for this game.</value>

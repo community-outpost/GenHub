@@ -3446,7 +3446,7 @@
     <value>Весь контент</value>
   </data>
   <data name="GameProfiles.Content.FilterLabel" xml:space="preserve">
-    <value>Тип контента</value>
+    <value>Категория контента</value>
   </data>
   <data name="GameProfiles.Content.Empty" xml:space="preserve">
     <value>Контент для этой игры не найден.</value>
