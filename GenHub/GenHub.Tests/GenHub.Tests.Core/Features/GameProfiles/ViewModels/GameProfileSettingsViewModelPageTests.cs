@@ -85,6 +85,23 @@ public class GameProfileSettingsViewModelPageTests
         Assert.False(viewModel.GameSettingsViewModel.IsGeneralsOnlineVisible);
     }
 
+    /// <summary>
+    /// Verifies re-entering the Game Settings page clears the settings search.
+    /// </summary>
+    [Fact]
+    public void EnteringGameSettingsPage_ClearsSearchQuery()
+    {
+        var viewModel = CreateViewModel();
+        Assert.Equal(string.Empty, viewModel.GameSettingsViewModel.SearchQuery);
+        viewModel.SelectedPage = ProfileSettingsPage.GameSettings;
+        viewModel.GameSettingsViewModel.SearchQuery = "volume";
+        viewModel.SelectedPage = ProfileSettingsPage.Content;
+
+        viewModel.SelectPageCommand.Execute(ProfileSettingsPage.GameSettings);
+
+        Assert.Equal(string.Empty, viewModel.GameSettingsViewModel.SearchQuery);
+    }
+
     private static GameProfileSettingsViewModel CreateViewModel() =>
         new(
             Mock.Of<IGameProfileManager>(),

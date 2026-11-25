@@ -44,6 +44,11 @@ public partial class GameProfileSettingsViewModel
 
     private void ApplySelectedPage(ProfileSettingsPage page)
     {
+        if (page == ProfileSettingsPage.GameSettings)
+        {
+            GameSettingsViewModel.SearchQuery = string.Empty;
+        }
+
         _isSyncingPage = true;
         try
         {

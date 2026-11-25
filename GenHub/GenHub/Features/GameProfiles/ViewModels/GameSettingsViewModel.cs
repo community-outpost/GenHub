@@ -179,6 +179,9 @@ public partial class GameSettingsViewModel(
     }
 
     [ObservableProperty]
+    private string _searchQuery = string.Empty;
+
+    [ObservableProperty]
     private string _statusMessage = string.Empty;
 
     [ObservableProperty]

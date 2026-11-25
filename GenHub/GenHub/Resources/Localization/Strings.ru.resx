@@ -18774,4 +18774,13 @@ Error: не удалось: {3}
   <data name="GameSettings.Section.Multiplayer" xml:space="preserve">
     <value>Сетевая игра</value>
   </data>
+  <data name="GameSettings.Search.Watermark" xml:space="preserve">
+    <value>Поиск настроек</value>
+  </data>
+  <data name="GameSettings.Search.Clear" xml:space="preserve">
+    <value>Очистить поиск</value>
+  </data>
+  <data name="GameSettings.Search.NoResults" xml:space="preserve">
+    <value>Нет настроек, соответствующих запросу</value>
+  </data>
 </root>

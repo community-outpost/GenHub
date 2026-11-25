@@ -18833,4 +18833,13 @@ Mapped image texture reference</value>
   <data name="GameSettings.Section.Multiplayer" xml:space="preserve">
     <value>Multiplayer</value>
   </data>
+  <data name="GameSettings.Search.Watermark" xml:space="preserve">
+    <value>Search settings</value>
+  </data>
+  <data name="GameSettings.Search.Clear" xml:space="preserve">
+    <value>Clear search</value>
+  </data>
+  <data name="GameSettings.Search.NoResults" xml:space="preserve">
+    <value>No settings match your search</value>
+  </data>
 </root>

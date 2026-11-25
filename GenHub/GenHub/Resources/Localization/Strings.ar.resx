@@ -18774,4 +18774,13 @@ Error: فشل: {3}
   <data name="GameSettings.Section.Multiplayer" xml:space="preserve">
     <value>اللعب الجماعي</value>
   </data>
+  <data name="GameSettings.Search.Watermark" xml:space="preserve">
+    <value>البحث في الإعدادات</value>
+  </data>
+  <data name="GameSettings.Search.Clear" xml:space="preserve">
+    <value>مسح البحث</value>
+  </data>
+  <data name="GameSettings.Search.NoResults" xml:space="preserve">
+    <value>لا توجد إعدادات تطابق بحثك</value>
+  </data>
 </root>
