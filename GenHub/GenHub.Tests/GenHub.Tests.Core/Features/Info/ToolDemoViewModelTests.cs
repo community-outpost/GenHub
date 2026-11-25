@@ -275,6 +275,25 @@ public class ToolDemoViewModelTests
     }
 
     /// <summary>
+    /// Verifies that the demo clears the settings search whenever its section navigation enters the Game Settings page.
+    /// </summary>
+    /// <param name="page">The page passed with the section, or null to switch by section only.</param>
+    [AvaloniaTheory]
+    [InlineData(null)]
+    [InlineData(ProfileSettingsPage.GameSettings)]
+    public void DemoProfileSettings_EnteringGameSettingsFromSection_ClearsSearch(ProfileSettingsPage? page)
+    {
+        var viewModel = (DemoGameProfileSettingsViewModel)DemoViewModelFactory.CreateDemoProfileSettingsViewModel_ContentTab();
+        viewModel.SyncTabToSection(InfoConstants.SectionGameProfileContent);
+        viewModel.GameSettingsViewModel.SearchQuery = "volume";
+
+        viewModel.SyncTabToSection(InfoConstants.SectionGameSettings, page);
+
+        viewModel.SelectedPage.Should().Be(ProfileSettingsPage.GameSettings);
+        viewModel.GameSettingsViewModel.SearchQuery.Should().BeEmpty();
+    }
+
+    /// <summary>
     /// Verifies that the profile settings demo opens with installations and content to check, and keeps checked content across a refresh.
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>

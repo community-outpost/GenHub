@@ -76,6 +76,11 @@ public partial class GameProfileSettingsViewModel
             _ => ProfileSettingsPage.GameSettings,
         };
 
+        if (page == ProfileSettingsPage.GameSettings && _selectedPage != ProfileSettingsPage.GameSettings)
+        {
+            GameSettingsViewModel.SearchQuery = string.Empty;
+        }
+
         SetProperty(ref _selectedPage, page, nameof(SelectedPage));
     }
 

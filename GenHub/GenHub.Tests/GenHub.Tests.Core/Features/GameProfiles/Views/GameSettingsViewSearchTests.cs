@@ -184,6 +184,91 @@ public class GameSettingsViewSearchTests
         });
     }
 
+    /// <summary>
+    /// Verifies a row nested below a sub-label inside its own visibility panel keeps that sub-label for matching.
+    /// </summary>
+    [AvaloniaFact]
+    public void Search_NestedRow_KeepsItsSubLabel()
+    {
+        WithSettingsView(string.Empty, isTheSuperHackers: false, isGeneralsOnline: false, (view, settings) =>
+        {
+            Assert.True(settings.IsZeroHour);
+            Assert.True(settings.IsCustomLodSelected);
+
+            Search(settings, "heat");
+
+            Assert.Equal(["Heat Effects"], VisibleRowLabels(view));
+            Assert.Equal(["Advanced Display Options"], VisibleSubLabels(view));
+
+            Search(settings, "advanced display options");
+
+            Assert.Contains("Heat Effects", VisibleRowLabels(view));
+            Assert.Contains("Show Trees", VisibleRowLabels(view));
+        });
+    }
+
+    /// <summary>
+    /// Verifies a word that only appears in a sub-label's tooltip shows that sub-label's rows.
+    /// </summary>
+    [AvaloniaFact]
+    public void Search_MatchesSubLabelTooltip()
+    {
+        WithSettingsView(string.Empty, isTheSuperHackers: true, isGeneralsOnline: false, (view, settings) =>
+        {
+            Search(settings, "accidentally");
+
+            Assert.Equal(["Cursor Clipping / Capture"], VisibleSubLabels(view));
+            Assert.Equal(["Fullscreen in Game", "Fullscreen in Menus", "Windowed in Game", "Windowed in Menus"], VisibleRowLabels(view));
+        });
+    }
+
+    /// <summary>
+    /// Verifies the results follow a client becoming available or unavailable while a query is active.
+    /// </summary>
+    [AvaloniaFact]
+    public void Search_RefiltersWhenClientVisibilityChanges()
+    {
+        WithSettingsView(string.Empty, isTheSuperHackers: false, isGeneralsOnline: false, (view, settings) =>
+        {
+            Search(settings, "multiplayer");
+            Assert.False(view.FindControl<TextBlock>("MultiplayerHeader")!.IsEffectivelyVisible);
+            Assert.DoesNotContain("Auto Login", VisibleRowLabels(view));
+
+            settings.UpdateApplicableClientVisibility(isTheSuperHackers: false, isGeneralsOnline: true);
+            Dispatcher.UIThread.RunJobs();
+
+            Assert.True(view.FindControl<TextBlock>("MultiplayerHeader")!.IsEffectivelyVisible);
+            Assert.Contains("Auto Login", VisibleRowLabels(view));
+
+            settings.UpdateApplicableClientVisibility(isTheSuperHackers: false, isGeneralsOnline: false);
+            Dispatcher.UIThread.RunJobs();
+
+            Assert.False(view.FindControl<TextBlock>("MultiplayerHeader")!.IsEffectivelyVisible);
+            Assert.DoesNotContain("Auto Login", VisibleRowLabels(view));
+            Assert.Equal(["Profanity Filter"], VisibleRowLabels(view));
+        });
+    }
+
+    /// <summary>
+    /// Verifies the results follow the custom detail level being switched off while a query is active.
+    /// </summary>
+    [AvaloniaFact]
+    public void Search_RefiltersWhenCustomDetailLevelChanges()
+    {
+        WithSettingsView(string.Empty, isTheSuperHackers: false, isGeneralsOnline: false, (view, settings) =>
+        {
+            Search(settings, "advanced display options");
+            Assert.Contains("Heat Effects", VisibleRowLabels(view));
+
+            settings.StaticGameLOD = "High";
+            Dispatcher.UIThread.RunJobs();
+
+            Assert.Empty(VisibleRowLabels(view));
+            Assert.Empty(VisibleSubLabels(view));
+            Assert.True(view.FindControl<TextBlock>("NoSearchResults")!.IsEffectivelyVisible);
+        });
+    }
+
     private static void Search(GameSettingsViewModel settings, string query)
     {
         settings.SearchQuery = query;

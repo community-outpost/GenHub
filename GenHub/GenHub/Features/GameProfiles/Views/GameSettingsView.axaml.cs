@@ -54,13 +54,13 @@ public partial class GameSettingsView : UserControl
     {
         var trimmed = query?.Trim() ?? string.Empty;
         var rows = new List<SearchRow>();
-        var section = new SearchGroup(null, string.Empty);
-        Collect(SettingsRows, ref section, rows);
+        var section = new SearchGroup(null, string.Empty, string.Empty);
+        Collect(SettingsRows, ref section, null, rows);
 
         var groups = rows.SelectMany(row => new[] { row.Section, row.SubGroup }).OfType<SearchGroup>().Distinct().ToList();
         foreach (var group in groups)
         {
-            group.Matches = trimmed.Length > 0 && Contains(group.Text, trimmed);
+            group.Matches = trimmed.Length > 0 && (Contains(group.Text, trimmed) || Contains(group.TipText, trimmed));
         }
 
         var anyShown = false;
@@ -117,9 +117,8 @@ public partial class GameSettingsView : UserControl
         _ => string.Empty,
     };
 
-    private static void Collect(Panel container, ref SearchGroup section, List<SearchRow> rows)
+    private static void Collect(Panel container, ref SearchGroup section, SearchGroup? subGroup, List<SearchRow> rows)
     {
-        SearchGroup? subGroup = null;
         foreach (var child in container.Children)
         {
             if (child is Border border && border.Classes.Contains(RowClass))
@@ -129,16 +128,16 @@ public partial class GameSettingsView : UserControl
             }
             else if ((child is TextBlock && child.Classes.Contains(SectionHeaderClass)) || child.Classes.Contains(SectionHeaderRowClass))
             {
-                section = new SearchGroup(child, GetHeaderText(child));
+                section = new SearchGroup(child, GetHeaderText(child), string.Empty);
                 subGroup = null;
             }
             else if (child is TextBlock && child.Classes.Contains(GroupLabelClass))
             {
-                subGroup = new SearchGroup(child, GetHeaderText(child));
+                subGroup = new SearchGroup(child, GetHeaderText(child), ToolTip.GetTip(child) as string ?? string.Empty);
             }
             else if (child is Panel panel)
             {
-                Collect(panel, ref section, rows);
+                Collect(panel, ref section, subGroup, rows);
             }
         }
     }
@@ -209,11 +208,13 @@ public partial class GameSettingsView : UserControl
         }
     }
 
-    private sealed class SearchGroup(Control? element, string text)
+    private sealed class SearchGroup(Control? element, string text, string tipText)
     {
         public Control? Element { get; } = element;
 
         public string Text { get; } = text;
+
+        public string TipText { get; } = tipText;
 
         public bool Matches { get; set; }
     }

@@ -102,6 +102,22 @@ public class GameProfileSettingsViewModelPageTests
         Assert.Equal(string.Empty, viewModel.GameSettingsViewModel.SearchQuery);
     }
 
+    /// <summary>
+    /// Verifies switching to the Game Settings tab directly, as the Info demo does, clears the settings search.
+    /// </summary>
+    [Fact]
+    public void SwitchingTabToGameSettings_ClearsSearchQuery()
+    {
+        var viewModel = CreateViewModel();
+        viewModel.SelectedPage = ProfileSettingsPage.Content;
+        viewModel.GameSettingsViewModel.SearchQuery = "volume";
+
+        viewModel.SelectedTabIndex = 2;
+
+        Assert.Equal(ProfileSettingsPage.GameSettings, viewModel.SelectedPage);
+        Assert.Equal(string.Empty, viewModel.GameSettingsViewModel.SearchQuery);
+    }
+
     private static GameProfileSettingsViewModel CreateViewModel() =>
         new(
             Mock.Of<IGameProfileManager>(),
