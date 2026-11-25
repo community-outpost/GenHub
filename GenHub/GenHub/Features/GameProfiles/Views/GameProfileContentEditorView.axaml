@@ -82,29 +82,58 @@
                         </DataTemplate>
                     </ComboBox.ItemTemplate>
                 </ComboBox>
-                <ComboBox x:Name="ContentSortOrder"
-                          Grid.Column="1"
-                          Classes="form-field"
-                          MinWidth="180"
-                          Margin="8,0,0,0"
-                          ItemsSource="{Binding ProfileContentSortOptions}"
-                          SelectedItem="{Binding SelectedProfileContentSort}"
-                          ToolTip.Tip="{localization:Localize GameProfiles.Content.SortLabel}"
-                          AutomationProperties.Name="{localization:Localize GameProfiles.Content.SortLabel}">
-                    <ComboBox.ItemTemplate>
-                        <StaticResource ResourceKey="ProfileContentSortOrderTemplate" />
-                    </ComboBox.ItemTemplate>
-                    <ComboBox.SelectionBoxItemTemplate>
-                        <DataTemplate x:DataType="vm:ProfileContentSortOrder">
-                            <StackPanel Orientation="Horizontal" Spacing="6">
-                                <TextBlock Text="{localization:Localize GameProfiles.Content.SortLabel}"
-                                           Foreground="{DynamicResource TextSecondaryBrush}" />
-                                <ContentControl Content="{Binding}"
-                                                ContentTemplate="{StaticResource ProfileContentSortOrderTemplate}" />
-                            </StackPanel>
-                        </DataTemplate>
-                    </ComboBox.SelectionBoxItemTemplate>
-                </ComboBox>
+                <Button x:Name="ContentSortButton"
+                        Grid.Column="1"
+                        Classes="action-secondary library-action"
+                        Margin="8,0,0,0"
+                        VerticalAlignment="Stretch"
+                        AutomationProperties.Name="{localization:Localize GameProfiles.Content.SortLabel}">
+                    <ToolTip.Tip>
+                        <StackPanel Orientation="Horizontal" Spacing="4">
+                            <TextBlock Text="{localization:Localize GameProfiles.Content.SortLabel}" />
+                            <ContentControl Content="{Binding SelectedProfileContentSort}"
+                                            ContentTemplate="{StaticResource ProfileContentSortOrderTemplate}" />
+                        </StackPanel>
+                    </ToolTip.Tip>
+                    <material:MaterialIcon Kind="Sort" Width="16" Height="16" />
+                    <Button.Flyout>
+                        <MenuFlyout>
+                            <MenuItem Header="{localization:Localize GameProfiles.Content.SortByName}"
+                                      Command="{Binding SetProfileContentSortCommand}"
+                                      CommandParameter="{x:Static vm:ProfileContentSortOrder.Name}">
+                                <MenuItem.Icon>
+                                    <material:MaterialIcon Kind="Check" Width="16" Height="16"
+                                                           IsVisible="{Binding SelectedProfileContentSort, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static vm:ProfileContentSortOrder.Name}}" />
+                                </MenuItem.Icon>
+                            </MenuItem>
+                            <MenuItem Header="{localization:Localize GameProfiles.Content.SortByReleaseDate}"
+                                      Command="{Binding SetProfileContentSortCommand}"
+                                      CommandParameter="{x:Static vm:ProfileContentSortOrder.ReleaseDate}">
+                                <MenuItem.Icon>
+                                    <material:MaterialIcon Kind="Check" Width="16" Height="16"
+                                                           IsVisible="{Binding SelectedProfileContentSort, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static vm:ProfileContentSortOrder.ReleaseDate}}" />
+                                </MenuItem.Icon>
+                            </MenuItem>
+                            <MenuItem Header="{localization:Localize GameProfiles.Content.SortByEnabled}"
+                                      Command="{Binding SetProfileContentSortCommand}"
+                                      CommandParameter="{x:Static vm:ProfileContentSortOrder.EnabledFirst}">
+                                <MenuItem.Icon>
+                                    <material:MaterialIcon Kind="Check" Width="16" Height="16"
+                                                           IsVisible="{Binding SelectedProfileContentSort, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static vm:ProfileContentSortOrder.EnabledFirst}}" />
+                                </MenuItem.Icon>
+                            </MenuItem>
+                            <MenuItem Header="{localization:Localize GameProfiles.Content.SortByType}"
+                                      Command="{Binding SetProfileContentSortCommand}"
+                                      CommandParameter="{x:Static vm:ProfileContentSortOrder.Type}"
+                                      IsVisible="{Binding IsTypeSortAvailable}">
+                                <MenuItem.Icon>
+                                    <material:MaterialIcon Kind="Check" Width="16" Height="16"
+                                                           IsVisible="{Binding SelectedProfileContentSort, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static vm:ProfileContentSortOrder.Type}}" />
+                                </MenuItem.Icon>
+                            </MenuItem>
+                        </MenuFlyout>
+                    </Button.Flyout>
+                </Button>
                 <Button Grid.Column="2"
                         Classes="icon-action"
                         Margin="8,0,0,0"

@@ -64,11 +64,9 @@ public partial class GameProfileSettingsViewModel
         [ProfileContentFilterOption.All, .. Enum.GetValues<ProfileContentGroup>().Select(group => new ProfileContentFilterOption(group))];
 
     /// <summary>
-    /// Gets the orders the Content page sort menu offers; sorting by type needs all content shown.
-    /// The list is updated in place so the sort menu keeps its selection when the filter changes.
+    /// Gets a value indicating whether the sort menu offers sorting by type, which needs all content shown.
     /// </summary>
-    public ObservableCollection<ProfileContentSortOrder> ProfileContentSortOptions { get; } =
-        [ProfileContentSortOrder.Name, ProfileContentSortOrder.ReleaseDate, ProfileContentSortOrder.EnabledFirst, ProfileContentSortOrder.Type];
+    public bool IsTypeSortAvailable => SelectedProfileContentFilter?.IsAll != false;
 
     /// <summary>
     /// Gets a value indicating whether the Content page has no rows to show.
@@ -312,23 +310,24 @@ public partial class GameProfileSettingsViewModel
 
     partial void OnSelectedProfileContentFilterChanged(ProfileContentFilterOption value)
     {
-        var showsAllContent = value?.IsAll != false;
-        if (!showsAllContent && SelectedProfileContentSort == ProfileContentSortOrder.Type)
+        if (!IsTypeSortAvailable && SelectedProfileContentSort == ProfileContentSortOrder.Type)
         {
             SelectedProfileContentSort = ProfileContentSortOrder.Name;
         }
 
-        if (showsAllContent && !ProfileContentSortOptions.Contains(ProfileContentSortOrder.Type))
+        OnPropertyChanged(nameof(IsTypeSortAvailable));
+        RebuildProfileContentRows(resort: true);
+    }
+
+    [RelayCommand]
+    private void SetProfileContentSort(ProfileContentSortOrder order)
+    {
+        if (order == ProfileContentSortOrder.Type && !IsTypeSortAvailable)
         {
-            ProfileContentSortOptions.Add(ProfileContentSortOrder.Type);
-        }
-        else if (!showsAllContent)
-        {
-            ProfileContentSortOptions.Remove(ProfileContentSortOrder.Type);
+            return;
         }
 
-        OnPropertyChanged(nameof(ProfileContentSortOptions));
-        RebuildProfileContentRows(resort: true);
+        SelectedProfileContentSort = order;
     }
 
     partial void OnSelectedProfileContentSortChanged(ProfileContentSortOrder value)
