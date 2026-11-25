@@ -183,7 +183,6 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
             NullLogger<NotificationItemViewModel>.Instance);
 
         GameSettingsViewModel = new GameSettingsViewModel(gameSettingsService!, gameSettingsLogger!, notificationService, localizationService);
-        GameSettingsViewModel.PropertyChanged += OnGameSettingsPropertyChanged;
 
         WeakReferenceMessenger.Default.Register<Core.Models.Content.ContentAcquiredMessage>(this);
         WeakReferenceMessenger.Default.Register<ManifestReplacedMessage>(this);

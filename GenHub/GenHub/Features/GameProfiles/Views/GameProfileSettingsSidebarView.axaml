@@ -97,41 +97,11 @@
                         <TextBlock Text="{localization:Localize GameProfiles.General.TabAppearance}" />
                     </Button>
                     <Button Classes="sidebar-btn"
-                            Classes.selected="{Binding SelectedPage, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static vm:ProfileSettingsPage.Video}}"
+                            Classes.selected="{Binding SelectedPage, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static vm:ProfileSettingsPage.GameSettings}}"
                             Command="{Binding SelectPageCommand}"
-                            CommandParameter="{x:Static vm:ProfileSettingsPage.Video}"
-                            AutomationProperties.Name="{localization:Localize GameSettings.Category.Video}">
-                        <TextBlock Text="{localization:Localize GameSettings.Category.Video}" />
-                    </Button>
-                    <Button Classes="sidebar-btn"
-                            Classes.selected="{Binding SelectedPage, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static vm:ProfileSettingsPage.Audio}}"
-                            Command="{Binding SelectPageCommand}"
-                            CommandParameter="{x:Static vm:ProfileSettingsPage.Audio}"
-                            AutomationProperties.Name="{localization:Localize GameSettings.Category.Audio}">
-                        <TextBlock Text="{localization:Localize GameSettings.Category.Audio}" />
-                    </Button>
-                    <Button Classes="sidebar-btn"
-                            Classes.selected="{Binding SelectedPage, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static vm:ProfileSettingsPage.Controls}}"
-                            Command="{Binding SelectPageCommand}"
-                            CommandParameter="{x:Static vm:ProfileSettingsPage.Controls}"
-                            AutomationProperties.Name="{localization:Localize GameSettings.Category.Controls}">
-                        <TextBlock Text="{localization:Localize GameSettings.Category.Controls}" />
-                    </Button>
-                    <Button Classes="sidebar-btn"
-                            Classes.selected="{Binding SelectedPage, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static vm:ProfileSettingsPage.TheSuperHackers}}"
-                            Command="{Binding SelectPageCommand}"
-                            CommandParameter="{x:Static vm:ProfileSettingsPage.TheSuperHackers}"
-                            IsVisible="{Binding GameSettingsViewModel.IsTheSuperHackersVisible}"
-                            AutomationProperties.Name="{localization:Localize GameSettings.Category.TheSuperHackers}">
-                        <TextBlock Text="{localization:Localize GameSettings.Category.TheSuperHackers}" />
-                    </Button>
-                    <Button Classes="sidebar-btn"
-                            Classes.selected="{Binding SelectedPage, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static vm:ProfileSettingsPage.GeneralsOnline}}"
-                            Command="{Binding SelectPageCommand}"
-                            CommandParameter="{x:Static vm:ProfileSettingsPage.GeneralsOnline}"
-                            IsVisible="{Binding GameSettingsViewModel.IsGeneralsOnlineVisible}"
-                            AutomationProperties.Name="{localization:Localize GameSettings.Category.GeneralsOnline}">
-                        <TextBlock Text="{localization:Localize GameSettings.Category.GeneralsOnline}" />
+                            CommandParameter="{x:Static vm:ProfileSettingsPage.GameSettings}"
+                            AutomationProperties.Name="{localization:Localize GameProfiles.Navigation.GameSettings}">
+                        <TextBlock Text="{localization:Localize GameProfiles.Navigation.GameSettings}" />
                     </Button>
                 </StackPanel>
             </ScrollViewer>

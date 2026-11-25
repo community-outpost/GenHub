@@ -51,12 +51,6 @@
             <Setter Property="TextWrapping" Value="Wrap" />
             <Setter Property="Margin" Value="0,4,0,0" />
         </Style>
-        <Style Selector="TextBlock.group-header">
-            <Setter Property="FontSize" Value="18" />
-            <Setter Property="FontWeight" Value="SemiBold" />
-            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
-            <Setter Property="Margin" Value="0,24,0,6" />
-        </Style>
         <Style Selector=":is(Control).row-control">
             <Setter Property="HorizontalAlignment" Value="Stretch" />
             <Setter Property="VerticalAlignment" Value="Center" />
@@ -83,22 +77,6 @@
                     </Grid>
                 </Border>
 
-                <Border Classes="settings-card">
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*" MinWidth="140" />
-                            <ColumnDefinition Width="2*" MaxWidth="324" />
-                        </Grid.ColumnDefinitions>
-                        <TextBlock Classes="row-label" VerticalAlignment="Top" Margin="0,8,0,0" Text="{localization:Localize GameProfiles.General.Description}" />
-                        <TextBox Grid.Column="1" Classes="form-field row-control"
-                                 Text="{Binding Description, Mode=TwoWay}"
-                                 Watermark="{localization:Localize GameProfiles.General.DescriptionWatermark}"
-                                 Height="72"
-                                 AcceptsReturn="True"
-                                 TextWrapping="Wrap" />
-                    </Grid>
-                </Border>
-
                 <Border Classes="settings-card" IsVisible="{Binding IsSteamLaunchSupported}">
                     <Grid ColumnDefinitions="*,80">
                         <StackPanel VerticalAlignment="Center">
@@ -117,32 +95,6 @@
                     </Grid>
                 </Border>
 
-                <Border Classes="settings-card">
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*" MinWidth="140" />
-                            <ColumnDefinition Width="2*" MaxWidth="324" />
-                        </Grid.ColumnDefinitions>
-                        <StackPanel VerticalAlignment="Center">
-                            <TextBlock Classes="row-label" Text="{localization:Localize GameProfiles.General.WorkspaceStrategy}" />
-                            <TextBlock Classes="row-hint">
-                                <TextBlock.Text>
-                                    <MultiBinding Converter="{x:Static conv:WorkspaceStrategyDisplayConverter.Description}">
-                                        <Binding Path="SelectedWorkspaceStrategy" />
-                                        <Binding Path="CurrentCulture" Source="{x:Static conv:WorkspaceStrategyDisplayConverter.LocalizationSource}" />
-                                    </MultiBinding>
-                                </TextBlock.Text>
-                            </TextBlock>
-                        </StackPanel>
-                        <ComboBox Grid.Column="1"
-                                  Classes="workspace-strategy form-field row-control"
-                                  ItemsSource="{x:Static vm:GameProfileSettingsViewModel.AvailableWorkspaceStrategies}"
-                                  SelectedItem="{Binding SelectedWorkspaceStrategy}"
-                                  IsEnabled="{Binding CanEditImmutableMetadata}"
-                                  AutomationProperties.Name="{localization:Localize GameProfiles.General.WorkspaceStrategy}" />
-                    </Grid>
-                </Border>
-
                 <TextBlock x:Name="LaunchConfigurationLockedReason"
                            Text="{localization:Localize GameProfiles.General.LaunchConfigurationLocked}"
                            IsVisible="{Binding IsHotswapMode}"
@@ -151,13 +103,59 @@
                            Margin="0,4,0,0"
                            TextWrapping="Wrap" />
 
-                <TextBlock Classes="group-header" Text="{localization:Localize Profiles.Settings.LaunchOptions}" />
-                <TextBlock Classes="row-hint" Margin="0,0,0,10" Text="{localization:Localize Profiles.Settings.CommandLineArgumentsHint}" />
-                <TextBox Classes="form-field"
-                         Text="{Binding CommandLineArguments, Mode=TwoWay}"
-                         IsEnabled="{Binding CanEditImmutableMetadata}"
-                         Watermark="{localization:Localize GameProfiles.General.CommandLineArgumentsWatermark}"
-                         AutomationProperties.Name="{localization:Localize GameProfiles.General.CommandLineArguments}" />
+                <Expander x:Name="AdvancedSection"
+                          Header="{localization:Localize GameProfiles.General.Advanced}"
+                          IsExpanded="False"
+                          Margin="0,16,0,0"
+                          Background="Transparent"
+                          BorderThickness="0">
+                    <StackPanel Margin="0,8,0,0">
+                        <Border Classes="settings-card">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" MinWidth="140" />
+                                    <ColumnDefinition Width="2*" MaxWidth="324" />
+                                </Grid.ColumnDefinitions>
+                                <StackPanel VerticalAlignment="Center">
+                                    <TextBlock Classes="row-label" Text="{localization:Localize GameProfiles.General.WorkspaceStrategy}" />
+                                    <TextBlock Classes="row-hint">
+                                        <TextBlock.Text>
+                                            <MultiBinding Converter="{x:Static conv:WorkspaceStrategyDisplayConverter.Description}">
+                                                <Binding Path="SelectedWorkspaceStrategy" />
+                                                <Binding Path="CurrentCulture" Source="{x:Static conv:WorkspaceStrategyDisplayConverter.LocalizationSource}" />
+                                            </MultiBinding>
+                                        </TextBlock.Text>
+                                    </TextBlock>
+                                </StackPanel>
+                                <ComboBox Grid.Column="1"
+                                          Classes="workspace-strategy form-field row-control"
+                                          ItemsSource="{x:Static vm:GameProfileSettingsViewModel.AvailableWorkspaceStrategies}"
+                                          SelectedItem="{Binding SelectedWorkspaceStrategy}"
+                                          IsEnabled="{Binding CanEditImmutableMetadata}"
+                                          AutomationProperties.Name="{localization:Localize GameProfiles.General.WorkspaceStrategy}" />
+                            </Grid>
+                        </Border>
+
+                        <Border Classes="settings-card">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" MinWidth="140" />
+                                    <ColumnDefinition Width="2*" MaxWidth="324" />
+                                </Grid.ColumnDefinitions>
+                                <StackPanel VerticalAlignment="Center">
+                                    <TextBlock Classes="row-label" Text="{localization:Localize GameProfiles.General.CommandLineArguments}" />
+                                    <TextBlock Classes="row-hint" Text="{localization:Localize Profiles.Settings.CommandLineArgumentsHint}" />
+                                </StackPanel>
+                                <TextBox Grid.Column="1"
+                                         Classes="form-field row-control"
+                                         Text="{Binding CommandLineArguments, Mode=TwoWay}"
+                                         IsEnabled="{Binding CanEditImmutableMetadata}"
+                                         Watermark="{localization:Localize GameProfiles.General.CommandLineArgumentsWatermark}"
+                                         AutomationProperties.Name="{localization:Localize GameProfiles.General.CommandLineArguments}" />
+                            </Grid>
+                        </Border>
+                    </StackPanel>
+                </Expander>
             </StackPanel>
 
             <StackPanel x:Name="AppearancePage"

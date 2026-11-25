@@ -58,16 +58,16 @@ public sealed class GenHubInfoSectionViewTests
             {
                 (settingsDemo, ProfileSettingsPage.Content, InfoConstants.SectionGameProfileContent),
                 (settingsDemo, ProfileSettingsPage.General, InfoConstants.SectionGameProfileSettings),
-                (settingsDemo, ProfileSettingsPage.Video, InfoConstants.SectionGameSettings),
-                (contentDemo, ProfileSettingsPage.Video, InfoConstants.SectionGameSettings),
+                (settingsDemo, ProfileSettingsPage.GameSettings, InfoConstants.SectionGameSettings),
+                (contentDemo, ProfileSettingsPage.GameSettings, InfoConstants.SectionGameSettings),
                 (contentDemo, ProfileSettingsPage.General, InfoConstants.SectionGameProfileSettings),
                 (contentDemo, ProfileSettingsPage.Content, InfoConstants.SectionGameProfileContent),
                 (profileDemo, ProfileSettingsPage.Content, InfoConstants.SectionGameProfileContent),
-                (profileDemo, ProfileSettingsPage.Video, InfoConstants.SectionGameSettings),
+                (profileDemo, ProfileSettingsPage.GameSettings, InfoConstants.SectionGameSettings),
                 (profileDemo, ProfileSettingsPage.General, InfoConstants.SectionGameProfileSettings),
                 (profileDemo, ProfileSettingsPage.Game, InfoConstants.SectionGameProfileContent),
                 (contentDemo, ProfileSettingsPage.Appearance, InfoConstants.SectionGameProfileSettings),
-                (profileDemo, ProfileSettingsPage.Audio, InfoConstants.SectionGameSettings),
+                (profileDemo, ProfileSettingsPage.GameSettings, InfoConstants.SectionGameSettings),
             })
             {
                 demo.SelectPageCommand.Execute(page);
@@ -203,7 +203,7 @@ public sealed class GenHubInfoSectionViewTests
 
             // Clicks on the VISIBLE demo panel's tab buttons (production click path),
             // pumping layout between clicks but without settling delays.
-            foreach (var page in new[] { ProfileSettingsPage.Content, ProfileSettingsPage.General, ProfileSettingsPage.Video })
+            foreach (var page in new[] { ProfileSettingsPage.Content, ProfileSettingsPage.General, ProfileSettingsPage.GameSettings })
             {
                 var button = FindVisibleDemoPageButton(view, page);
                 button.Should().NotBeNull("page button {0} must resolve in the visible demo panel", page);

@@ -30,15 +30,7 @@
                    IsVisible="{Binding SelectedPage, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static vm:ProfileSettingsPage.Content}}" />
         <TextBlock Classes="page-title" Text="{localization:Localize GameProfiles.General.TabAppearance}"
                    IsVisible="{Binding SelectedPage, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static vm:ProfileSettingsPage.Appearance}}" />
-        <TextBlock Classes="page-title" Text="{localization:Localize GameSettings.Category.Video}"
-                   IsVisible="{Binding SelectedPage, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static vm:ProfileSettingsPage.Video}}" />
-        <TextBlock Classes="page-title" Text="{localization:Localize GameSettings.Category.Audio}"
-                   IsVisible="{Binding SelectedPage, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static vm:ProfileSettingsPage.Audio}}" />
-        <TextBlock Classes="page-title" Text="{localization:Localize GameSettings.Category.Controls}"
-                   IsVisible="{Binding SelectedPage, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static vm:ProfileSettingsPage.Controls}}" />
-        <TextBlock Classes="page-title" Text="{localization:Localize GameSettings.Category.TheSuperHackers}"
-                   IsVisible="{Binding SelectedPage, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static vm:ProfileSettingsPage.TheSuperHackers}}" />
-        <TextBlock Classes="page-title" Text="{localization:Localize GameSettings.Category.GeneralsOnline}"
-                   IsVisible="{Binding SelectedPage, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static vm:ProfileSettingsPage.GeneralsOnline}}" />
+        <TextBlock Classes="page-title" Text="{localization:Localize GameProfiles.Navigation.GameSettings}"
+                   IsVisible="{Binding SelectedPage, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static vm:ProfileSettingsPage.GameSettings}}" />
     </Panel>
 </UserControl>

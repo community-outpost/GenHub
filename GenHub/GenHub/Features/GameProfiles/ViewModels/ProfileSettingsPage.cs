@@ -5,7 +5,7 @@ namespace GenHub.Features.GameProfiles.ViewModels;
 /// </summary>
 public enum ProfileSettingsPage
 {
-    /// <summary>Name, description and launch options.</summary>
+    /// <summary>Profile name and Steam launch.</summary>
     General,
 
     /// <summary>Game installation and game client.</summary>
@@ -17,18 +17,6 @@ public enum ProfileSettingsPage
     /// <summary>Icon, cover and theme color.</summary>
     Appearance,
 
-    /// <summary>Video and graphics settings.</summary>
-    Video,
-
-    /// <summary>Audio and sound settings.</summary>
-    Audio,
-
-    /// <summary>Input and camera settings.</summary>
-    Controls,
-
-    /// <summary>TheSuperHackers engine settings.</summary>
-    TheSuperHackers,
-
-    /// <summary>GeneralsOnline client settings.</summary>
-    GeneralsOnline,
+    /// <summary>Every game option, grouped by section on one page.</summary>
+    GameSettings,
 }

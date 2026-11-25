@@ -176,27 +176,6 @@ public partial class GameSettingsViewModel(
         {
             ResetCameraDefaults();
         }
-
-        if (!IsTheSuperHackersVisible && SelectedCategory == SettingsCategory.TheSuperHackers)
-        {
-            SelectedCategory = SettingsCategory.Video;
-        }
-
-        if (!IsGeneralsOnlineVisible && SelectedCategory == SettingsCategory.GeneralsOnline)
-        {
-            SelectedCategory = SettingsCategory.Video;
-        }
-    }
-
-    private SettingsCategory _selectedCategory = SettingsCategory.Video;
-
-    /// <summary>
-    /// Gets or sets the game settings category shown in the profile settings window.
-    /// </summary>
-    public SettingsCategory SelectedCategory
-    {
-        get => _selectedCategory;
-        set => SetProperty(ref _selectedCategory, value);
     }
 
     [ObservableProperty]

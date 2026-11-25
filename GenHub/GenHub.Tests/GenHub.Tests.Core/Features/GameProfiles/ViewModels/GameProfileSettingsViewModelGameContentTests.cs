@@ -289,6 +289,71 @@ public class GameProfileSettingsViewModelGameContentTests
     }
 
     /// <summary>
+    /// Verifies each Content page sort order, with names breaking ties.
+    /// </summary>
+    /// <param name="sort">The sort order to select.</param>
+    /// <param name="expected">The expected row order.</param>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Theory]
+    [InlineData(ProfileContentSortOrder.Name, new[] { PatchId, ZeroHourModId, MapId })]
+    [InlineData(ProfileContentSortOrder.ReleaseDate, new[] { MapId, ZeroHourModId, PatchId })]
+    [InlineData(ProfileContentSortOrder.EnabledFirst, new[] { ZeroHourModId, PatchId, MapId })]
+    [InlineData(ProfileContentSortOrder.Type, new[] { ZeroHourModId, PatchId, MapId })]
+    public async Task SortOrder_OrdersContentRowsAsync(ProfileContentSortOrder sort, string[] expected)
+    {
+        var viewModel = await CreateSortableViewModelAsync();
+        await viewModel.ToggleProfileContentCommand.ExecuteAsync(viewModel.ProfileContentRows.Single(row => row.Item.ManifestId.Value == ZeroHourModId).Item);
+
+        viewModel.SelectedProfileContentSort = sort;
+
+        Assert.Equal(expected, RowIds(viewModel.ProfileContentRows));
+    }
+
+    /// <summary>
+    /// Verifies a toggled row keeps its place under a sort it affects, and the next reload applies the sort again.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task SortOrder_EnabledFirst_DoesNotMoveToggledRowUntilReloadAsync()
+    {
+        var viewModel = await CreateSortableViewModelAsync();
+        viewModel.SelectedProfileContentSort = ProfileContentSortOrder.EnabledFirst;
+        Assert.Equal([PatchId, ZeroHourModId, MapId], RowIds(viewModel.ProfileContentRows));
+
+        await viewModel.ToggleProfileContentCommand.ExecuteAsync(viewModel.ProfileContentRows.Single(row => row.Item.ManifestId.Value == MapId).Item);
+
+        Assert.Equal([PatchId, ZeroHourModId, MapId], RowIds(viewModel.ProfileContentRows));
+        Assert.True(viewModel.ProfileContentRows[2].IsIncluded);
+
+        await viewModel.RefreshProfileContentCommand.ExecuteAsync(null);
+
+        Assert.Equal([MapId, PatchId, ZeroHourModId], RowIds(viewModel.ProfileContentRows));
+    }
+
+    /// <summary>
+    /// Verifies sorting by type is offered only while every type is shown, and a single-type filter falls back to name order.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task SortOrder_TypeNeedsAllContentFilterAsync()
+    {
+        var viewModel = await CreateSortableViewModelAsync();
+        viewModel.SelectedProfileContentSort = ProfileContentSortOrder.Type;
+        Assert.Contains(ProfileContentSortOrder.Type, viewModel.ProfileContentSortOptions);
+
+        viewModel.SelectedProfileContentFilter = GameProfileSettingsViewModel.ProfileContentFilterOptions.Single(option => option.ContentType == ContentType.Mod);
+
+        Assert.DoesNotContain(ProfileContentSortOrder.Type, viewModel.ProfileContentSortOptions);
+        Assert.Equal(ProfileContentSortOrder.Name, viewModel.SelectedProfileContentSort);
+        Assert.Equal([ZeroHourModId], RowIds(viewModel.ProfileContentRows));
+
+        viewModel.SelectedProfileContentFilter = ProfileContentFilterOption.All;
+
+        Assert.Contains(ProfileContentSortOrder.Type, viewModel.ProfileContentSortOptions);
+        Assert.Equal([PatchId, ZeroHourModId, MapId], RowIds(viewModel.ProfileContentRows));
+    }
+
+    /// <summary>
     /// Verifies content of a type the checklist does not offer still shows while it is in the profile.
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
@@ -816,6 +881,32 @@ public class GameProfileSettingsViewModelGameContentTests
         }
 
         items.Add(CreateCore(contentType ?? requestedType, id, gameType, displayName));
+    }
+
+    private async Task<GameProfileSettingsViewModel> CreateSortableViewModelAsync()
+    {
+        AddCandidate(ContentType.Mod, ZeroHourModId, GameType.ZeroHour, "B mod");
+        AddCandidate(ContentType.Map, MapId, GameType.ZeroHour, "C map");
+        AddCandidate(ContentType.Patch, PatchId, GameType.ZeroHour, "A patch");
+        SetReleaseDate(ContentType.Mod, ZeroHourModId, new DateTime(2020, 5, 1, 0, 0, 0, DateTimeKind.Utc));
+        SetReleaseDate(ContentType.Map, MapId, new DateTime(2024, 5, 1, 0, 0, 0, DateTimeKind.Utc));
+        var viewModel = CreateViewModel(withDialog: false);
+        viewModel.AvailableGameInstallations.Add(CreateItem(ContentType.GameInstallation, ZeroHourInstallId, GameType.ZeroHour));
+        await viewModel.RefreshProfileContentCommand.ExecuteAsync(null);
+        return viewModel;
+    }
+
+    private void SetReleaseDate(ContentType requestedType, string id, DateTime releaseDate)
+    {
+        var item = _candidates[requestedType].Single(candidate => candidate.ManifestId == id);
+        item.Manifest = new ContentManifest
+        {
+            Id = ManifestId.Create(id),
+            Name = item.DisplayName,
+            ContentType = item.ContentType,
+            TargetGame = item.GameType,
+            Metadata = new ContentMetadata { ReleaseDate = releaseDate },
+        };
     }
 
     private void SetupConfirmation(bool confirmed) =>

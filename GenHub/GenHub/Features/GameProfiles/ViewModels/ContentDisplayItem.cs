@@ -142,6 +142,12 @@ public partial class ContentDisplayItem : ObservableObject
     public ContentManifest? Manifest { get; set; }
 
     /// <summary>
+    /// Gets the release date from the manifest metadata, or null when the manifest has none.
+    /// </summary>
+    public DateTime? ReleaseDate =>
+        Manifest?.Metadata?.ReleaseDate is { } date && date != default ? date : null;
+
+    /// <summary>
     /// Gets or sets the associated game client instance, if applicable.
     /// </summary>
     public GameClient? GameClient { get; set; }

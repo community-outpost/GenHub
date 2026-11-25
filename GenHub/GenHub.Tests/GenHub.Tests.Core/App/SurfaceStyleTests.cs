@@ -54,34 +54,7 @@ public class SurfaceStyleTests
         }
     }
 
-    /// <summary>A long description stays inside its field without pushing the launch options out of reach.</summary>
-    [AvaloniaFact]
-    public void GeneralPage_LongDescriptionStaysInsideItsField()
-    {
-        var viewModel = DemoViewModelFactory.CreateDemoProfileSettingsViewModel_ProfileTab();
-        viewModel.Description = string.Join("\n", Enumerable.Repeat("A long profile description line", 80));
-        var view = new GameProfileGeneralSettingsView { DataContext = viewModel };
-        var window = new Window { Width = 1100, Height = 800, Content = view };
-        window.Show();
-        try
-        {
-            Dispatcher.UIThread.RunJobs();
-            var fields = view.GetVisualDescendants().OfType<TextBox>().Where(field => field.IsEffectivelyVisible).ToArray();
-            var description = Assert.Single(fields, field => field.AcceptsReturn);
-            Assert.Equal(viewModel.Description, description.Text);
-            Assert.InRange(description.Bounds.Height, 1, 80);
-            var arguments = fields.Last();
-            var origin = arguments.TranslatePoint(default, view);
-            Assert.NotNull(origin);
-            Assert.InRange(origin.Value.Y, 0, view.Bounds.Height - arguments.Bounds.Height);
-        }
-        finally
-        {
-            window.Close();
-        }
-    }
-
-    /// <summary>At the window's minimum width each General row keeps a readable label beside its control.</summary>
+    /// <summary>At the window's minimum width each General row, including the expanded Advanced rows, keeps a readable label beside its control.</summary>
     [AvaloniaFact]
     public void GeneralPage_AtMinimumWindowWidth_KeepsLabelsBesideControls()
     {
@@ -91,6 +64,7 @@ public class SurfaceStyleTests
         window.Show();
         try
         {
+            view.FindControl<Expander>("AdvancedSection")!.IsExpanded = true;
             Dispatcher.UIThread.RunJobs();
             var rows = view.GetVisualDescendants().OfType<Grid>()
                 .Where(grid => grid.ColumnDefinitions.Count == 2 && grid.ColumnDefinitions[1].MaxWidth < double.PositiveInfinity && grid.IsEffectivelyVisible)
