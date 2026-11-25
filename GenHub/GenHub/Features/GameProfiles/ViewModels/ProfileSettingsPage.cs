@@ -5,7 +5,7 @@ namespace GenHub.Features.GameProfiles.ViewModels;
 /// </summary>
 public enum ProfileSettingsPage
 {
-    /// <summary>Profile name and Steam launch.</summary>
+    /// <summary>Profile name, Steam launch and advanced launch options.</summary>
     General,
 
     /// <summary>Game installation and game client.</summary>

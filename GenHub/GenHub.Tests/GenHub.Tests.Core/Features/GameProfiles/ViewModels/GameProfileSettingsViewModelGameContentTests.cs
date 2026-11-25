@@ -310,6 +310,23 @@ public class GameProfileSettingsViewModelGameContentTests
     }
 
     /// <summary>
+    /// Verifies a manifest whose release date is the default value sorts with the undated rows, by name, after the dated rows.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task SortOrder_ReleaseDate_TreatsDefaultDateAsUndatedAsync()
+    {
+        AddCandidate(ContentType.Mod, GeneralsModId, GameType.ZeroHour, "0 default-dated mod");
+        SetReleaseDate(ContentType.Mod, GeneralsModId, default);
+        var viewModel = await CreateSortableViewModelAsync();
+
+        viewModel.SelectedProfileContentSort = ProfileContentSortOrder.ReleaseDate;
+
+        Assert.Null(viewModel.ProfileContentRows.Single(row => row.Item.ManifestId.Value == GeneralsModId).Item.ReleaseDate);
+        Assert.Equal([MapId, ZeroHourModId, GeneralsModId, PatchId], RowIds(viewModel.ProfileContentRows));
+    }
+
+    /// <summary>
     /// Verifies a toggled row keeps its place under a sort it affects, and the next reload applies the sort again.
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
@@ -340,15 +357,25 @@ public class GameProfileSettingsViewModelGameContentTests
         var viewModel = await CreateSortableViewModelAsync();
         viewModel.SelectedProfileContentSort = ProfileContentSortOrder.Type;
         Assert.Contains(ProfileContentSortOrder.Type, viewModel.ProfileContentSortOptions);
+        var optionChanges = 0;
+        viewModel.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(GameProfileSettingsViewModel.ProfileContentSortOptions))
+            {
+                optionChanges++;
+            }
+        };
 
         viewModel.SelectedProfileContentFilter = GameProfileSettingsViewModel.ProfileContentFilterOptions.Single(option => option.ContentType == ContentType.Mod);
 
+        Assert.Equal(1, optionChanges);
         Assert.DoesNotContain(ProfileContentSortOrder.Type, viewModel.ProfileContentSortOptions);
         Assert.Equal(ProfileContentSortOrder.Name, viewModel.SelectedProfileContentSort);
         Assert.Equal([ZeroHourModId], RowIds(viewModel.ProfileContentRows));
 
         viewModel.SelectedProfileContentFilter = ProfileContentFilterOption.All;
 
+        Assert.Equal(2, optionChanges);
         Assert.Contains(ProfileContentSortOrder.Type, viewModel.ProfileContentSortOptions);
         Assert.Equal([PatchId, ZeroHourModId, MapId], RowIds(viewModel.ProfileContentRows));
     }

@@ -59,7 +59,7 @@
     <ScrollViewer x:Name="SettingsScrollViewer" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" BringIntoViewOnFocusChange="False">
         <StackPanel Margin="32,0,32,24">
             <TextBlock Classes="section-header first" Text="{localization:Localize GameSettings.Category.Video}" />
-            <Border Classes="settings-card setting-row" ToolTip.Tip="{localization:Localize GameSettings.Video.ResolutionToolTip}">
+            <Border x:Name="ResolutionRow" Classes="settings-card setting-row" ToolTip.Tip="{localization:Localize GameSettings.Video.ResolutionToolTip}">
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*" MinWidth="140" />
@@ -237,7 +237,7 @@
                     </Grid>
                 </Grid>
             </Border>
-            <Border Classes="settings-card setting-row" IsVisible="{Binding IsGeneralsOnlineVisible}" ToolTip.Tip="{localization:Localize GameSettings.Go.ShowFpsToolTip}">
+            <Border x:Name="GoShowFpsRow" Classes="settings-card setting-row" IsVisible="{Binding IsGeneralsOnlineVisible}" ToolTip.Tip="{localization:Localize GameSettings.Go.ShowFpsToolTip}">
                 <Grid ColumnDefinitions="*,Auto">
                     <TextBlock Classes="row-label" Text="{localization:Localize GameSettings.Go.ShowFps}" />
                     <ToggleSwitch Grid.Column="1" IsChecked="{Binding GoShowFps}" OnContent="{x:Null}" OffContent="{x:Null}" HorizontalAlignment="Right" VerticalAlignment="Center" AutomationProperties.Name="{localization:Localize GameSettings.Go.ShowFps}" />
@@ -405,7 +405,7 @@
                     </Grid>
                 </Grid>
             </Border>
-            <Border Classes="settings-card setting-row" IsVisible="{Binding IsTheSuperHackersVisible}" ToolTip.Tip="{localization:Localize GameSettings.Tsh.ArchiveReplaysToolTip}">
+            <Border x:Name="TshArchiveReplaysRow" Classes="settings-card setting-row" IsVisible="{Binding IsTheSuperHackersVisible}" ToolTip.Tip="{localization:Localize GameSettings.Tsh.ArchiveReplaysToolTip}">
                 <Grid ColumnDefinitions="*,Auto">
                     <TextBlock Classes="row-label" Text="{localization:Localize GameSettings.Tsh.ArchiveReplays}" />
                     <ToggleSwitch Grid.Column="1" IsChecked="{Binding TshArchiveReplays}" OnContent="{x:Null}" OffContent="{x:Null}" HorizontalAlignment="Right" VerticalAlignment="Center" AutomationProperties.Name="{localization:Localize GameSettings.Tsh.ArchiveReplays}" />
@@ -622,7 +622,7 @@
                 </Border>
             </StackPanel>
             <StackPanel IsVisible="{Binding IsGeneralsOnlineVisible}">
-                <TextBlock Classes="section-header" Text="{localization:Localize GameSettings.Section.Multiplayer}" />
+                <TextBlock x:Name="MultiplayerHeader" Classes="section-header" Text="{localization:Localize GameSettings.Section.Multiplayer}" />
                 <Border Classes="settings-card setting-row" ToolTip.Tip="{localization:Localize GameSettings.Go.AutoLoginToolTip}">
                     <Grid ColumnDefinitions="*,Auto">
                         <TextBlock Classes="row-label" Text="{localization:Localize GameSettings.Go.AutoLogin}" />

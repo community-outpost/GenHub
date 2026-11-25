@@ -362,16 +362,16 @@ public class DefaultInfoContentProvider : IInfoContentProvider
                 {
                     Id = InfoConstants.CardSettingsDemo,
                     Title = "Interactive Demo: Settings Window",
-                    Content = "Live interactive game settings window with category navigation and live controls.",
+                    Content = "Live interactive game settings page with every option on one scrolling page.",
                     Type = InfoCardType.Example,
                     IsExpandable = true,
                     DetailedContent = """
                     **Interactive Game Settings Mockup:**
                     Test and explore all graphics, audio, control, and engine settings directly inside this live interactive window.
-                    * Select any category in the left sidebar to jump directly to its options.
+                    * Game Settings is one scrolling page with Video, Audio, Game, Camera and Multiplayer sections.
                     * Adjust resolution, windowed mode, sound channels, or camera heights.
-                    * Toggle community engine extensions from TheSuperHackers and Generals Online.
-                    * Click the top tabs (Content, Profile Settings, Game Settings) to navigate between guides.
+                    * TheSuperHackers and Generals Online rows appear only for profiles that use those clients.
+                    * Pick another page in the sidebar to jump to its guide.
                     """,
                 },
                 new InfoCard
