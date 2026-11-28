@@ -279,7 +279,11 @@ public class HotkeyPackageService(
                 Directory.Delete(path, true);
             }
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        catch (IOException)
+        {
+            // Best effort cleanup
+        }
+        catch (UnauthorizedAccessException)
         {
             // Best effort cleanup
         }

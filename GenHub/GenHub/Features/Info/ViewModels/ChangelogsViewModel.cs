@@ -73,7 +73,7 @@ public partial class ChangelogsViewModel(
             var releases = await gitHubApiClient.GetReleasesAsync(RepositoryOwner, RepositoryName, cancellationToken);
             var releaseList = releases?.ToList();
 
-            if (releaseList != null && releaseList.Count > 0)
+            if (releaseList is { Count: > 0 })
             {
                 Releases.Clear();
                 var sortedReleases = releaseList.OrderByDescending(r => r.PublishedAt).ToList();
@@ -206,7 +206,7 @@ public partial class ChangelogsViewModel(
         {
             using var fileStream = File.OpenRead(cachePath);
             var cachedReleases = await JsonSerializer.DeserializeAsync<List<GitHubRelease>>(fileStream, cancellationToken: cancellationToken);
-            if (cachedReleases != null && cachedReleases.Count > 0)
+            if (cachedReleases is { Count: > 0 })
             {
                 Releases.Clear();
                 var sortedReleases = cachedReleases.OrderByDescending(r => r.PublishedAt).ToList();

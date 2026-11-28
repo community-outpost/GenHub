@@ -351,7 +351,11 @@ public sealed class MapDirectoryService(
                     FileMoveHelper.MoveWithoutResidue(dst, src);
                 }
             }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            catch (IOException)
+            {
+                // Ignore rollback failures
+            }
+            catch (UnauthorizedAccessException)
             {
                 // Ignore rollback failures
             }
@@ -727,7 +731,7 @@ public sealed class MapDirectoryService(
     }
 
     private string Localize(string key, string fallback, params object?[] arguments) =>
-        localizationService != null && localizationService.TryGetString(key, out var localized, arguments)
+        localizationService?.TryGetString(key, out var localized, arguments) == true
             ? localized
             : string.Format(CultureInfo.CurrentCulture, fallback, arguments);
 }

@@ -439,6 +439,25 @@ public class LaunchReceiptService(
         }
     }
 
+    private static LaunchReceiptArchiveRoot? TryFingerprintArchiveRoot(string rootPath, out string? error)
+    {
+        error = null;
+        try
+        {
+            return FingerprintArchiveRoot(rootPath);
+        }
+        catch (IOException ex)
+        {
+            error = ex.Message;
+            return null;
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            error = ex.Message;
+            return null;
+        }
+    }
+
     /// <summary>
     /// Fingerprints one archive root as a per-archive list of name, size and timestamp
     /// from a single directory listing, with the count and byte total derived from it.
@@ -520,14 +539,10 @@ public class LaunchReceiptService(
             return;
         }
 
-        LaunchReceiptArchiveRoot current;
-        try
+        var current = TryFingerprintArchiveRoot(recorded.Path, out var readError);
+        if (current == null)
         {
-            current = FingerprintArchiveRoot(recorded.Path);
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-            report.DriftedFields.Add($"Archive root for {variableName} could not be read: {recorded.Path} ({ex.Message})");
+            report.DriftedFields.Add($"Archive root for {variableName} could not be read: {recorded.Path} ({readError})");
             return;
         }
 

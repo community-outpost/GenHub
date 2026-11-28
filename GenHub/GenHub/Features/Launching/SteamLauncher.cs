@@ -123,55 +123,27 @@ public class SteamLauncher : ISteamLauncher
 
             // Validate every prerequisite that can be checked without changing the installation.
             var proxySourcePath = ResolveProxySourcePath();
-            if (!File.Exists(proxySourcePath))
+            var installationError = ValidateProxyAndInstallation(proxySourcePath, gameInstallPath);
+            if (installationError != null)
             {
-                return OperationResult<SteamLaunchPrepResult>.CreateFailure(
-                    $"Proxy Launcher binary not found at {proxySourcePath}. Please build {ProxyLauncherName} project.");
-            }
-
-            if (!Directory.Exists(gameInstallPath))
-            {
-                return OperationResult<SteamLaunchPrepResult>.CreateFailure(
-                    $"Game installation directory not found: {gameInstallPath}");
+                return OperationResult<SteamLaunchPrepResult>.CreateFailure(installationError);
             }
 
             var targetExePath = ResolveOnDiskPath(Path.Combine(gameInstallPath, executableName));
             var backupPath = targetExePath + SteamConstants.BackupExtension;
             var proxyConfigPath = Path.Combine(gameInstallPath, ProxyConfigFileName);
 
-            if (Directory.Exists(targetExePath))
+            var executableError = ValidateGameExecutablePaths(targetExePath, backupPath);
+            if (executableError != null)
             {
-                return OperationResult<SteamLaunchPrepResult>.CreateFailure(
-                    $"Game executable path is a directory: {targetExePath}");
-            }
-
-            if (!File.Exists(targetExePath) && !File.Exists(backupPath))
-            {
-                return OperationResult<SteamLaunchPrepResult>.CreateFailure(
-                    $"Original game executable not found: {targetExePath}");
-            }
-
-            if (Directory.Exists(backupPath))
-            {
-                return OperationResult<SteamLaunchPrepResult>.CreateFailure(
-                    $"Backup executable path is a directory: {backupPath}");
+                return OperationResult<SteamLaunchPrepResult>.CreateFailure(executableError);
             }
 
             var effectiveTargetExecutable = ResolveOnDiskPath(Path.GetFullPath(targetExecutablePath));
-            if (!File.Exists(effectiveTargetExecutable))
+            var targetExecutableError = ValidateTargetExecutable(effectiveTargetExecutable);
+            if (targetExecutableError != null)
             {
-                return OperationResult<SteamLaunchPrepResult>.CreateFailure(
-                    $"Target executable not found: {effectiveTargetExecutable}. Workspace may not be properly prepared.");
-            }
-
-            if (ReplayCrcMatchingHelper.HasNonRetailExecutableFormat(effectiveTargetExecutable))
-            {
-                var message = LaunchGuardMessages.Localize(
-                    _localizationService,
-                    LaunchMessageConstants.SteamNonWindowsExecutableKey,
-                    LaunchMessageConstants.SteamNonWindowsExecutable,
-                    Path.GetFileName(effectiveTargetExecutable));
-                return OperationResult<SteamLaunchPrepResult>.CreateFailure(message);
+                return OperationResult<SteamLaunchPrepResult>.CreateFailure(targetExecutableError);
             }
 
             var effectiveWorkingDirectory = string.IsNullOrEmpty(targetWorkingDirectory)
@@ -212,25 +184,19 @@ public class SteamLauncher : ISteamLauncher
                 filesToCapture.Add(Path.Combine(directory, "steam_appid.txt"));
             }
 
-            foreach (var path in filesToCapture.Distinct(PathComparer))
+            var capturedPathError = FindCapturedPathConflict(filesToCapture);
+            if (capturedPathError != null)
             {
-                if (Directory.Exists(path))
-                {
-                    return OperationResult<SteamLaunchPrepResult>.CreateFailure(
-                        $"Required file path is a directory: {path}");
-                }
+                return OperationResult<SteamLaunchPrepResult>.CreateFailure(capturedPathError);
             }
 
             var dependencyCopies = GetRequiredDependencyCopies(
                 gameInstallPath,
                 [effectiveWorkingDirectory, targetDirectory]);
-            foreach (var (_, destinationPath) in dependencyCopies)
+            var dependencyError = FindDependencyConflict(dependencyCopies);
+            if (dependencyError != null)
             {
-                if (Directory.Exists(destinationPath))
-                {
-                    return OperationResult<SteamLaunchPrepResult>.CreateFailure(
-                        $"Runtime dependency path is a directory: {destinationPath}");
-                }
+                return OperationResult<SteamLaunchPrepResult>.CreateFailure(dependencyError);
             }
 
             rollback = new PreparationRollback(
@@ -263,22 +229,7 @@ public class SteamLauncher : ISteamLauncher
                 config.WorkingDirectory,
                 config.Arguments.Length);
 
-            if (!string.IsNullOrEmpty(steamAppId))
-            {
-                foreach (var directory in appIdDirectories)
-                {
-                    await WriteSteamAppIdAsync(steamAppId, directory, rollback, cancellationToken);
-                }
-            }
-
-            foreach (var (sourcePath, destinationPath) in dependencyCopies)
-            {
-                await rollback.CopyNewFileAsync(sourcePath, destinationPath, cancellationToken);
-                _logger.LogInformation(
-                    "[SteamLauncher] Copied missing critical file {File} to {Destination}",
-                    Path.GetFileName(sourcePath),
-                    Path.GetDirectoryName(destinationPath));
-            }
+            await WriteSupportFilesAsync(steamAppId, appIdDirectories, dependencyCopies, rollback, cancellationToken);
 
             cancellationToken.ThrowIfCancellationRequested();
 
@@ -298,21 +249,7 @@ public class SteamLauncher : ISteamLauncher
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "[SteamLauncher] Failed to prepare proxy for profile {ProfileId}", profileId);
-
-            var errors = new List<string>
-            {
-                ex is OperationCanceledException
-                    ? "Steam proxy preparation was canceled."
-                    : $"Failed to prepare proxy: {ex.Message}",
-            };
-
-            if (rollback is not null)
-            {
-                errors.AddRange(rollback.Rollback());
-            }
-
-            return OperationResult<SteamLaunchPrepResult>.CreateFailure(errors);
+            return CreatePreparationFailure(ex, profileId, rollback);
         }
         finally
         {
@@ -451,6 +388,67 @@ public class SteamLauncher : ISteamLauncher
         return false;
     }
 
+    private static string? ValidateProxyAndInstallation(string proxySourcePath, string gameInstallPath)
+    {
+        if (!File.Exists(proxySourcePath))
+        {
+            return $"Proxy Launcher binary not found at {proxySourcePath}. Please build {ProxyLauncherName} project.";
+        }
+
+        if (!Directory.Exists(gameInstallPath))
+        {
+            return $"Game installation directory not found: {gameInstallPath}";
+        }
+
+        return null;
+    }
+
+    private static string? ValidateGameExecutablePaths(string targetExePath, string backupPath)
+    {
+        if (Directory.Exists(targetExePath))
+        {
+            return $"Game executable path is a directory: {targetExePath}";
+        }
+
+        if (!File.Exists(targetExePath) && !File.Exists(backupPath))
+        {
+            return $"Original game executable not found: {targetExePath}";
+        }
+
+        if (Directory.Exists(backupPath))
+        {
+            return $"Backup executable path is a directory: {backupPath}";
+        }
+
+        return null;
+    }
+
+    private static string? FindCapturedPathConflict(List<string> filesToCapture)
+    {
+        foreach (var path in filesToCapture.Distinct(PathComparer))
+        {
+            if (Directory.Exists(path))
+            {
+                return $"Required file path is a directory: {path}";
+            }
+        }
+
+        return null;
+    }
+
+    private static string? FindDependencyConflict(List<(string SourcePath, string DestinationPath)> dependencyCopies)
+    {
+        foreach (var (_, destinationPath) in dependencyCopies)
+        {
+            if (Directory.Exists(destinationPath))
+            {
+                return $"Runtime dependency path is a directory: {destinationPath}";
+            }
+        }
+
+        return null;
+    }
+
     /// <summary>
     /// Resolves a candidate file path to its actual on-disk casing, falling back to the
     /// candidate when nothing matches so existing not-found failures keep their messages.
@@ -485,7 +483,7 @@ public class SteamLauncher : ISteamLauncher
 
         try
         {
-            using var stream = File.Open(targetExePath, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
+            File.Open(targetExePath, FileMode.Open, FileAccess.ReadWrite, FileShare.None).Dispose();
             return false;
         }
         catch (IOException)
@@ -496,6 +494,69 @@ public class SteamLauncher : ISteamLauncher
         {
             return true;
         }
+    }
+
+    private string? ValidateTargetExecutable(string effectiveTargetExecutable)
+    {
+        if (!File.Exists(effectiveTargetExecutable))
+        {
+            return $"Target executable not found: {effectiveTargetExecutable}. Workspace may not be properly prepared.";
+        }
+
+        if (ReplayCrcMatchingHelper.HasNonRetailExecutableFormat(effectiveTargetExecutable))
+        {
+            return LaunchGuardMessages.Localize(
+                _localizationService,
+                LaunchMessageConstants.SteamNonWindowsExecutableKey,
+                LaunchMessageConstants.SteamNonWindowsExecutable,
+                Path.GetFileName(effectiveTargetExecutable));
+        }
+
+        return null;
+    }
+
+    private async Task WriteSupportFilesAsync(
+        string? steamAppId,
+        string[] appIdDirectories,
+        List<(string SourcePath, string DestinationPath)> dependencyCopies,
+        PreparationRollback rollback,
+        CancellationToken cancellationToken)
+    {
+        if (!string.IsNullOrEmpty(steamAppId))
+        {
+            foreach (var directory in appIdDirectories)
+            {
+                await WriteSteamAppIdAsync(steamAppId, directory, rollback, cancellationToken);
+            }
+        }
+
+        foreach (var (sourcePath, destinationPath) in dependencyCopies)
+        {
+            await rollback.CopyNewFileAsync(sourcePath, destinationPath, cancellationToken);
+            _logger.LogInformation(
+                "[SteamLauncher] Copied missing critical file {File} to {Destination}",
+                Path.GetFileName(sourcePath),
+                Path.GetDirectoryName(destinationPath));
+        }
+    }
+
+    private OperationResult<SteamLaunchPrepResult> CreatePreparationFailure(Exception ex, string profileId, PreparationRollback? rollback)
+    {
+        _logger.LogError(ex, "[SteamLauncher] Failed to prepare proxy for profile {ProfileId}", profileId);
+
+        var errors = new List<string>
+        {
+            ex is OperationCanceledException
+                ? "Steam proxy preparation was canceled."
+                : $"Failed to prepare proxy: {ex.Message}",
+        };
+
+        if (rollback is not null)
+        {
+            errors.AddRange(rollback.Rollback());
+        }
+
+        return OperationResult<SteamLaunchPrepResult>.CreateFailure(errors);
     }
 
     private OperationResult<bool> RestoreOriginalExecutable(

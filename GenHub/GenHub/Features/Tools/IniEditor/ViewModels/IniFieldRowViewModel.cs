@@ -84,7 +84,7 @@ public sealed partial class IniFieldRowViewModel : ObservableObject
     /// <summary>
     /// Gets a value indicating whether the row offers a searchable value dropdown.
     /// </summary>
-    public bool HasSuggestions => Suggestions != null && Suggestions.Count > 0;
+    public bool HasSuggestions => Suggestions is { Count: > 0 };
 
     /// <summary>
     /// Gets the referenced block type for go-to-definition, when any.

@@ -136,7 +136,7 @@ public partial class GameProfileSettingsViewModel
     /// Invoked after a sidebar page is chosen through <see cref="SelectedPage"/>, with the tab index the page belongs to.
     /// </summary>
     /// <param name="tabIndex">The selected tab index.</param>
-    protected virtual void OnTabSelected(int tabIndex)
+    protected virtual void OnTabSelected(int tabIndex) // skipcq: CS-R1093
     {
     }
 

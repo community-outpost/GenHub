@@ -75,14 +75,7 @@ public class ProfileContentLinkerService(
         bool skipCleanup = false,
         CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrEmpty(oldProfileId))
-        {
-            var activeProfileResult = await userDataTracker.GetActiveProfileIdAsync(cancellationToken);
-            if (activeProfileResult?.Success == true && !string.IsNullOrEmpty(activeProfileResult.Data))
-            {
-                oldProfileId = activeProfileResult.Data;
-            }
-        }
+        oldProfileId = await ResolveOldProfileIdAsync(oldProfileId, cancellationToken);
 
         var newManifestList = (newManifests as IReadOnlyList<ContentManifest>) ?? newManifests.ToList();
 
@@ -106,112 +99,10 @@ public class ProfileContentLinkerService(
                     logger.LogWarning("[ProfileContentLinker] Could not deactivate old profile user data for {OldProfileId}: {Error}", oldProfileId, deactRes.FirstError);
                 }
 
-                var oldUserDataResult = await userDataTracker.GetProfileUserDataAsync(oldProfileId, cancellationToken);
-                if (oldUserDataResult.Success && oldUserDataResult.Data != null)
+                var adoptFailure = await AdoptOldProfileUserDataAsync(oldProfileId, newProfileId, newManifestList, targetGame, cancellationToken);
+                if (adoptFailure != null)
                 {
-                    var matchingManifests = oldUserDataResult.Data
-                        .Where(m => m.TargetGame == targetGame || m.TargetGame == GameType.Unknown)
-                        .ToList();
-
-                    var newManifestIds = newManifestList
-                        .Select(m => m.Id.Value)
-                        .ToHashSet(StringComparer.OrdinalIgnoreCase);
-
-                    var newUserDataFiles = new HashSet<(ContentInstallTarget InstallTarget, string RelativePath)>(UserDataFileKeyEqualityComparer.Instance);
-
-                    foreach (var newManifest in newManifestList)
-                    {
-                        if (!HasProfileUserData(newManifest))
-                        {
-                            continue;
-                        }
-
-                        var manifestUserFiles = GetUserDataFiles(newManifest);
-                        var manifestMapNames = UserDataPathHelper.ExtractCandidateMapNames(manifestUserFiles);
-                        string? manifestSingleMapBaseName = manifestMapNames.Count == 1 ? manifestMapNames[0] : null;
-
-                        foreach (var file in manifestUserFiles)
-                        {
-                            var normalizedPath = UserDataPathHelper.NormalizeUserDataRelativePath(
-                                file.InstallTarget,
-                                file.RelativePath,
-                                manifestSingleMapBaseName,
-                                manifestMapNames);
-
-                            newUserDataFiles.Add((file.InstallTarget, normalizedPath));
-                        }
-                    }
-
-                    var fileCount = matchingManifests.Sum(m => m.InstalledFiles?.Count ?? 0);
-                    if (fileCount > 100)
-                    {
-                        logger.LogInformation("[ProfileContentLinker] Linking large number of maps ({Count}). This might take a while.", fileCount);
-                    }
-
-                    // Register non-conflicting manifest files for the new profile as well
-                    // This ensures they are tracked and won't be deleted when switching FROM the new profile later
-                    foreach (var manifest in matchingManifests)
-                    {
-                        cancellationToken.ThrowIfCancellationRequested();
-
-                        if (newManifestIds.Contains(manifest.ManifestId))
-                        {
-                            logger.LogInformation(
-                                "[ProfileContentLinker] Skipping adoption of manifest {ManifestId} into profile {NewProfileId} because it is explicitly defined in new manifests",
-                                manifest.ManifestId,
-                                newProfileId);
-                            continue;
-                        }
-
-                        var oldMapFiles = (manifest.InstalledFiles ?? Enumerable.Empty<UserDataFileEntry>())
-                            .Where(f => f.InstallTarget == ContentInstallTarget.UserMapsDirectory)
-                            .Select(f => f.RelativePath)
-                            .ToList();
-
-                        var oldMapNames = UserDataPathHelper.ExtractCandidateMapNames(oldMapFiles);
-                        string? oldSingleMapBaseName = oldMapNames.Count == 1 ? oldMapNames[0] : null;
-
-                        var hasCollision = (manifest.InstalledFiles ?? Enumerable.Empty<UserDataFileEntry>()).Any(f =>
-                        {
-                            var normalizedPath = UserDataPathHelper.NormalizeUserDataRelativePath(
-                                f.InstallTarget,
-                                f.RelativePath,
-                                oldSingleMapBaseName,
-                                oldMapNames);
-
-                            return newUserDataFiles.Contains((f.InstallTarget, normalizedPath));
-                        });
-
-                        if (hasCollision)
-                        {
-                            logger.LogInformation(
-                                "[ProfileContentLinker] Skipping adoption of manifest {ManifestId} into profile {NewProfileId} because one or more files conflict with incoming profile manifests",
-                                manifest.ManifestId,
-                                newProfileId);
-                            continue;
-                        }
-
-                        var adoptRes = await userDataTracker.InstallUserDataAsync(
-                            manifest.ManifestId,
-                            newProfileId,
-                            targetGame,
-                            (manifest.InstalledFiles ?? Enumerable.Empty<UserDataFileEntry>()).Select(f => new ManifestFile
-                            {
-                                RelativePath = f.RelativePath,
-                                Hash = f.SourceHash ?? f.CasHash ?? string.Empty,
-                                Size = f.FileSize,
-                                InstallTarget = f.InstallTarget,
-                            }),
-                            manifest.ManifestVersion,
-                            manifest.ManifestName,
-                            cancellationToken);
-
-                        if (!adoptRes.Success)
-                        {
-                            logger.LogError("[ProfileContentLinker] Failed to adopt user data for manifest {ManifestId} into profile {NewProfileId}: {Error}", manifest.ManifestId, newProfileId, adoptRes.FirstError);
-                            return OperationResult<bool>.CreateFailure(adoptRes.FirstError ?? $"Failed to adopt user data for manifest {manifest.ManifestId}");
-                        }
-                    }
+                    return adoptFailure;
                 }
             }
 
@@ -418,6 +309,154 @@ public class ProfileContentLinkerService(
             PatchSourceFile = file.PatchSourceFile,
             PackageInfo = file.PackageInfo,
         };
+    }
+
+    private static bool HasUserDataCollision(
+        UserDataManifest manifest,
+        HashSet<(ContentInstallTarget InstallTarget, string RelativePath)> newUserDataFiles)
+    {
+        var oldMapFiles = (manifest.InstalledFiles ?? Enumerable.Empty<UserDataFileEntry>())
+            .Where(f => f.InstallTarget == ContentInstallTarget.UserMapsDirectory)
+            .Select(f => f.RelativePath)
+            .ToList();
+
+        var oldMapNames = UserDataPathHelper.ExtractCandidateMapNames(oldMapFiles);
+        string? oldSingleMapBaseName = oldMapNames.Count == 1 ? oldMapNames[0] : null;
+
+        return (manifest.InstalledFiles ?? Enumerable.Empty<UserDataFileEntry>()).Any(f =>
+        {
+            var normalizedPath = UserDataPathHelper.NormalizeUserDataRelativePath(
+                f.InstallTarget,
+                f.RelativePath,
+                oldSingleMapBaseName,
+                oldMapNames);
+
+            return newUserDataFiles.Contains((f.InstallTarget, normalizedPath));
+        });
+    }
+
+    private async Task<string?> ResolveOldProfileIdAsync(string? oldProfileId, CancellationToken cancellationToken)
+    {
+        if (!string.IsNullOrEmpty(oldProfileId))
+        {
+            return oldProfileId;
+        }
+
+        var activeProfileResult = await userDataTracker.GetActiveProfileIdAsync(cancellationToken);
+        if (activeProfileResult?.Success == true && !string.IsNullOrEmpty(activeProfileResult.Data))
+        {
+            return activeProfileResult.Data;
+        }
+
+        return oldProfileId;
+    }
+
+    private async Task<OperationResult<bool>?> AdoptOldProfileUserDataAsync(
+        string oldProfileId,
+        string newProfileId,
+        IReadOnlyList<ContentManifest> newManifestList,
+        GameType targetGame,
+        CancellationToken cancellationToken)
+    {
+        var oldUserDataResult = await userDataTracker.GetProfileUserDataAsync(oldProfileId, cancellationToken);
+        if (!oldUserDataResult.Success || oldUserDataResult.Data == null)
+        {
+            return null;
+        }
+
+        var matchingManifests = oldUserDataResult.Data
+            .Where(m => m.TargetGame == targetGame || m.TargetGame == GameType.Unknown)
+            .ToList();
+
+        var newManifestIds = newManifestList
+            .Select(m => m.Id.Value)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        var newUserDataFiles = BuildIncomingUserDataFiles(newManifestList);
+
+        var fileCount = matchingManifests.Sum(m => m.InstalledFiles?.Count ?? 0);
+        if (fileCount > 100)
+        {
+            logger.LogInformation("[ProfileContentLinker] Linking large number of maps ({Count}). This might take a while.", fileCount);
+        }
+
+        // Register non-conflicting manifest files for the new profile as well
+        // This ensures they are tracked and won't be deleted when switching FROM the new profile later
+        foreach (var manifest in matchingManifests)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            if (newManifestIds.Contains(manifest.ManifestId))
+            {
+                logger.LogInformation(
+                    "[ProfileContentLinker] Skipping adoption of manifest {ManifestId} into profile {NewProfileId} because it is explicitly defined in new manifests",
+                    manifest.ManifestId,
+                    newProfileId);
+                continue;
+            }
+
+            if (HasUserDataCollision(manifest, newUserDataFiles))
+            {
+                logger.LogInformation(
+                    "[ProfileContentLinker] Skipping adoption of manifest {ManifestId} into profile {NewProfileId} because one or more files conflict with incoming profile manifests",
+                    manifest.ManifestId,
+                    newProfileId);
+                continue;
+            }
+
+            var adoptRes = await userDataTracker.InstallUserDataAsync(
+                manifest.ManifestId,
+                newProfileId,
+                targetGame,
+                (manifest.InstalledFiles ?? Enumerable.Empty<UserDataFileEntry>()).Select(f => new ManifestFile
+                {
+                    RelativePath = f.RelativePath,
+                    Hash = f.SourceHash ?? f.CasHash ?? string.Empty,
+                    Size = f.FileSize,
+                    InstallTarget = f.InstallTarget,
+                }),
+                manifest.ManifestVersion,
+                manifest.ManifestName,
+                cancellationToken);
+
+            if (!adoptRes.Success)
+            {
+                logger.LogError("[ProfileContentLinker] Failed to adopt user data for manifest {ManifestId} into profile {NewProfileId}: {Error}", manifest.ManifestId, newProfileId, adoptRes.FirstError);
+                return OperationResult<bool>.CreateFailure(adoptRes.FirstError ?? $"Failed to adopt user data for manifest {manifest.ManifestId}");
+            }
+        }
+
+        return null;
+    }
+
+    private HashSet<(ContentInstallTarget InstallTarget, string RelativePath)> BuildIncomingUserDataFiles(IReadOnlyList<ContentManifest> newManifestList)
+    {
+        var newUserDataFiles = new HashSet<(ContentInstallTarget InstallTarget, string RelativePath)>(UserDataFileKeyEqualityComparer.Instance);
+
+        foreach (var newManifest in newManifestList)
+        {
+            if (!HasProfileUserData(newManifest))
+            {
+                continue;
+            }
+
+            var manifestUserFiles = GetUserDataFiles(newManifest);
+            var manifestMapNames = UserDataPathHelper.ExtractCandidateMapNames(manifestUserFiles);
+            string? manifestSingleMapBaseName = manifestMapNames.Count == 1 ? manifestMapNames[0] : null;
+
+            foreach (var file in manifestUserFiles)
+            {
+                var normalizedPath = UserDataPathHelper.NormalizeUserDataRelativePath(
+                    file.InstallTarget,
+                    file.RelativePath,
+                    manifestSingleMapBaseName,
+                    manifestMapNames);
+
+                newUserDataFiles.Add((file.InstallTarget, normalizedPath));
+            }
+        }
+
+        return newUserDataFiles;
     }
 
     private bool HasProfileUserData(ContentManifest manifest)

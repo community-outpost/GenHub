@@ -327,6 +327,60 @@ public static class WorkspaceCompatibilityHelper
         workspaceInfo.FileCount += created - removed;
     }
 
+    private static HashSet<string>? TryReadWorkspaceRootNames(string workspacePath, WorkspaceInfo workspaceInfo, ILogger logger)
+    {
+        try
+        {
+            var existingNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var entry in Directory.EnumerateFileSystemEntries(workspacePath, "*", SearchOption.TopDirectoryOnly))
+            {
+                var name = Path.GetFileName(entry);
+                if (!string.IsNullOrEmpty(name))
+                {
+                    existingNames.Add(name);
+                }
+            }
+
+            return existingNames;
+        }
+        catch (IOException ex)
+        {
+            ReportRootEnumerationFailure(ex, workspacePath, workspaceInfo, logger);
+            return null;
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            ReportRootEnumerationFailure(ex, workspacePath, workspaceInfo, logger);
+            return null;
+        }
+    }
+
+    private static void ReportRootEnumerationFailure(Exception ex, string workspacePath, WorkspaceInfo workspaceInfo, ILogger logger)
+    {
+        logger.LogWarning(ex, "Failed to enumerate workspace root {Workspace} for supplemental archives", workspacePath);
+        workspaceInfo.ValidationIssues.Add(new ValidationIssue(
+            $"Failed to enumerate workspace root {workspacePath} for supplemental archives: {ex.Message}",
+            ValidationSeverity.Warning));
+    }
+
+    private static string[]? TryGetWorkspaceRootFiles(string workspacePath, ILogger logger)
+    {
+        try
+        {
+            return Directory.GetFiles(workspacePath, "*", SearchOption.TopDirectoryOnly);
+        }
+        catch (IOException ex)
+        {
+            logger.LogDebug(ex, "Failed to enumerate workspace root for supplemental reconciliation: {Workspace}", workspacePath);
+            return null;
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            logger.LogDebug(ex, "Failed to enumerate workspace root for supplemental reconciliation: {Workspace}", workspacePath);
+            return null;
+        }
+    }
+
     /// <summary>
     /// Creates workspace-root links for every desired archive that has no entry yet.
     /// </summary>
@@ -342,25 +396,9 @@ public static class WorkspaceCompatibilityHelper
         WorkspaceInfo workspaceInfo,
         ILogger logger)
     {
-        HashSet<string> existingNames;
-        try
+        var existingNames = TryReadWorkspaceRootNames(workspacePath, workspaceInfo, logger);
+        if (existingNames == null)
         {
-            existingNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            foreach (var entry in Directory.EnumerateFileSystemEntries(workspacePath, "*", SearchOption.TopDirectoryOnly))
-            {
-                var name = Path.GetFileName(entry);
-                if (!string.IsNullOrEmpty(name))
-                {
-                    existingNames.Add(name);
-                }
-            }
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-            logger.LogWarning(ex, "Failed to enumerate workspace root {Workspace} for supplemental archives", workspacePath);
-            workspaceInfo.ValidationIssues.Add(new ValidationIssue(
-                $"Failed to enumerate workspace root {workspacePath} for supplemental archives: {ex.Message}",
-                ValidationSeverity.Warning));
             return 0;
         }
 
@@ -405,14 +443,9 @@ public static class WorkspaceCompatibilityHelper
         IReadOnlyDictionary<string, string> desiredArchives,
         ILogger logger)
     {
-        string[] entries;
-        try
+        var entries = TryGetWorkspaceRootFiles(workspacePath, logger);
+        if (entries == null)
         {
-            entries = Directory.GetFiles(workspacePath, "*", SearchOption.TopDirectoryOnly);
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-            logger.LogDebug(ex, "Failed to enumerate workspace root for supplemental reconciliation: {Workspace}", workspacePath);
             return 0;
         }
 

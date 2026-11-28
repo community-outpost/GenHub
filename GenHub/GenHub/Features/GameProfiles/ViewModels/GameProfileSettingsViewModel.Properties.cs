@@ -28,9 +28,9 @@ public partial class GameProfileSettingsViewModel
     private bool _isColorCustomized;
     private bool _isIconCustomized;
     private bool _isCoverCustomized;
-    private bool _isApplyingBranding;
-    private string? _brandingSelectionKey;
-    private string? _loadedClientSelectionKey;
+    private bool _isApplyingBranding; // skipcq: CS-R1137
+    private string? _brandingSelectionKey; // skipcq: CS-R1137
+    private string? _loadedClientSelectionKey; // skipcq: CS-R1137
 
     partial void OnNameChanged(string value)
     {
@@ -40,16 +40,9 @@ public partial class GameProfileSettingsViewModel
         }
 
         var defaultBranding = ResolveDefaultBranding();
-        if (string.IsNullOrWhiteSpace(value) ||
+        _isNameCustomized = !(string.IsNullOrWhiteSpace(value) ||
             string.Equals(value, ProfileConstants.DefaultProfileName, StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(value, defaultBranding.Name, StringComparison.OrdinalIgnoreCase))
-        {
-            _isNameCustomized = false;
-        }
-        else
-        {
-            _isNameCustomized = true;
-        }
+            string.Equals(value, defaultBranding.Name, StringComparison.OrdinalIgnoreCase));
     }
 
     partial void OnColorValueChanged(string value)
@@ -60,16 +53,9 @@ public partial class GameProfileSettingsViewModel
         }
 
         var defaultBranding = ResolveDefaultBranding();
-        if (string.IsNullOrWhiteSpace(value) ||
+        _isColorCustomized = !(string.IsNullOrWhiteSpace(value) ||
             string.Equals(value, ProfileSharingConstants.DefaultThemeColor, StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(value, defaultBranding.Color, StringComparison.OrdinalIgnoreCase))
-        {
-            _isColorCustomized = false;
-        }
-        else
-        {
-            _isColorCustomized = true;
-        }
+            string.Equals(value, defaultBranding.Color, StringComparison.OrdinalIgnoreCase));
     }
 
     partial void OnIconPathChanged(string value)
@@ -80,15 +66,8 @@ public partial class GameProfileSettingsViewModel
         }
 
         var defaultBranding = ResolveDefaultBranding();
-        if (string.IsNullOrWhiteSpace(value) ||
-            string.Equals(value, defaultBranding.IconPath, StringComparison.OrdinalIgnoreCase))
-        {
-            _isIconCustomized = false;
-        }
-        else
-        {
-            _isIconCustomized = true;
-        }
+        _isIconCustomized = !(string.IsNullOrWhiteSpace(value) ||
+            string.Equals(value, defaultBranding.IconPath, StringComparison.OrdinalIgnoreCase));
     }
 
     partial void OnCoverPathChanged(string value)
@@ -99,15 +78,8 @@ public partial class GameProfileSettingsViewModel
         }
 
         var defaultBranding = ResolveDefaultBranding();
-        if (string.IsNullOrWhiteSpace(value) ||
-            string.Equals(value, defaultBranding.CoverPath, StringComparison.OrdinalIgnoreCase))
-        {
-            _isCoverCustomized = false;
-        }
-        else
-        {
-            _isCoverCustomized = true;
-        }
+        _isCoverCustomized = !(string.IsNullOrWhiteSpace(value) ||
+            string.Equals(value, defaultBranding.CoverPath, StringComparison.OrdinalIgnoreCase));
     }
 
     private ContentType _selectedContentType = ContentType.GameClient;

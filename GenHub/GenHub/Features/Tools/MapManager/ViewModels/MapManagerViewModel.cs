@@ -1442,7 +1442,7 @@ public partial class MapManagerViewModel(
 
     private string GetLocalizedString(string key, string fallback)
     {
-        return localizationService != null && localizationService.TryGetString(key, out var localized)
+        return localizationService?.TryGetString(key, out var localized) == true
             ? localized
             : fallback;
     }

@@ -80,6 +80,37 @@ public class ProfileLauncherFacade(
         public void Report(T value) => handler(value);
     }
 
+    private sealed class WorkspaceNotificationTracker
+    {
+        private readonly object _lock = new();
+        private Guid? _notificationId;
+
+        public NotificationMessage? TryCreate(Func<NotificationMessage> factory)
+        {
+            lock (_lock)
+            {
+                if (_notificationId != null)
+                {
+                    return null;
+                }
+
+                var message = factory();
+                _notificationId = message.Id;
+                return message;
+            }
+        }
+
+        public Guid? TakeForDismissal()
+        {
+            lock (_lock)
+            {
+                var id = _notificationId;
+                _notificationId = null;
+                return id;
+            }
+        }
+    }
+
     /// <inheritdoc/>
     public Task<ProfileOperationResult<GameLaunchInfo>> LaunchProfileAsync(
         string profileId,
@@ -135,15 +166,9 @@ public class ProfileLauncherFacade(
                 }
             }
 
-            ProfileOperationResult<GameLaunchInfo> launchResult;
-            if (profile.IsToolProfile)
-            {
-                launchResult = await LaunchToolProfileAsync(profile, profileId, cancellationToken);
-            }
-            else
-            {
-                launchResult = await LaunchGameProfileAsync(profile, profileId, skipUserDataCleanup, additionalArguments, cancellationToken);
-            }
+            var launchResult = profile.IsToolProfile
+                ? await LaunchToolProfileAsync(profile, profileId, cancellationToken)
+                : await LaunchGameProfileAsync(profile, profileId, skipUserDataCleanup, additionalArguments, cancellationToken);
 
             if (launchResult.Success)
             {
@@ -983,62 +1008,7 @@ public class ProfileLauncherFacade(
             // Launch the game using the profile
             logger.LogDebug("[Launch] Step 6: Delegating to GameLauncher for workspace prep and process start");
 
-            var notificationLock = new object();
-            Guid? workspaceNotificationId = null;
-            var launchProgress = new SynchronousProgress<LaunchProgress>(p =>
-            {
-                if (p.IsInitializingWorkspace)
-                {
-                    NotificationMessage? messageToShow = null;
-                    lock (notificationLock)
-                    {
-                        if (workspaceNotificationId == null)
-                        {
-                            var title = localizationService?.GetString(ProfileConstants.WorkspacePreparingTitleKey)
-                                ?? ProfileConstants.WorkspacePreparingDefaultTitle;
-                            var body = localizationService != null
-                                ? localizationService.GetString(ProfileConstants.WorkspaceInitializingMessageKey, profile.Name)
-                                : string.Format(System.Globalization.CultureInfo.InvariantCulture, ProfileConstants.WorkspaceInitializingDefaultFormat, profile.Name);
-
-                            messageToShow = new NotificationMessage(
-                                NotificationType.Info,
-                                title,
-                                body,
-                                autoDismissMilliseconds: null,
-                                isPersistent: true);
-                            workspaceNotificationId = messageToShow.Id;
-                        }
-                    }
-
-                    if (messageToShow != null)
-                    {
-                        notificationService.Show(messageToShow);
-                    }
-                }
-            });
-
-            LaunchOperationResult<GameLaunchInfo> launchResult;
-            try
-            {
-                launchResult = await gameLauncher.LaunchProfileAsync(profile, progress: launchProgress, skipUserDataCleanup: skipUserDataCleanup, additionalArguments: additionalArguments, cancellationToken: cancellationToken);
-            }
-            finally
-            {
-                Guid? notificationToDismiss = null;
-                lock (notificationLock)
-                {
-                    if (workspaceNotificationId.HasValue)
-                    {
-                        notificationToDismiss = workspaceNotificationId.Value;
-                        workspaceNotificationId = null;
-                    }
-                }
-
-                if (notificationToDismiss.HasValue)
-                {
-                    notificationService.Dismiss(notificationToDismiss.Value);
-                }
-            }
+            var launchResult = await LaunchWithWorkspaceNotificationAsync(profile, skipUserDataCleanup, additionalArguments, cancellationToken);
 
             if (launchResult.Failed)
             {
@@ -1051,43 +1021,7 @@ public class ProfileLauncherFacade(
                 profileId,
                 launchInfo.ProcessInfo.ProcessId);
 
-            // Persist the ActiveWorkspaceId to the profile repository
-            // This is critical for ContentReconciliationService to find and invalidate this workspace
-            // if any of its content changes later.
-            if (!string.IsNullOrEmpty(launchInfo.WorkspaceId) && launchInfo.WorkspaceId != profile.ActiveWorkspaceId)
-            {
-                var updateRequest = new UpdateProfileRequest
-                {
-                    ActiveWorkspaceId = launchInfo.WorkspaceId,
-                };
-
-                try
-                {
-                    var updateResult = await profileManager.UpdateProfileAsync(profileId, updateRequest, cancellationToken);
-                    if (updateResult.Success)
-                    {
-                        logger.LogInformation(
-                            "Persisted active workspace ID '{WorkspaceId}' to profile '{ProfileId}'",
-                            launchInfo.WorkspaceId,
-                            profileId);
-                    }
-                    else
-                    {
-                        logger.LogError(
-                            "Failed to persist active workspace ID '{WorkspaceId}' to profile '{ProfileId}': {Error}. The game is running; content reconciliation will not be able to invalidate this workspace.",
-                            launchInfo.WorkspaceId,
-                            profileId,
-                            updateResult.FirstError);
-                    }
-                }
-                catch (Exception ex)
-                {
-                    logger.LogError(
-                        ex,
-                        "Exception while persisting active workspace ID for profile '{ProfileId}'",
-                        profileId);
-                }
-            }
+            await PersistActiveWorkspaceIdAsync(profileId, profile, launchInfo, cancellationToken);
 
             if (launchInfo.TerminatedAt.HasValue || launchInfo.HasFailed)
             {
@@ -1110,6 +1044,102 @@ public class ProfileLauncherFacade(
         {
             logger.LogError(ex, "Failed to launch profile {ProfileId}", profileId);
             return ProfileOperationResult<GameLaunchInfo>.CreateFailure($"Failed to launch profile: {ex.Message}");
+        }
+    }
+
+    private async Task<LaunchOperationResult<GameLaunchInfo>> LaunchWithWorkspaceNotificationAsync(
+        GameProfile profile,
+        bool skipUserDataCleanup,
+        IReadOnlyDictionary<string, string>? additionalArguments,
+        CancellationToken cancellationToken)
+    {
+        var workspaceNotification = new WorkspaceNotificationTracker();
+        var launchProgress = new SynchronousProgress<LaunchProgress>(p =>
+        {
+            if (p.IsInitializingWorkspace)
+            {
+                var messageToShow = workspaceNotification.TryCreate(() => CreateWorkspaceInitializingNotification(profile));
+                if (messageToShow != null)
+                {
+                    notificationService.Show(messageToShow);
+                }
+            }
+        });
+
+        try
+        {
+            return await gameLauncher.LaunchProfileAsync(profile, progress: launchProgress, skipUserDataCleanup: skipUserDataCleanup, additionalArguments: additionalArguments, cancellationToken: cancellationToken);
+        }
+        finally
+        {
+            var notificationToDismiss = workspaceNotification.TakeForDismissal();
+            if (notificationToDismiss.HasValue)
+            {
+                notificationService.Dismiss(notificationToDismiss.Value);
+            }
+        }
+    }
+
+    private NotificationMessage CreateWorkspaceInitializingNotification(GameProfile profile)
+    {
+        var title = localizationService?.GetString(ProfileConstants.WorkspacePreparingTitleKey)
+            ?? ProfileConstants.WorkspacePreparingDefaultTitle;
+        var body = localizationService != null
+            ? localizationService.GetString(ProfileConstants.WorkspaceInitializingMessageKey, profile.Name)
+            : string.Format(System.Globalization.CultureInfo.InvariantCulture, ProfileConstants.WorkspaceInitializingDefaultFormat, profile.Name);
+
+        return new NotificationMessage(
+            NotificationType.Info,
+            title,
+            body,
+            autoDismissMilliseconds: null,
+            isPersistent: true);
+    }
+
+    private async Task PersistActiveWorkspaceIdAsync(
+        string profileId,
+        GameProfile profile,
+        GameLaunchInfo launchInfo,
+        CancellationToken cancellationToken)
+    {
+        // Persist the ActiveWorkspaceId to the profile repository
+        // This is critical for ContentReconciliationService to find and invalidate this workspace
+        // if any of its content changes later.
+        if (string.IsNullOrEmpty(launchInfo.WorkspaceId) || launchInfo.WorkspaceId == profile.ActiveWorkspaceId)
+        {
+            return;
+        }
+
+        var updateRequest = new UpdateProfileRequest
+        {
+            ActiveWorkspaceId = launchInfo.WorkspaceId,
+        };
+
+        try
+        {
+            var updateResult = await profileManager.UpdateProfileAsync(profileId, updateRequest, cancellationToken);
+            if (updateResult.Success)
+            {
+                logger.LogInformation(
+                    "Persisted active workspace ID '{WorkspaceId}' to profile '{ProfileId}'",
+                    launchInfo.WorkspaceId,
+                    profileId);
+            }
+            else
+            {
+                logger.LogError(
+                    "Failed to persist active workspace ID '{WorkspaceId}' to profile '{ProfileId}': {Error}. The game is running; content reconciliation will not be able to invalidate this workspace.",
+                    launchInfo.WorkspaceId,
+                    profileId,
+                    updateResult.FirstError);
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(
+                ex,
+                "Exception while persisting active workspace ID for profile '{ProfileId}'",
+                profileId);
         }
     }
 

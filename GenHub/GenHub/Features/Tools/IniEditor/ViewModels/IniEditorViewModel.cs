@@ -752,7 +752,19 @@ public sealed partial class IniEditorViewModel(
             return normalizedPath.StartsWith(normalizedBase + Path.DirectorySeparatorChar, comparison)
                 || string.Equals(normalizedPath, normalizedBase, comparison);
         }
-        catch (Exception ex) when (ex is ArgumentException or IOException or NotSupportedException or SecurityException)
+        catch (ArgumentException)
+        {
+            return false;
+        }
+        catch (IOException)
+        {
+            return false;
+        }
+        catch (NotSupportedException)
+        {
+            return false;
+        }
+        catch (SecurityException)
         {
             return false;
         }
@@ -778,7 +790,15 @@ public sealed partial class IniEditorViewModel(
         {
             return Path.GetFullPath(filePath.Trim().Trim('"'));
         }
-        catch (Exception ex) when (ex is ArgumentException or IOException or NotSupportedException)
+        catch (ArgumentException)
+        {
+            return filePath;
+        }
+        catch (IOException)
+        {
+            return filePath;
+        }
+        catch (NotSupportedException)
         {
             return filePath;
         }
@@ -792,7 +812,19 @@ public sealed partial class IniEditorViewModel(
             var fullDirectory = Path.GetFullPath(directory).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
             return fullFile.StartsWith(fullDirectory + Path.DirectorySeparatorChar, PathHelper.PathComparison);
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
+        catch (IOException)
+        {
+            return false;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return false;
+        }
+        catch (ArgumentException)
+        {
+            return false;
+        }
+        catch (NotSupportedException)
         {
             return false;
         }
@@ -950,7 +982,11 @@ public sealed partial class IniEditorViewModel(
 
             PostToUIThread(refresh);
         }
-        catch (Exception ex) when (ex is OperationCanceledException or ObjectDisposedException)
+        catch (OperationCanceledException)
+        {
+            // Superseded by a newer edit, or the view model was disposed.
+        }
+        catch (ObjectDisposedException)
         {
             // Superseded by a newer edit, or the view model was disposed.
         }
@@ -1570,7 +1606,7 @@ public sealed partial class IniEditorViewModel(
                 BuildFieldTooltip(key, schema),
                 ResolveSuggestions(schema),
                 schema?.ReferenceBlockType,
-                schema?.IsTexture ?? false);
+                schema?.IsTexture == true);
             FieldRows.Add(new IniFieldRowViewModel(
                 block.Fields,
                 fieldIndex,
@@ -2253,7 +2289,7 @@ public sealed partial class IniEditorViewModel(
         await LoadTexturePickerItemsAsync(cancellationToken).ConfigureAwait(false);
     }
 
-    private async void OnExplorerFileActivated(object? sender, EditorFileTreeNodeViewModel node)
+    private async void OnExplorerFileActivated(object? sender, EditorFileTreeNodeViewModel node) // skipcq: CS-R1005
     {
         try
         {

@@ -390,11 +390,7 @@ public sealed partial class ReplayCheckpointService(
     /// <inheritdoc/>
     public void CancelActiveMint()
     {
-        List<CancellationTokenSource> sources;
-        lock (_activeSourcesLock)
-        {
-            sources = [.. _activeMintSources];
-        }
+        var sources = SnapshotActiveMintSources();
 
         foreach (var source in sources)
         {
@@ -489,6 +485,14 @@ public sealed partial class ReplayCheckpointService(
 
     [GeneratedRegex(@"[^a-zA-Z0-9_\-]", RegexOptions.CultureInvariant, matchTimeoutMilliseconds: 1000)]
     private static partial Regex SanitizePattern();
+
+    private List<CancellationTokenSource> SnapshotActiveMintSources()
+    {
+        lock (_activeSourcesLock)
+        {
+            return [.. _activeMintSources];
+        }
+    }
 
     private (IProfileLauncherFacade Facade, IServiceScope? Scope) ResolveLauncherFacade()
     {

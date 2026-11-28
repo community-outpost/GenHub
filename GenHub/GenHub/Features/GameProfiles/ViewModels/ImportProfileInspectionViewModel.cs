@@ -68,10 +68,10 @@ public sealed partial class ImportProfileInspectionViewModel(
     private string _commandLineArguments = inspectionResult?.ProfileMetadata.CommandLineArguments ?? string.Empty;
 
     [ObservableProperty]
-    private bool _hasNameConflict = inspectionResult?.HasNameConflict ?? false;
+    private bool _hasNameConflict = inspectionResult?.HasNameConflict == true;
 
     [ObservableProperty]
-    private bool _hasValidGameInstallation = inspectionResult?.HasValidGameInstallation ?? false;
+    private bool _hasValidGameInstallation = inspectionResult?.HasValidGameInstallation == true;
 
     [ObservableProperty]
     private SharedInstallationOption? _selectedInstallation = inspectionResult != null ? CreateSelectedInstallation(inspectionResult) : null;

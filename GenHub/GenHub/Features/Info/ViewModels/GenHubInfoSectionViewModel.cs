@@ -620,35 +620,7 @@ public partial class GenHubInfoSectionViewModel(
             localizationService.PropertyChanged += OnLocalizationChanged;
         }
 
-        // Load sections if not already loaded
-        if (!Sections.Any())
-        {
-            var sections = await contentProvider.GetAllSectionsAsync();
-
-            _allSections.Clear();
-            foreach (var section in sections)
-            {
-                _allSections.Add(MapToViewModel(section));
-            }
-
-            FilterSections();
-            SyncChangelogCards();
-            SyncGoChangelogCards();
-
-            // Load changelogs automatically
-            await Changelogs.LoadChangelogsAsync();
-        }
-        else
-        {
-            SyncChangelogCards();
-            SyncGoChangelogCards();
-
-            // Already initialized, but load changelogs if not loaded
-            if (Changelogs.Releases.Count == 0)
-            {
-                await Changelogs.LoadChangelogsAsync();
-            }
-        }
+        await LoadSectionsAndChangelogsAsync();
 
         // The awaits above may have allowed Dispose to run; do not attach handlers on a disposed instance.
         if (_disposed)
@@ -671,118 +643,9 @@ public partial class GenHubInfoSectionViewModel(
         SyncChangelogCards();
         SyncGoChangelogCards();
 
-        // Ensure Demo ViewModels are initialized (even if Sections were already loaded)
-        // Check each property individually to be robust against partial initialization failures
-        if (DemoProfileCard == null)
-        {
-            DemoProfileCard = DemoViewModelFactory.CreateDemoProfileCard(notificationService, showSteamHighlight: false, showShortcutHighlight: false);
-            OnPropertyChanged(nameof(DemoProfileCard));
-        }
-
-        if (DemoSteamProfile == null)
-        {
-            DemoSteamProfile = DemoViewModelFactory.CreateDemoProfileCard(notificationService, showSteamHighlight: true, showShortcutHighlight: false);
-            OnPropertyChanged(nameof(DemoSteamProfile));
-        }
-
-        if (DemoShortcutProfile == null)
-        {
-            DemoShortcutProfile = DemoViewModelFactory.CreateDemoProfileCard(notificationService, showSteamHighlight: false, showShortcutHighlight: true);
-            OnPropertyChanged(nameof(DemoShortcutProfile));
-        }
-
-        if (DemoUpdateNotification == null)
-        {
-            DemoUpdateNotification = DemoViewModelFactory.CreateDemoUpdateViewModel();
-            OnPropertyChanged(nameof(DemoUpdateNotification));
-        }
-
-        if (DemoGameSettings_ContentTab == null)
-        {
-            DemoGameSettings_ContentTab = DemoViewModelFactory.CreateDemoProfileSettingsViewModel_ContentTab();
-            OnPropertyChanged(nameof(DemoGameSettings_ContentTab));
-        }
-
-        if (DemoGameSettings_ContentTab is DemoGameProfileSettingsViewModel cTab)
-        {
-            cTab.NavigationRequested = NavigateToDemoPage;
-        }
-
-        if (DemoGameSettings_ProfileTab == null)
-        {
-            DemoGameSettings_ProfileTab = DemoViewModelFactory.CreateDemoProfileSettingsViewModel_ProfileTab();
-            OnPropertyChanged(nameof(DemoGameSettings_ProfileTab));
-        }
-
-        if (DemoGameSettings_ProfileTab is DemoGameProfileSettingsViewModel pTab)
-        {
-            pTab.NavigationRequested = NavigateToDemoPage;
-        }
-
-        if (DemoGameSettings_SettingsTab == null)
-        {
-            DemoGameSettings_SettingsTab = DemoViewModelFactory.CreateDemoProfileSettingsViewModel_SettingsTab();
-            OnPropertyChanged(nameof(DemoGameSettings_SettingsTab));
-        }
-
-        if (DemoGameSettings_SettingsTab is DemoGameProfileSettingsViewModel sTab)
-        {
-            sTab.NavigationRequested = NavigateToDemoPage;
-        }
-
-        if (DemoReplayManager == null)
-        {
-            DemoReplayManager = DemoViewModelFactory.CreateDemoReplayManager(notificationService, localizationService);
-            OnPropertyChanged(nameof(DemoReplayManager));
-        }
-
-        if (DemoMapManager == null)
-        {
-            DemoMapManager = DemoViewModelFactory.CreateDemoMapManager(notificationService, localizationService);
-            OnPropertyChanged(nameof(DemoMapManager));
-        }
-
-        if (DemoWndEditor == null)
-        {
-            DemoWndEditor = DemoViewModelFactory.CreateDemoWndEditor(notificationService, localizationService);
-            OnPropertyChanged(nameof(DemoWndEditor));
-        }
-
-        if (DemoModBuilder == null)
-        {
-            DemoModBuilder = DemoViewModelFactory.CreateDemoModBuilder(notificationService, localizationService);
-            OnPropertyChanged(nameof(DemoModBuilder));
-        }
-
-        if (DemoHotkeyEditor == null)
-        {
-            DemoHotkeyEditor = DemoViewModelFactory.CreateDemoGenHotkeys(notificationService, localizationService);
-            OnPropertyChanged(nameof(DemoHotkeyEditor));
-        }
-
-        if (DemoPublisherStudio == null)
-        {
-            DemoPublisherStudio = DemoViewModelFactory.CreateDemoPublisherStudio(notificationService, localizationService);
-            OnPropertyChanged(nameof(DemoPublisherStudio));
-        }
-
-        if (DemoAddLocalContent == null)
-        {
-            DemoAddLocalContent = DemoViewModelFactory.CreateDemoAddLocalContent(notificationService);
-            OnPropertyChanged(nameof(DemoAddLocalContent));
-        }
-
-        if (DemoWorkspace == null)
-        {
-            DemoWorkspace = DemoViewModelFactory.CreateDemoWorkspaceViewModel(notificationService);
-            OnPropertyChanged(nameof(DemoWorkspace));
-        }
-
-        if (DemoScanWizard == null)
-        {
-            DemoScanWizard = DemoViewModelFactory.CreateDemoScanWizard(notificationService);
-            OnPropertyChanged(nameof(DemoScanWizard));
-        }
+        EnsureDemoProfileCardsInitialized();
+        EnsureDemoSettingsTabsInitialized();
+        EnsureDemoToolViewModelsInitialized();
     }
 
     /// <inheritdoc/>
@@ -931,6 +794,161 @@ public partial class GenHubInfoSectionViewModel(
         }
     }
 
+    private async Task LoadSectionsAndChangelogsAsync()
+    {
+        // Load sections if not already loaded
+        if (!Sections.Any())
+        {
+            var sections = await contentProvider.GetAllSectionsAsync();
+
+            _allSections.Clear();
+            foreach (var section in sections)
+            {
+                _allSections.Add(MapToViewModel(section));
+            }
+
+            FilterSections();
+            SyncChangelogCards();
+            SyncGoChangelogCards();
+
+            // Load changelogs automatically
+            await Changelogs.LoadChangelogsAsync();
+        }
+        else
+        {
+            SyncChangelogCards();
+            SyncGoChangelogCards();
+
+            // Already initialized, but load changelogs if not loaded
+            if (Changelogs.Releases.Count == 0)
+            {
+                await Changelogs.LoadChangelogsAsync();
+            }
+        }
+    }
+
+    private void EnsureDemoProfileCardsInitialized()
+    {
+        // Ensure Demo ViewModels are initialized (even if Sections were already loaded)
+        // Check each property individually to be robust against partial initialization failures
+        if (DemoProfileCard == null)
+        {
+            DemoProfileCard = DemoViewModelFactory.CreateDemoProfileCard(notificationService, showSteamHighlight: false, showShortcutHighlight: false);
+            OnPropertyChanged(nameof(DemoProfileCard));
+        }
+
+        if (DemoSteamProfile == null)
+        {
+            DemoSteamProfile = DemoViewModelFactory.CreateDemoProfileCard(notificationService, showSteamHighlight: true, showShortcutHighlight: false);
+            OnPropertyChanged(nameof(DemoSteamProfile));
+        }
+
+        if (DemoShortcutProfile == null)
+        {
+            DemoShortcutProfile = DemoViewModelFactory.CreateDemoProfileCard(notificationService, showSteamHighlight: false, showShortcutHighlight: true);
+            OnPropertyChanged(nameof(DemoShortcutProfile));
+        }
+
+        if (DemoUpdateNotification == null)
+        {
+            DemoUpdateNotification = DemoViewModelFactory.CreateDemoUpdateViewModel();
+            OnPropertyChanged(nameof(DemoUpdateNotification));
+        }
+    }
+
+    private void EnsureDemoSettingsTabsInitialized()
+    {
+        if (DemoGameSettings_ContentTab == null)
+        {
+            DemoGameSettings_ContentTab = DemoViewModelFactory.CreateDemoProfileSettingsViewModel_ContentTab();
+            OnPropertyChanged(nameof(DemoGameSettings_ContentTab));
+        }
+
+        if (DemoGameSettings_ContentTab is DemoGameProfileSettingsViewModel cTab)
+        {
+            cTab.NavigationRequested = NavigateToDemoPage;
+        }
+
+        if (DemoGameSettings_ProfileTab == null)
+        {
+            DemoGameSettings_ProfileTab = DemoViewModelFactory.CreateDemoProfileSettingsViewModel_ProfileTab();
+            OnPropertyChanged(nameof(DemoGameSettings_ProfileTab));
+        }
+
+        if (DemoGameSettings_ProfileTab is DemoGameProfileSettingsViewModel pTab)
+        {
+            pTab.NavigationRequested = NavigateToDemoPage;
+        }
+
+        if (DemoGameSettings_SettingsTab == null)
+        {
+            DemoGameSettings_SettingsTab = DemoViewModelFactory.CreateDemoProfileSettingsViewModel_SettingsTab();
+            OnPropertyChanged(nameof(DemoGameSettings_SettingsTab));
+        }
+
+        if (DemoGameSettings_SettingsTab is DemoGameProfileSettingsViewModel sTab)
+        {
+            sTab.NavigationRequested = NavigateToDemoPage;
+        }
+    }
+
+    private void EnsureDemoToolViewModelsInitialized()
+    {
+        if (DemoReplayManager == null)
+        {
+            DemoReplayManager = DemoViewModelFactory.CreateDemoReplayManager(notificationService, localizationService);
+            OnPropertyChanged(nameof(DemoReplayManager));
+        }
+
+        if (DemoMapManager == null)
+        {
+            DemoMapManager = DemoViewModelFactory.CreateDemoMapManager(notificationService, localizationService);
+            OnPropertyChanged(nameof(DemoMapManager));
+        }
+
+        if (DemoWndEditor == null)
+        {
+            DemoWndEditor = DemoViewModelFactory.CreateDemoWndEditor(notificationService, localizationService);
+            OnPropertyChanged(nameof(DemoWndEditor));
+        }
+
+        if (DemoModBuilder == null)
+        {
+            DemoModBuilder = DemoViewModelFactory.CreateDemoModBuilder(notificationService, localizationService);
+            OnPropertyChanged(nameof(DemoModBuilder));
+        }
+
+        if (DemoHotkeyEditor == null)
+        {
+            DemoHotkeyEditor = DemoViewModelFactory.CreateDemoGenHotkeys(notificationService, localizationService);
+            OnPropertyChanged(nameof(DemoHotkeyEditor));
+        }
+
+        if (DemoPublisherStudio == null)
+        {
+            DemoPublisherStudio = DemoViewModelFactory.CreateDemoPublisherStudio(notificationService, localizationService);
+            OnPropertyChanged(nameof(DemoPublisherStudio));
+        }
+
+        if (DemoAddLocalContent == null)
+        {
+            DemoAddLocalContent = DemoViewModelFactory.CreateDemoAddLocalContent(notificationService);
+            OnPropertyChanged(nameof(DemoAddLocalContent));
+        }
+
+        if (DemoWorkspace == null)
+        {
+            DemoWorkspace = DemoViewModelFactory.CreateDemoWorkspaceViewModel(notificationService);
+            OnPropertyChanged(nameof(DemoWorkspace));
+        }
+
+        if (DemoScanWizard == null)
+        {
+            DemoScanWizard = DemoViewModelFactory.CreateDemoScanWizard(notificationService);
+            OnPropertyChanged(nameof(DemoScanWizard));
+        }
+    }
+
     /// <summary>
     /// Navigates to the tools tab.
     /// </summary>
@@ -1030,7 +1048,7 @@ public partial class GenHubInfoSectionViewModel(
             }
         }
 
-        foreach (var release in Changelogs.Releases.Where(r => !section.Cards.Any(c => ReferenceEquals(c.TargetItem, r))))
+        foreach (var release in Changelogs.Releases.Where(r => section.Cards.All(c => !ReferenceEquals(c.TargetItem, r))))
         {
             var cardVm = new InfoCardViewModel(
                 new InfoCard
@@ -1081,7 +1099,7 @@ public partial class GenHubInfoSectionViewModel(
             }
         }
 
-        foreach (var note in GoChangelog.PatchNotes.Where(n => !section.Cards.Any(c => ReferenceEquals(c.TargetItem, n))))
+        foreach (var note in GoChangelog.PatchNotes.Where(n => section.Cards.All(c => !ReferenceEquals(c.TargetItem, n))))
         {
             var cardId = string.IsNullOrEmpty(note.Id) ? (note.Title ?? Guid.NewGuid().ToString()) : note.Id;
             var cardVm = new InfoCardViewModel(

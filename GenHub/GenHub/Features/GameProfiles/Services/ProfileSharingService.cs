@@ -436,6 +436,16 @@ public class ProfileSharingService(
         }
     }
 
+    private static long ResolveRequiredDownloadSize(bool foreignPlatform, long missingBytes, long declaredSize)
+    {
+        if (foreignPlatform)
+        {
+            return 0;
+        }
+
+        return missingBytes > 0 ? missingBytes : declaredSize;
+    }
+
     private static bool MatchesInstallationSource(ContentManifest manifest, GameInstallation installation) =>
         !string.IsNullOrWhiteSpace(manifest.Metadata?.SourcePath)
         && Path.IsPathFullyQualified(manifest.Metadata.SourcePath)
@@ -1391,7 +1401,11 @@ public class ProfileSharingService(
                 {
                     File.Delete(fullDiskPath);
                 }
-                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                catch (IOException)
+                {
+                    // Ignore deletion failures during unverified file pruning
+                }
+                catch (UnauthorizedAccessException)
                 {
                     // Ignore deletion failures during unverified file pruning
                 }
@@ -1533,8 +1547,7 @@ public class ProfileSharingService(
             return true;
         }
 
-        if (dependency.Files != null && dependency.Files.Count > 0 &&
-            dependency.Files.Any(f => !string.IsNullOrWhiteSpace(f.DownloadUrl)))
+        if (dependency.Files?.Any(f => !string.IsNullOrWhiteSpace(f.DownloadUrl)) == true)
         {
             return true;
         }
@@ -3591,7 +3604,7 @@ public class ProfileSharingService(
                 TargetGame = reqManifest.TargetGame != GameType.Unknown ? reqManifest.TargetGame : package.Profile.GameType,
                 Publisher = reqManifest.Publisher,
                 PublisherType = reqManifest.PublisherType,
-                DownloadSize = foreignPlatform ? 0 : (missingBytes > 0 ? missingBytes : reqManifest.DownloadSize),
+                DownloadSize = ResolveRequiredDownloadSize(foreignPlatform, missingBytes, reqManifest.DownloadSize),
                 IsCachedLocally = isCached,
                 Hash = foreignPlatform ? null : reqManifest.Hash,
                 PackageUrl = foreignPlatform ? null : reqManifest.PackageUrl,

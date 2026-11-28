@@ -1314,20 +1314,12 @@ public partial class GameProfileItemViewModel : ViewModelBase
 
             var fileSet = await ResolveVerificationFileSetAsync(concreteProfile, crcCalculator, fileSetService, token).ConfigureAwait(false);
 
-            bool isVerifiedRetail = false;
-            if (fileSet is { IsComplete: false })
-            {
-                isVerifiedRetail = false;
-            }
-            else
-            {
-                isVerifiedRetail = await ReplayCrcMatchingHelper.IsRetailCompatibleAsync(
-                    concreteProfile,
-                    crcCalculator,
-                    allowedBaseRelativePaths: fileSet?.AllowedBaseRelativePaths,
-                    overlayModPaths: fileSet?.OverlayModPaths,
-                    ct: token).ConfigureAwait(false);
-            }
+            var isVerifiedRetail = fileSet is not { IsComplete: false } && await ReplayCrcMatchingHelper.IsRetailCompatibleAsync(
+                concreteProfile,
+                crcCalculator,
+                allowedBaseRelativePaths: fileSet?.AllowedBaseRelativePaths,
+                overlayModPaths: fileSet?.OverlayModPaths,
+                ct: token).ConfigureAwait(false);
 
             if (token.IsCancellationRequested)
             {

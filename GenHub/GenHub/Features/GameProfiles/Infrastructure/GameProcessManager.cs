@@ -136,18 +136,7 @@ public class GameProcessManager(
                 : launchRunner.ResolveCommand(configuration);
             if (!runnerResult.Success || runnerResult.Data is null)
             {
-                if (isFlatpak)
-                {
-                    logger.LogWarning("[Process] Flatpak provisioning failed: {Error}", runnerResult.FirstError);
-                    return OperationResult<GameProcessInfo>.CreateFailure(runnerResult.FirstError!);
-                }
-
-                logger.LogWarning("[Process] Compatibility runner could not resolve a launch command: {Error}", runnerResult.FirstError);
-                var missingRunnerMessage = GetMissingRunnerMessage();
-                var errorMessage = string.IsNullOrWhiteSpace(runnerResult.FirstError)
-                    ? missingRunnerMessage
-                    : $"{missingRunnerMessage} ({runnerResult.FirstError})";
-                return OperationResult<GameProcessInfo>.CreateFailure(errorMessage);
+                return CreateRunnerResolutionFailure(isFlatpak, runnerResult.FirstError);
             }
 
             var workingDirectory = configuration.WorkingDirectory
@@ -156,8 +145,7 @@ public class GameProcessManager(
 
             logger.LogDebug("[Process] Working directory: {WorkingDirectory}", workingDirectory);
 
-            var extension = Path.GetExtension(configuration.ExecutablePath).ToLowerInvariant();
-            var isBatchFile = Environment.OSVersion.Platform == PlatformID.Win32NT && (extension == ".bat" || extension == ".cmd");
+            var isBatchFile = IsWindowsBatchFile(configuration.ExecutablePath);
 
             var processStartInfo = ConfigureProcessStartInfo(configuration, workingDirectory, runnerResult.Data);
 
@@ -184,16 +172,7 @@ public class GameProcessManager(
             var capturedErrors = SetupErrorRedirection(process);
             _stderrBuffers[process] = capturedErrors;
 
-            var isWine = IsWineLaunch(launchRunner, runnerResult.Data);
-            if (isWine && !string.IsNullOrWhiteSpace(configuration.ExpectedChildProcessName))
-            {
-                logger.LogDebug(
-                    "[Process] Skipping child process adoption for {ExpectedName} because target is running under Wine ({RunnerBinary})",
-                    configuration.ExpectedChildProcessName,
-                    runnerResult.Data.FileName);
-            }
-
-            if (!string.IsNullOrWhiteSpace(configuration.ExpectedChildProcessName) && !isWine)
+            if (ShouldAdoptExpectedChildProcess(configuration, runnerResult.Data))
             {
                 return await AdoptExpectedChildProcessAsync(process, configuration, workingDirectory, launcherStartTime, capturedErrors, cancellationToken);
             }
@@ -209,14 +188,7 @@ public class GameProcessManager(
             var combinedEnvVars = MergeEnvironmentVariables(configuration.EnvironmentVariables, runnerResult.Data.EnvironmentVariables);
             RegisterSessionAndEmitStarted(process, configuration.ExecutablePath, combinedEnvVars, configuration);
 
-            if (configuration.WaitForExit)
-            {
-                var timeoutMs = configuration.Timeout.HasValue ? (int)configuration.Timeout.Value.TotalMilliseconds : Timeout.Infinite;
-                if (process.WaitForExit(timeoutMs))
-                {
-                    DrainStandardError(capturedErrors);
-                }
-            }
+            WaitForExitIfRequested(process, configuration, capturedErrors);
 
             // Enabling exit events can synchronously finalize and dispose an exited process.
             // This can wait up to StderrDrainTimeoutMs for stderr; subscribers must return promptly.
@@ -1160,6 +1132,12 @@ public class GameProcessManager(
             && configuration.ExecutablePath.EndsWith(ContentFormatConstants.FlatpakExtension, StringComparison.OrdinalIgnoreCase);
     }
 
+    private static bool IsWindowsBatchFile(string executablePath)
+    {
+        var extension = Path.GetExtension(executablePath).ToLowerInvariant();
+        return Environment.OSVersion.Platform == PlatformID.Win32NT && (extension == ".bat" || extension == ".cmd");
+    }
+
     private static bool IsWineLaunch(IGameLaunchRunner runner, RunnerCommand runnerCommand)
     {
         if (runner is WineRunner)
@@ -1238,6 +1216,50 @@ public class GameProcessManager(
         }
 
         return merged;
+    }
+
+    private OperationResult<GameProcessInfo> CreateRunnerResolutionFailure(bool isFlatpak, string? runnerError)
+    {
+        if (isFlatpak)
+        {
+            logger.LogWarning("[Process] Flatpak provisioning failed: {Error}", runnerError);
+            return OperationResult<GameProcessInfo>.CreateFailure(runnerError!);
+        }
+
+        logger.LogWarning("[Process] Compatibility runner could not resolve a launch command: {Error}", runnerError);
+        var missingRunnerMessage = GetMissingRunnerMessage();
+        var errorMessage = string.IsNullOrWhiteSpace(runnerError)
+            ? missingRunnerMessage
+            : $"{missingRunnerMessage} ({runnerError})";
+        return OperationResult<GameProcessInfo>.CreateFailure(errorMessage);
+    }
+
+    private bool ShouldAdoptExpectedChildProcess(GameLaunchConfiguration configuration, RunnerCommand runnerCommand)
+    {
+        var isWine = IsWineLaunch(launchRunner, runnerCommand);
+        if (isWine && !string.IsNullOrWhiteSpace(configuration.ExpectedChildProcessName))
+        {
+            logger.LogDebug(
+                "[Process] Skipping child process adoption for {ExpectedName} because target is running under Wine ({RunnerBinary})",
+                configuration.ExpectedChildProcessName,
+                runnerCommand.FileName);
+        }
+
+        return !string.IsNullOrWhiteSpace(configuration.ExpectedChildProcessName) && !isWine;
+    }
+
+    private void WaitForExitIfRequested(Process process, GameLaunchConfiguration configuration, BoundedErrorBuffer capturedErrors)
+    {
+        if (!configuration.WaitForExit)
+        {
+            return;
+        }
+
+        var timeoutMs = configuration.Timeout.HasValue ? (int)configuration.Timeout.Value.TotalMilliseconds : Timeout.Infinite;
+        if (process.WaitForExit(timeoutMs))
+        {
+            DrainStandardError(capturedErrors);
+        }
     }
 
     /// <summary>

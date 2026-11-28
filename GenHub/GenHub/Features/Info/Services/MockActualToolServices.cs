@@ -324,18 +324,18 @@ public sealed class MockWndImageAssetService : IWndImageAssetService
         BitConverter.GetBytes((short)1).CopyTo(header, 26);
         BitConverter.GetBytes((short)24).CopyTo(header, 28);
         var bytes = new byte[header.Length + pixels.Length];
-        Buffer.BlockCopy(header, 0, bytes, 0, header.Length);
-        Buffer.BlockCopy(pixels, 0, bytes, header.Length, pixels.Length);
+        header.CopyTo(bytes, 0);
+        pixels.CopyTo(bytes, header.Length);
         return bytes;
     }
 
     private static uint StableHash(string value)
     {
-        var hash = 2166136261u;
+        var hash = 2_166_136_261u;
         foreach (var c in value)
         {
             hash ^= c;
-            hash *= 16777619u;
+            hash *= 16_777_619u;
         }
 
         return hash;
@@ -875,7 +875,7 @@ public sealed class MockHostingProvider : IHostingProvider
     public bool IsValidHostingUrl(string? url) => !string.IsNullOrWhiteSpace(url) && url.StartsWith(DemoHost, StringComparison.OrdinalIgnoreCase);
 
     /// <inheritdoc/>
-    public string GetDirectDownloadUrl(string shareUrl) => shareUrl;
+    public string GetDirectDownloadUrl(string shareUrl) => shareUrl; // skipcq: CS-A1000
 
     private static HostingUploadResult BuildResult(string fileName, byte[] bytes)
     {
