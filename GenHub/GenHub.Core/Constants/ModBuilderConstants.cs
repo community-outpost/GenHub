@@ -926,7 +926,19 @@ public static class ModBuilderConstants
                 current = current.Parent;
             }
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
+        catch (IOException)
+        {
+            // Ignore path evaluation errors
+        }
+        catch (UnauthorizedAccessException)
+        {
+            // Ignore path evaluation errors
+        }
+        catch (ArgumentException)
+        {
+            // Ignore path evaluation errors
+        }
+        catch (NotSupportedException)
         {
             // Ignore path evaluation errors
         }

@@ -172,8 +172,10 @@ public class PublisherDefinitionTests
     [Fact]
     public void CatalogUrl_SetterOnEmptyCatalogs_CreatesPrimaryCatalogWithDefaultConstants()
     {
-        var definition = new PublisherDefinition();
-        definition.CatalogUrl = "https://example.com/test.json";
+        var definition = new PublisherDefinition()
+        {
+            CatalogUrl = "https://example.com/test.json",
+        };
 
         var primary = Assert.Single(definition.Catalogs);
         Assert.Equal("https://example.com/test.json", primary.Url);
@@ -188,8 +190,10 @@ public class PublisherDefinitionTests
     [Fact]
     public void CatalogMirrors_SetterOnEmptyCatalogs_CreatesPrimaryCatalogWithDefaultConstants()
     {
-        var definition = new PublisherDefinition();
-        definition.CatalogMirrors = ["https://mirror.example.com/test.json"];
+        var definition = new PublisherDefinition()
+        {
+            CatalogMirrors = ["https://mirror.example.com/test.json"],
+        };
 
         var primary = Assert.Single(definition.Catalogs);
         Assert.Single(primary.Mirrors);

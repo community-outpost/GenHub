@@ -32,7 +32,7 @@ public class SectionScrollSpyTests
         try
         {
             var reported = new List<string>();
-            using var spy = CreateAttachedSpy(host, reported);
+            using var spy = CreateAttachedSpy(host, reported); // skipcq: CS-W1100
 
             host.ScrollViewer.Offset = new Vector(host.ScrollViewer.Offset.X, 450);
             Dispatcher.UIThread.RunJobs();
@@ -55,7 +55,7 @@ public class SectionScrollSpyTests
         try
         {
             var reported = new List<string>();
-            using var spy = CreateAttachedSpy(host, reported);
+            using var spy = CreateAttachedSpy(host, reported); // skipcq: CS-W1100
 
             var maxScrollY = host.ScrollViewer.Extent.Height - host.ScrollViewer.Viewport.Height;
             Assert.True(maxScrollY > 0);
@@ -80,7 +80,7 @@ public class SectionScrollSpyTests
         try
         {
             var reported = new List<string>();
-            using var spy = CreateAttachedSpy(host, reported);
+            using var spy = CreateAttachedSpy(host, reported); // skipcq: CS-W1100
 
             Assert.Empty(reported);
         }
@@ -472,7 +472,7 @@ public class SectionScrollSpyTests
             Dispatcher.UIThread.RunJobs();
 
             var reported = new List<string>();
-            using var spy = CreateAttachedSpy(host, reported);
+            using var spy = CreateAttachedSpy(host, reported); // skipcq: CS-W1100
 
             // Explicitly set offset back to 0 to trigger scroll event at the very top
             host.ScrollViewer.Offset = new Vector(0, 0);

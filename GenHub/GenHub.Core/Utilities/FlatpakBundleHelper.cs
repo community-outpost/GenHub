@@ -43,7 +43,19 @@ public static class FlatpakBundleHelper
             var read = stream.Read(header, 0, size);
             return TryExtractAppId(header.AsSpan(0, read));
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
+        catch (IOException)
+        {
+            return null;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return null;
+        }
+        catch (ArgumentException)
+        {
+            return null;
+        }
+        catch (NotSupportedException)
         {
             return null;
         }

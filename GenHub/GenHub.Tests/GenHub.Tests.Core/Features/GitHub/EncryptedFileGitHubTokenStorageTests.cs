@@ -437,7 +437,7 @@ public class EncryptedFileGitHubTokenStorageTests : IDisposable
         await fallbackWriter.SaveTokenAsync(staleToken);
         var storage = CreateStorage("machine-secret-locked");
         using var primaryToken = SecureStringHelper.ToSecureString("primary-token-value");
-        using var lockStream = new FileStream(TokenFilePath(_defaultRootDir), System.IO.FileMode.Open, System.IO.FileAccess.Read, System.IO.FileShare.None);
+        using var lockStream = new FileStream(TokenFilePath(_defaultRootDir), System.IO.FileMode.Open, System.IO.FileAccess.Read, System.IO.FileShare.None); // skipcq: CS-W1100
 
         // Act
         await storage.SaveTokenAsync(primaryToken);

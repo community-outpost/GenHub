@@ -447,7 +447,7 @@ public class PublisherDefinitionService(
             : remoteDef.Catalogs?.FirstOrDefault(c =>
                 c != null && (
                     string.Equals(c.Url, subscription.CatalogUrl, StringComparison.OrdinalIgnoreCase) ||
-                    (c.Mirrors != null && c.Mirrors.Contains(subscription.CatalogUrl, StringComparer.OrdinalIgnoreCase))));
+                    c.Mirrors?.Contains(subscription.CatalogUrl, StringComparer.OrdinalIgnoreCase) == true));
 
         if (targetCatalog != null)
         {
@@ -488,8 +488,7 @@ public class PublisherDefinitionService(
 
     private bool TryUpdateDefinitionUrl(PublisherSubscription subscription, PublisherDefinition remoteDef)
     {
-        if (remoteDef.PreviousDefinitionUrls != null &&
-            remoteDef.PreviousDefinitionUrls.Contains(subscription.DefinitionUrl, StringComparer.OrdinalIgnoreCase) &&
+        if (remoteDef.PreviousDefinitionUrls?.Contains(subscription.DefinitionUrl, StringComparer.OrdinalIgnoreCase) == true &&
             !string.IsNullOrWhiteSpace(remoteDef.DefinitionUrl) &&
             !string.Equals(subscription.DefinitionUrl, remoteDef.DefinitionUrl, StringComparison.OrdinalIgnoreCase))
         {

@@ -115,7 +115,7 @@ public class ProjectDashboardViewTests
             .Returns<string, object?[]>((key, args) =>
             {
                 var value = resourceManager.GetString(key, CultureInfo.InvariantCulture) ?? key;
-                return args != null && args.Length > 0 ? string.Format(CultureInfo.InvariantCulture, value, args) : value;
+                return args?.Length > 0 ? string.Format(CultureInfo.InvariantCulture, value, args) : value;
             });
         return mock.Object;
     }

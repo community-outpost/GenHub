@@ -163,7 +163,11 @@ public class HotkeyProfileStorageServiceTests : IDisposable
             {
                 Directory.Delete(_tempDir, true);
             }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            catch (IOException)
+            {
+                // Best effort cleanup
+            }
+            catch (UnauthorizedAccessException)
             {
                 // Best effort cleanup
             }

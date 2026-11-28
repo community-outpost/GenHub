@@ -642,41 +642,9 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
                 return results;
             }
 
-            // Track if subscribed PR is still open
-            bool subscribedPrFound = false;
-
             foreach (var pr in prsData.EnumerateArray())
             {
-                var prNumber = pr.GetProperty("number").GetInt32();
-                var title = pr.GetProperty("title").GetString() ?? GameClientConstants.UnknownVersion;
-                var branchName = pr.TryGetProperty("head", out var head)
-                    ? head.GetProperty("ref").GetString() ?? "unknown"
-                    : "unknown";
-                var author = pr.TryGetProperty("user", out var user)
-                    ? user.GetProperty("login").GetString() ?? "unknown"
-                    : "unknown";
-                var state = pr.GetProperty("state").GetString() ?? "open";
-                var updatedAt = pr.TryGetProperty("updated_at", out var updatedAtProp)
-                    ? updatedAtProp.GetDateTimeOffset()
-                    : (DateTimeOffset?)null;
-
-                // Only fetch artifacts for the subscribed PR to prevent exhausting rate limits across all open PRs
-                ArtifactUpdateInfo? latestArtifact = null;
-                if (SubscribedPrNumber.HasValue && SubscribedPrNumber.Value == prNumber)
-                {
-                    latestArtifact = await FindLatestArtifactForPrAsync(client, prNumber, cancellationToken);
-                }
-
-                results.Add(new PullRequestInfo
-                {
-                    Number = prNumber,
-                    Title = title,
-                    BranchName = branchName,
-                    Author = author,
-                    State = state,
-                    UpdatedAt = updatedAt,
-                    LatestArtifact = latestArtifact,
-                });
+                results.Add(await ParsePullRequestAsync(client, pr, cancellationToken));
             }
 
             var sortedPrs = results
@@ -685,25 +653,10 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
             results = sortedPrs;
 
             // Check if subscribed PR is still open
-            subscribedPrFound = results.Any(p => p.Number == SubscribedPrNumber);
+            var subscribedPrFound = results.Any(p => p.Number == SubscribedPrNumber);
             if (SubscribedPrNumber.HasValue && !subscribedPrFound)
             {
-                // PR is no longer in open PRs list - check if merged or closed
-                var prStatusUrl = string.Format(ApiConstants.GitHubApiPrDetailFormat, owner, repo, SubscribedPrNumber);
-                var statusResponse = await client.GetAsync(prStatusUrl, cancellationToken);
-
-                if (statusResponse.IsSuccessStatusCode)
-                {
-                    var statusJson = await statusResponse.Content.ReadAsStringAsync(cancellationToken);
-                    var statusData = JsonSerializer.Deserialize<JsonElement>(statusJson);
-                    var statusState = statusData.TryGetProperty("state", out var stProp) ? stProp.GetString() : null;
-
-                    IsPrMergedOrClosed = statusState != null && !statusState.Equals("open", StringComparison.OrdinalIgnoreCase);
-                    if (IsPrMergedOrClosed)
-                    {
-                        _logger.LogInformation("Subscribed PR #{PrNumber} has been merged/closed", SubscribedPrNumber);
-                    }
-                }
+                await UpdateSubscribedPrClosedStateAsync(client, owner, repo, cancellationToken);
             }
 
             _logger.LogInformation("Found {Count} open PRs", results.Count);
@@ -1718,6 +1671,60 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
         }
 
         return null;
+    }
+
+    private async Task<PullRequestInfo> ParsePullRequestAsync(HttpClient client, JsonElement pr, CancellationToken cancellationToken)
+    {
+        var prNumber = pr.GetProperty("number").GetInt32();
+        var title = pr.GetProperty("title").GetString() ?? GameClientConstants.UnknownVersion;
+        var branchName = pr.TryGetProperty("head", out var head)
+            ? head.GetProperty("ref").GetString() ?? "unknown"
+            : "unknown";
+        var author = pr.TryGetProperty("user", out var user)
+            ? user.GetProperty("login").GetString() ?? "unknown"
+            : "unknown";
+        var state = pr.GetProperty("state").GetString() ?? "open";
+        var updatedAt = pr.TryGetProperty("updated_at", out var updatedAtProp)
+            ? updatedAtProp.GetDateTimeOffset()
+            : (DateTimeOffset?)null;
+
+        // Only fetch artifacts for the subscribed PR to prevent exhausting rate limits across all open PRs
+        ArtifactUpdateInfo? latestArtifact = null;
+        if (SubscribedPrNumber.HasValue && SubscribedPrNumber.Value == prNumber)
+        {
+            latestArtifact = await FindLatestArtifactForPrAsync(client, prNumber, cancellationToken);
+        }
+
+        return new PullRequestInfo
+        {
+            Number = prNumber,
+            Title = title,
+            BranchName = branchName,
+            Author = author,
+            State = state,
+            UpdatedAt = updatedAt,
+            LatestArtifact = latestArtifact,
+        };
+    }
+
+    private async Task UpdateSubscribedPrClosedStateAsync(HttpClient client, string owner, string repo, CancellationToken cancellationToken)
+    {
+        // PR is no longer in open PRs list - check if merged or closed
+        var prStatusUrl = string.Format(ApiConstants.GitHubApiPrDetailFormat, owner, repo, SubscribedPrNumber);
+        var statusResponse = await client.GetAsync(prStatusUrl, cancellationToken);
+
+        if (statusResponse.IsSuccessStatusCode)
+        {
+            var statusJson = await statusResponse.Content.ReadAsStringAsync(cancellationToken);
+            var statusData = JsonSerializer.Deserialize<JsonElement>(statusJson);
+            var statusState = statusData.TryGetProperty("state", out var stProp) ? stProp.GetString() : null;
+
+            IsPrMergedOrClosed = statusState != null && !statusState.Equals("open", StringComparison.OrdinalIgnoreCase);
+            if (IsPrMergedOrClosed)
+            {
+                _logger.LogInformation("Subscribed PR #{PrNumber} has been merged/closed", SubscribedPrNumber);
+            }
+        }
     }
 
     /// <summary>

@@ -288,13 +288,21 @@ public class HotkeyProfileStorageService(
                             File.Delete(tempFile);
                         }
                     }
-                    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                    catch (IOException)
+                    {
+                        // Stale temp file cleanup is best-effort
+                    }
+                    catch (UnauthorizedAccessException)
                     {
                         // Stale temp file cleanup is best-effort
                     }
                 }
             }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            catch (IOException)
+            {
+                // Directory enumeration failure is best-effort
+            }
+            catch (UnauthorizedAccessException)
             {
                 // Directory enumeration failure is best-effort
             }

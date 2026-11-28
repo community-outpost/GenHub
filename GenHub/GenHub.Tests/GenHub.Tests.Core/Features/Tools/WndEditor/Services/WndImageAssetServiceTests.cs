@@ -814,8 +814,10 @@ public sealed class WndImageAssetServiceTests : IDisposable
 
     private void WriteTexture(string fileName, uint width, uint height)
     {
-        using var image = new MagickImage(MagickColors.Red, width, height);
-        image.Format = MagickFormat.Tga;
+        using var image = new MagickImage(MagickColors.Red, width, height)
+        {
+            Format = MagickFormat.Tga,
+        };
         image.Write(Path.Combine(_gameRoot, "Art", "Textures", fileName));
     }
 
@@ -823,8 +825,10 @@ public sealed class WndImageAssetServiceTests : IDisposable
     {
         var directory = Path.Combine(root, relativeDirectory);
         Directory.CreateDirectory(directory);
-        using var image = new MagickImage(color, width, height);
-        image.Format = format;
+        using var image = new MagickImage(color, width, height)
+        {
+            Format = format,
+        };
         image.Write(Path.Combine(directory, fileName));
     }
 
@@ -836,15 +840,17 @@ public sealed class WndImageAssetServiceTests : IDisposable
 
     private static byte[] SolidImage(MagickColor color, uint width, uint height, MagickFormat format)
     {
-        using var image = new MagickImage(color, width, height);
-        image.Format = format;
+        using var image = new MagickImage(color, width, height)
+        {
+            Format = format,
+        };
         return image.ToByteArray();
     }
 
     private static void WriteBigArchive(string archivePath, Dictionary<string, byte[]> entries)
     {
         Directory.CreateDirectory(Path.GetDirectoryName(archivePath)!);
-        var names = entries.Keys.Select(name => System.Text.Encoding.Latin1.GetBytes(name)).ToList();
+        var names = entries.Keys.Select(System.Text.Encoding.Latin1.GetBytes).ToList();
         var payloads = entries.Values.ToList();
         var directorySize = names.Sum(name => 8 + name.Length + 1);
         var dataStart = 16 + directorySize;

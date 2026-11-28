@@ -86,7 +86,15 @@ public static class InstallationExtensions
                 return true;
             }
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
+        catch (IOException)
+        {
+            // A known file can be accessible even when its directory cannot be listed.
+        }
+        catch (UnauthorizedAccessException)
+        {
+            // A known file can be accessible even when its directory cannot be listed.
+        }
+        catch (ArgumentException)
         {
             // A known file can be accessible even when its directory cannot be listed.
         }

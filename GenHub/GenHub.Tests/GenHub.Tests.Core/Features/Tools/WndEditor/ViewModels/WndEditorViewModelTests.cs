@@ -94,7 +94,7 @@ public sealed class WndEditorViewModelTests : IDisposable
                     return " + ";
                 }
 
-                return args != null && args.Length > 0 ? $"{key}:{string.Join(',', args)}" : key;
+                return args?.Length > 0 ? $"{key}:{string.Join(',', args)}" : key;
             });
         _mockDialogService
             .Setup(s => s.ShowConfirmationAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string?>()))

@@ -25,9 +25,8 @@ public sealed class FileExplorerViewModelTests
             {
                 FilePatterns = ["*.wnd"],
                 ShowFileExtensions = false,
+                Directory = root,
             };
-
-            explorer.Directory = root;
 
             Assert.Single(explorer.Nodes);
             var files = explorer.Nodes[0].Children.Where(node => node.IsFile).ToList();
@@ -53,9 +52,8 @@ public sealed class FileExplorerViewModelTests
             var explorer = new FileExplorerViewModel
             {
                 FilePatterns = ["*.wnd", "Main*"],
+                Directory = root,
             };
-
-            explorer.Directory = root;
 
             Assert.Single(explorer.Nodes);
             var files = explorer.Nodes[0].Children.Where(node => node.IsFile).ToList();
@@ -81,9 +79,8 @@ public sealed class FileExplorerViewModelTests
             {
                 FilePatterns = ["*.wnd"],
                 ExcludedDirectoryNames = ["Build"],
+                Directory = root,
             };
-
-            explorer.Directory = root;
 
             var directories = explorer.Nodes[0].Children.Where(node => node.IsDirectory).Select(node => node.Name).ToList();
             Assert.DoesNotContain("Build", directories);
@@ -105,8 +102,11 @@ public sealed class FileExplorerViewModelTests
         string root = CreateTree();
         try
         {
-            var explorer = new FileExplorerViewModel { FilePatterns = ["*.wnd"] };
-            explorer.Directory = root;
+            var explorer = new FileExplorerViewModel
+            {
+                FilePatterns = ["*.wnd"],
+                Directory = root,
+            };
 
             string nested = Path.Combine(root, "Nested", "Child.wnd");
             explorer.CurrentPath = nested;
@@ -134,8 +134,8 @@ public sealed class FileExplorerViewModelTests
             {
                 FilePatterns = ["*.wnd"],
                 ExcludedDirectoryNames = ["Build"],
+                Directory = root,
             };
-            explorer.Directory = root;
 
             Assert.Equal(Path.Combine(root, "Nested", "Child.wnd"), explorer.FindFirstFile());
         }
@@ -154,8 +154,11 @@ public sealed class FileExplorerViewModelTests
         string root = CreateTree();
         try
         {
-            var explorer = new FileExplorerViewModel { FilePatterns = ["*.wnd"] };
-            explorer.Directory = root;
+            var explorer = new FileExplorerViewModel
+            {
+                FilePatterns = ["*.wnd"],
+                Directory = root,
+            };
 
             EditorFileTreeNodeViewModel? activated = null;
             explorer.FileActivated += (_, node) => activated = node;
@@ -188,12 +191,15 @@ public sealed class FileExplorerViewModelTests
         string? adopted = null;
         try
         {
-            var explorer = new FileExplorerViewModel { FilePatterns = ["*.wnd"] };
-            explorer.BrowseFolderAsync = _ => Task.FromResult<string?>(root);
-            explorer.DirectoryAdoptedAsync = (folder, _) =>
+            var explorer = new FileExplorerViewModel
             {
-                adopted = folder;
-                return Task.CompletedTask;
+                FilePatterns = ["*.wnd"],
+                BrowseFolderAsync = _ => Task.FromResult<string?>(root),
+                DirectoryAdoptedAsync = (folder, _) =>
+                {
+                    adopted = folder;
+                    return Task.CompletedTask;
+                },
             };
 
             Assert.True(explorer.CanBrowse);

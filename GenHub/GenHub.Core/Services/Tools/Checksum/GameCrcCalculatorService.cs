@@ -74,7 +74,7 @@ public sealed class GameCrcCalculatorService : IGameCrcCalculatorService
         IReadOnlyCollection<string>? allowedBaseRelativePaths = null,
         IReadOnlyList<string>? overlayModPaths = null)
     {
-        var sideloadsPart = sideloadPaths != null && sideloadPaths.Count > 0 ? string.Join(';', sideloadPaths) : string.Empty;
+        var sideloadsPart = sideloadPaths?.Count > 0 ? string.Join(';', sideloadPaths) : string.Empty;
         var baseKey = $"{gameRootPath}|{gameType}|{sideloadsPart}|{modPath}";
 
         // An explicitly empty allow-list excludes every base file, which differs from
@@ -85,10 +85,10 @@ public sealed class GameCrcCalculatorService : IGameCrcCalculatorService
             return baseKey;
         }
 
-        var allowedPart = allowedBaseRelativePaths != null && allowedBaseRelativePaths.Count > 0
+        var allowedPart = allowedBaseRelativePaths?.Count > 0
             ? string.Join(';', allowedBaseRelativePaths.OrderBy(p => p, StringComparer.OrdinalIgnoreCase))
             : string.Empty;
-        var overlaysPart = overlayModPaths != null && overlayModPaths.Count > 0
+        var overlaysPart = overlayModPaths?.Count > 0
             ? string.Join(';', overlayModPaths)
             : string.Empty;
         return $"{baseKey}|base:{allowedPart}|overlays:{overlaysPart}";
@@ -425,7 +425,11 @@ public sealed class GameCrcCalculatorService : IGameCrcCalculatorService
                 UpdateFreshnessFromDirectory(accumulator, path);
             }
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        catch (IOException)
+        {
+            // Suppress transient I/O exceptions during signature calculation
+        }
+        catch (UnauthorizedAccessException)
         {
             // Suppress transient I/O exceptions during signature calculation
         }
@@ -455,7 +459,11 @@ public sealed class GameCrcCalculatorService : IGameCrcCalculatorService
                 accumulator.AddFile(file);
             }
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        catch (IOException)
+        {
+            // Tolerate transient I/O issues during freshness calculation
+        }
+        catch (UnauthorizedAccessException)
         {
             // Tolerate transient I/O issues during freshness calculation
         }
@@ -479,7 +487,11 @@ public sealed class GameCrcCalculatorService : IGameCrcCalculatorService
                 accumulator.AddFile(file);
             }
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        catch (IOException)
+        {
+            // Tolerate transient I/O issues during freshness calculation
+        }
+        catch (UnauthorizedAccessException)
         {
             // Tolerate transient I/O issues during freshness calculation
         }

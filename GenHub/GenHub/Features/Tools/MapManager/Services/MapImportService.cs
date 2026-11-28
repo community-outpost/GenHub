@@ -127,26 +127,7 @@ public sealed class MapImportService(
 
         var mapExtension = Path.GetExtension(MapManagerConstants.MapFilePattern);
 
-        // Expand directories
-        var expandedPaths = new List<(string Path, bool FromDirectory)>();
-        foreach (var path in filePaths)
-        {
-            if (Directory.Exists(path))
-            {
-                try
-                {
-                    expandedPaths.AddRange(Directory.GetFiles(path, "*", SearchOption.AllDirectories).Select(f => (f, true)));
-                }
-                catch (Exception ex)
-                {
-                    logger.LogWarning(ex, "Failed to expand directory: {Path}", path);
-                }
-            }
-            else
-            {
-                expandedPaths.Add((path, false));
-            }
-        }
+        var expandedPaths = ExpandImportPaths(filePaths);
 
         foreach (var (filePath, fromDirectory) in expandedPaths)
         {
@@ -192,52 +173,9 @@ public sealed class MapImportService(
                 // Look for associated files in the same directory as the source file
                 var sourceDir = Path.GetDirectoryName(filePath);
                 var assetFiles = new List<string>();
-                string? thumbnailPath = null;
-
-                if (!string.IsNullOrEmpty(sourceDir))
-                {
-                    var folderFiles = Directory.GetFiles(sourceDir);
-                    var isSingleMapFolder = folderFiles.Count(f => f.EndsWith(mapExtension, StringComparison.OrdinalIgnoreCase)) == 1;
-                    var matchingFiles = folderFiles
-                        .Where(f => !f.EndsWith(mapExtension, StringComparison.OrdinalIgnoreCase) && IsAllowedMapFolderFile(f))
-                        .Where(f =>
-                        {
-                            var fileName = Path.GetFileName(f);
-                            if (isSingleMapFolder ||
-                                IsSharedMapAsset(fileName))
-                            {
-                                return true;
-                            }
-
-                            var assetNameWithoutExt = Path.GetFileNameWithoutExtension(f);
-                            return string.Equals(assetNameWithoutExt, mapName, StringComparison.OrdinalIgnoreCase) ||
-                                   assetNameWithoutExt.StartsWith(mapName + "_", StringComparison.OrdinalIgnoreCase) ||
-                                   assetNameWithoutExt.StartsWith(mapName + ".", StringComparison.OrdinalIgnoreCase);
-                        });
-
-                    foreach (var asset in matchingFiles)
-                    {
-                        if (new FileInfo(asset).Length > MapManagerConstants.MaxAssetSizeBytes)
-                        {
-                            result.Errors.Add($"Skipped oversized map asset: {Path.GetFileName(asset)}");
-                            continue;
-                        }
-
-                        var assetDest = Path.Combine(mapDirPath, Path.GetFileName(asset));
-                        if (!File.Exists(assetDest))
-                        {
-                            File.Copy(asset, assetDest, overwrite: true);
-                        }
-
-                        assetFiles.Add(assetDest);
-
-                        if (asset.EndsWith(".tga", StringComparison.OrdinalIgnoreCase) &&
-                            (thumbnailPath == null || Path.GetFileName(asset).Equals(mapName + ".tga", StringComparison.OrdinalIgnoreCase)))
-                        {
-                            thumbnailPath = assetDest;
-                        }
-                    }
-                }
+                var thumbnailPath = string.IsNullOrEmpty(sourceDir)
+                    ? null
+                    : CopyAssociatedAssets(sourceDir, mapDirPath, mapName, mapExtension, assetFiles, result);
 
                 thumbnailPath = NormalizeMapThumbnail(destPath, thumbnailPath, assetFiles);
 
@@ -927,6 +865,65 @@ public sealed class MapImportService(
         return path;
     }
 
+    private static string? CopyAssociatedAssets(
+        string sourceDir,
+        string mapDirPath,
+        string mapName,
+        string mapExtension,
+        List<string> assetFiles,
+        ImportResult result)
+    {
+        string? thumbnailPath = null;
+        var folderFiles = Directory.GetFiles(sourceDir);
+        var isSingleMapFolder = folderFiles.Count(f => f.EndsWith(mapExtension, StringComparison.OrdinalIgnoreCase)) == 1;
+        var matchingFiles = SelectAssociatedAssets(folderFiles, mapExtension, mapName, isSingleMapFolder);
+
+        foreach (var asset in matchingFiles)
+        {
+            if (new FileInfo(asset).Length > MapManagerConstants.MaxAssetSizeBytes)
+            {
+                result.Errors.Add($"Skipped oversized map asset: {Path.GetFileName(asset)}");
+                continue;
+            }
+
+            var assetDest = Path.Combine(mapDirPath, Path.GetFileName(asset));
+            if (!File.Exists(assetDest))
+            {
+                File.Copy(asset, assetDest, overwrite: true);
+            }
+
+            assetFiles.Add(assetDest);
+
+            if (asset.EndsWith(".tga", StringComparison.OrdinalIgnoreCase) &&
+                (thumbnailPath == null || Path.GetFileName(asset).Equals(mapName + ".tga", StringComparison.OrdinalIgnoreCase)))
+            {
+                thumbnailPath = assetDest;
+            }
+        }
+
+        return thumbnailPath;
+    }
+
+    private static IEnumerable<string> SelectAssociatedAssets(string[] folderFiles, string mapExtension, string mapName, bool isSingleMapFolder)
+    {
+        return folderFiles
+            .Where(f => !f.EndsWith(mapExtension, StringComparison.OrdinalIgnoreCase) && IsAllowedMapFolderFile(f))
+            .Where(f =>
+            {
+                var fileName = Path.GetFileName(f);
+                if (isSingleMapFolder ||
+                    IsSharedMapAsset(fileName))
+                {
+                    return true;
+                }
+
+                var assetNameWithoutExt = Path.GetFileNameWithoutExtension(f);
+                return string.Equals(assetNameWithoutExt, mapName, StringComparison.OrdinalIgnoreCase) ||
+                       assetNameWithoutExt.StartsWith(mapName + "_", StringComparison.OrdinalIgnoreCase) ||
+                       assetNameWithoutExt.StartsWith(mapName + ".", StringComparison.OrdinalIgnoreCase);
+            });
+    }
+
     private static bool IsSharedMapAsset(string fileName) =>
         fileName.Equals(MapManagerConstants.MapIniFileName, StringComparison.OrdinalIgnoreCase) ||
         fileName.Equals(MapManagerConstants.MapStrFileName, StringComparison.OrdinalIgnoreCase) ||
@@ -957,6 +954,31 @@ public sealed class MapImportService(
         return read >= 6 &&
                buffer[0] == 0x37 && buffer[1] == 0x7A && buffer[2] == 0xBC &&
                buffer[3] == 0xAF && buffer[4] == 0x27 && buffer[5] == 0x1C;
+    }
+
+    private List<(string Path, bool FromDirectory)> ExpandImportPaths(IEnumerable<string> filePaths)
+    {
+        var expandedPaths = new List<(string Path, bool FromDirectory)>();
+        foreach (var path in filePaths)
+        {
+            if (Directory.Exists(path))
+            {
+                try
+                {
+                    expandedPaths.AddRange(Directory.GetFiles(path, "*", SearchOption.AllDirectories).Select(f => (f, true)));
+                }
+                catch (Exception ex)
+                {
+                    logger.LogWarning(ex, "Failed to expand directory: {Path}", path);
+                }
+            }
+            else
+            {
+                expandedPaths.Add((path, false));
+            }
+        }
+
+        return expandedPaths;
     }
 
     private string? NormalizeMapThumbnail(string mapFilePath, string? thumbnailPath, List<string> assetFiles)

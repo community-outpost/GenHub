@@ -464,7 +464,7 @@ public class CatalogUpstreamIngestionService(
 
             foreach (var dep in (firstRel.Dependencies ?? []).Where(dep =>
                 dep != null &&
-                !synthesized.Dependencies.Any(d => string.Equals(d.ContentId, dep.ContentId, StringComparison.OrdinalIgnoreCase))))
+                synthesized.Dependencies.All(d => !string.Equals(d.ContentId, dep.ContentId, StringComparison.OrdinalIgnoreCase))))
             {
                 synthesized.Dependencies.Add(new CatalogDependency
                 {

@@ -312,14 +312,21 @@ public sealed class PublishShareSyncRestoreTests : IDisposable
 
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
-            var body = serveValidContent
-                ? (request.RequestUri?.ToString() == CatalogUrl ? CatalogJson : DefinitionJson)
-                : string.Empty;
             var response = new HttpResponseMessage(System.Net.HttpStatusCode.OK)
             {
-                Content = new StringContent(body, Encoding.UTF8, "application/json"),
+                Content = new StringContent(ResolveBody(request), Encoding.UTF8, "application/json"),
             };
             return Task.FromResult(response);
+        }
+
+        private string ResolveBody(HttpRequestMessage request)
+        {
+            if (!serveValidContent)
+            {
+                return string.Empty;
+            }
+
+            return request.RequestUri?.ToString() == CatalogUrl ? CatalogJson : DefinitionJson;
         }
     }
 }

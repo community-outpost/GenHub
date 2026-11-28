@@ -303,7 +303,10 @@ internal sealed class ProfileDeletionFixture : IDisposable
         {
             Directory.Delete(RootPath, recursive: true);
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        catch (IOException)
+        {
+        }
+        catch (UnauthorizedAccessException)
         {
         }
     }

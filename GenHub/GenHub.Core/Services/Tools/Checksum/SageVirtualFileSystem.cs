@@ -917,7 +917,15 @@ public sealed class SageVirtualFileSystem
         {
             rootFullPath = EnsureTrailingSeparator(Path.GetFullPath(root));
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
+        catch (IOException)
+        {
+            return true;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return true;
+        }
+        catch (ArgumentException)
         {
             return true;
         }

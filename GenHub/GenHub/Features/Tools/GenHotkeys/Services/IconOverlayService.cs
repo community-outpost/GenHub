@@ -78,9 +78,11 @@ public class IconOverlayService(ILogger<IconOverlayService> logger) : IIconOverl
                 cancellationToken.ThrowIfCancellationRequested();
                 logger.LogDebug("Rendering hotkey badge '{Key}' at {Corner}", hotkey, corner);
 
-                using var image = new MagickImage(sourceIconBytes);
-                image.ColorSpace = ColorSpace.sRGB;
-                image.ColorType = ColorType.TrueColorAlpha;
+                using var image = new MagickImage(sourceIconBytes)
+                {
+                    ColorSpace = ColorSpace.sRGB,
+                    ColorType = ColorType.TrueColorAlpha,
+                };
 
                 var badgeChar = char.ToUpperInvariant(hotkey);
                 using (var pixels = image.GetPixelsUnsafe())

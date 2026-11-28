@@ -34,7 +34,7 @@ public sealed class GameClientProfileServiceTests
     private readonly Mock<IConfigurationProviderService> _configServiceMock = new();
     private readonly Mock<IContentManifestPool> _manifestPoolMock = new();
     private readonly GameClientProfileService _service;
-    private CreateProfileRequest? _capturedRequest;
+    private CreateProfileRequest? _capturedRequest; // skipcq: CS-R1137
 
     /// <summary>
     /// Initializes a new instance of the <see cref="GameClientProfileServiceTests"/> class.

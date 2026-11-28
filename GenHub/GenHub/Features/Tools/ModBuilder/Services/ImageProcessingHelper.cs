@@ -110,7 +110,7 @@ internal static class ImageProcessingHelper
         }
 
         var alpha = image.Statistics().GetChannel(PixelChannel.Alpha);
-        return alpha != null && alpha.Minimum < Quantum.Max;
+        return alpha?.Minimum < Quantum.Max;
     }
 
     /// <summary>
@@ -214,6 +214,15 @@ internal static class ImageProcessingHelper
     }
 
     /// <summary>
+    /// Applies resize and rescale parameters and returns a scope that disposes a newly created resized image.
+    /// </summary>
+    /// <param name="image">The image to resize.</param>
+    /// <param name="parameters">The conversion parameters.</param>
+    /// <returns>A scope exposing the resized image.</returns>
+    public static ResizedImageScope ApplyResizeParametersScoped(IMagickImage<ushort> image, IDictionary<string, object>? parameters) =>
+        new(image, ApplyResizeParameters(image, parameters));
+
+    /// <summary>
     /// Saves an image to target path with the encoder settings the game expects.
     /// TGA is written as uncompressed 32-bit. BMP is written as 24-bit truecolor, except that a BMP
     /// source with an alpha channel that was not resized stays 32-bit, as with the old ImageSharp encoder.
@@ -253,5 +262,27 @@ internal static class ImageProcessingHelper
     {
         image.FilterType = GetFilter(resamplingMode);
         image.Resize(new MagickGeometry((uint)width, (uint)height) { IgnoreAspectRatio = true });
+    }
+
+    /// <summary>
+    /// Disposes a resized image when it is a new image rather than the source resized in place.
+    /// </summary>
+    /// <param name="source">The source image passed to the resize.</param>
+    /// <param name="image">The resized image.</param>
+    internal readonly struct ResizedImageScope(IMagickImage<ushort> source, IMagickImage<ushort> image) : IDisposable
+    {
+        /// <summary>
+        /// Gets the resized image.
+        /// </summary>
+        public IMagickImage<ushort> Image { get; } = image;
+
+        /// <inheritdoc />
+        public void Dispose()
+        {
+            if (!ReferenceEquals(Image, source))
+            {
+                Image.Dispose();
+            }
+        }
     }
 }

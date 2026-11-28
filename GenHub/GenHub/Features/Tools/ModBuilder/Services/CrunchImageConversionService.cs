@@ -454,8 +454,8 @@ public class CrunchImageConversionService(
         string targetTgaPath,
         IDictionary<string, object>? parameters)
     {
-        var resized = ImageProcessingHelper.ApplyResizeParameters(magickImage, parameters);
-        using var resizedScope = ReferenceEquals(resized, magickImage) ? null : resized;
+        using var resizedScope = ImageProcessingHelper.ApplyResizeParametersScoped(magickImage, parameters);
+        var resized = resizedScope.Image;
         TgaWriter.Write32BitUncompressed(resized, targetTgaPath);
     }
 
@@ -482,8 +482,8 @@ public class CrunchImageConversionService(
 
             using var collection = new MagickImageCollection { r, g, b, alpha };
             using var merged = collection.Combine(ColorSpace.sRGB);
-            var resizedPsd = ImageProcessingHelper.ApplyResizeParameters(merged, parameters);
-            using var resizedPsdScope = ReferenceEquals(resizedPsd, merged) ? null : resizedPsd;
+            using var resizedPsdScope = ImageProcessingHelper.ApplyResizeParametersScoped(merged, parameters);
+            var resizedPsd = resizedPsdScope.Image;
             TgaWriter.Write32BitUncompressed(resizedPsd, targetTgaPath);
         }
         finally
@@ -505,8 +505,8 @@ public class CrunchImageConversionService(
         CancellationToken cancellationToken)
     {
         using var image = new MagickImage(sourcePath);
-        var resizedImage = ImageProcessingHelper.ApplyResizeParameters(image, parameters);
-        using var resizedImageScope = ReferenceEquals(resizedImage, image) ? null : resizedImage;
+        using var resizedImageScope = ImageProcessingHelper.ApplyResizeParametersScoped(image, parameters);
+        var resizedImage = resizedImageScope.Image;
 
         cancellationToken.ThrowIfCancellationRequested();
         TgaWriter.Write32BitUncompressed(resizedImage, targetTgaPath);
@@ -539,8 +539,8 @@ public class CrunchImageConversionService(
 
         using var image = new MagickImage();
         await image.ReadAsync(sourcePath, cancellationToken).ConfigureAwait(false);
-        var resizedImage = ImageProcessingHelper.ApplyResizeParameters(image, parameters);
-        using var resizedScope = ReferenceEquals(resizedImage, image) ? null : resizedImage;
+        using var resizedScope = ImageProcessingHelper.ApplyResizeParametersScoped(image, parameters);
+        var resizedImage = resizedScope.Image;
 
         cancellationToken.ThrowIfCancellationRequested();
         await ImageProcessingHelper.SaveImageToTargetAsync(resizedImage, targetPath, targetExt, cancellationToken).ConfigureAwait(false);
@@ -565,8 +565,8 @@ public class CrunchImageConversionService(
 
             if (magickImage.ChannelCount <= 3)
             {
-                var resized = ImageProcessingHelper.ApplyResizeParameters(magickImage, parameters);
-                using var resizedScope = ReferenceEquals(resized, magickImage) ? null : resized;
+                using var resizedScope = ImageProcessingHelper.ApplyResizeParametersScoped(magickImage, parameters);
+                var resized = resizedScope.Image;
                 await ImageProcessingHelper.SaveImageToTargetAsync(resized, targetPath, targetExt, cancellationToken).ConfigureAwait(false);
                 return true;
             }
@@ -593,8 +593,8 @@ public class CrunchImageConversionService(
             alpha.Dispose();
             cancellationToken.ThrowIfCancellationRequested();
 
-            var resizedPsd = ImageProcessingHelper.ApplyResizeParameters(merged, parameters);
-            using var resizedPsdScope = ReferenceEquals(resizedPsd, merged) ? null : resizedPsd;
+            using var resizedPsdScope = ImageProcessingHelper.ApplyResizeParametersScoped(merged, parameters);
+            var resizedPsd = resizedPsdScope.Image;
             await ImageProcessingHelper.SaveImageToTargetAsync(resizedPsd, targetPath, targetExt, cancellationToken).ConfigureAwait(false);
             return true;
         }, cancellationToken).ConfigureAwait(false);

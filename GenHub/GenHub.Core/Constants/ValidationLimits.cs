@@ -48,12 +48,12 @@ public static class ValidationLimits
     /// <summary>
     /// Maximum uncompressed size in bytes allowed for a single guarded ZIP archive entry (2GB).
     /// </summary>
-    public const long MaxZipArchiveEntryBytes = 2147483648L;
+    public const long MaxZipArchiveEntryBytes = 2_147_483_648L;
 
     /// <summary>
     /// Maximum total uncompressed size in bytes allowed when extracting a guarded ZIP archive (20GB).
     /// </summary>
-    public const long MaxZipArchiveTotalBytes = 21474836480L;
+    public const long MaxZipArchiveTotalBytes = 21_474_836_480L;
 
     /// <summary>
     /// Buffer size in bytes used when copying guarded ZIP archive entries to disk (80KB).

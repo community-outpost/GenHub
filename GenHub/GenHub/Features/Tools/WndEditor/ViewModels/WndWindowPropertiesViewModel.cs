@@ -1011,14 +1011,7 @@ public sealed partial class WndWindowPropertiesViewModel : ObservableObject
 
     private void RefreshStaticTextData()
     {
-        if (WndStaticTextData.TryParse(Window.GetProperty(WndConstants.PropertyKeys.StaticTextData), out var data) && data != null)
-        {
-            StaticCentered = data.Centered;
-        }
-        else
-        {
-            StaticCentered = false;
-        }
+        StaticCentered = WndStaticTextData.TryParse(Window.GetProperty(WndConstants.PropertyKeys.StaticTextData), out var data) && data != null && data.Centered;
     }
 
     private void RefreshTextEntryData()
@@ -1107,14 +1100,9 @@ public sealed partial class WndWindowPropertiesViewModel : ObservableObject
 
     private void RefreshRadioButtonData()
     {
-        if (WndRadioButtonData.TryParse(Window.GetProperty(WndConstants.PropertyKeys.RadioButtonData), out var data) && data != null)
-        {
-            RadioGroup = data.Group;
-        }
-        else
-        {
-            RadioGroup = 0;
-        }
+        RadioGroup = WndRadioButtonData.TryParse(Window.GetProperty(WndConstants.PropertyKeys.RadioButtonData), out var data) && data != null
+            ? data.Group
+            : 0;
     }
 
     private void RefreshTabControlData()

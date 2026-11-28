@@ -48,12 +48,8 @@ public static partial class SteamAppIdResolver
             return false;
         }
 
-        IEnumerable<string> manifests;
-        try
-        {
-            manifests = Directory.EnumerateFiles(steamAppsDir.FullName, "appmanifest_*.acf", SearchOption.TopDirectoryOnly);
-        }
-        catch
+        var manifests = TryEnumerateAppManifests(steamAppsDir.FullName);
+        if (manifests == null)
         {
             return false;
         }
@@ -101,4 +97,16 @@ public static partial class SteamAppIdResolver
 
     [GeneratedRegex("^appmanifest_(?<id>\\d+)$", RegexOptions.IgnoreCase)]
     private static partial Regex AppManifestRegex();
+
+    private static IEnumerable<string>? TryEnumerateAppManifests(string steamAppsPath)
+    {
+        try
+        {
+            return Directory.EnumerateFiles(steamAppsPath, "appmanifest_*.acf", SearchOption.TopDirectoryOnly);
+        }
+        catch
+        {
+            return null;
+        }
+    }
 }

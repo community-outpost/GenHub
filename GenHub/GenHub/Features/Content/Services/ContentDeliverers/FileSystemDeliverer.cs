@@ -112,47 +112,7 @@ public class FileSystemDeliverer(
 
             var manifestBuilder = manifestBuilderFactory();
 
-            manifestBuilder
-                .WithBasicInfo(packageManifest.Id.Value, packageManifest.Name, packageManifest.Version)
-                .WithContentType(packageManifest.ContentType, packageManifest.TargetGame)
-                .WithPublisher(
-                    packageManifest.Publisher?.Name ?? string.Empty,
-                    packageManifest.Publisher?.Website ?? string.Empty,
-                    packageManifest.Publisher?.SupportUrl ?? string.Empty,
-                    packageManifest.Publisher?.ContactEmail ?? string.Empty,
-                    packageManifest.Publisher?.PublisherType ?? string.Empty)
-                .WithMetadata(
-                    packageManifest.Metadata?.Description ?? string.Empty,
-                    packageManifest.Metadata?.Tags,
-                    packageManifest.Metadata?.IconUrl ?? string.Empty,
-                    packageManifest.Metadata?.ScreenshotUrls,
-                    packageManifest.Metadata?.ChangelogUrl ?? string.Empty);
-
-            // Add dependencies
-            foreach (var dep in packageManifest.Dependencies)
-            {
-                manifestBuilder.AddDependency(
-                    dep.Id,
-                    dep.Name,
-                    dep.DependencyType,
-                    dep.InstallBehavior,
-                    dep.MinVersion ?? string.Empty,
-                    dep.MaxVersion ?? string.Empty,
-                    dep.CompatibleVersions,
-                    dep.IsExclusive,
-                    dep.ConflictsWith);
-            }
-
-            // Add content references
-            foreach (var reference in packageManifest.ContentReferences)
-            {
-                manifestBuilder.AddContentReference(
-                    reference.ContentId,
-                    reference.PublisherId ?? string.Empty,
-                    reference.ContentType,
-                    reference.MinVersion ?? string.Empty,
-                    reference.MaxVersion ?? string.Empty);
-            }
+            ApplyPackageMetadata(manifestBuilder, packageManifest);
 
             // Add delivered files to the manifest
             foreach (var file in deliveredFiles)
@@ -165,28 +125,7 @@ public class FileSystemDeliverer(
                     permissions: file.Permissions);
             }
 
-            // The delivered manifest is flat, so it carries the declared entry point and launch
-            // relationship the launcher resolves, in place of the variant list.
-            var declaredEntryPoint = ManifestVariantResolver.GetDeclaredEntryPoint(packageManifest);
-            if (!string.IsNullOrWhiteSpace(declaredEntryPoint))
-            {
-                manifestBuilder.WithEntryPoint(declaredEntryPoint);
-            }
-
-            var launchRelationship = ManifestVariantResolver.ResolveLaunchRelationship(packageManifest);
-            if (launchRelationship is not null)
-            {
-                manifestBuilder.WithLaunchRelationship(launchRelationship.ProcessName, launchRelationship.DiscoveryTimeoutMs);
-            }
-
-            // Add required directories
-            manifestBuilder.AddRequiredDirectories([.. packageManifest.RequiredDirectories]);
-
-            // Add installation instructions if present
-            if (packageManifest.InstallationInstructions != null)
-            {
-                manifestBuilder.WithInstallationInstructions(packageManifest.InstallationInstructions);
-            }
+            ApplyDeliveredLayout(manifestBuilder, packageManifest);
 
             var deliveredManifest = manifestBuilder.Build();
 
@@ -229,6 +168,77 @@ public class FileSystemDeliverer(
         {
             logger.LogError(ex, "Validation failed for local content manifest {ManifestId}", manifest.Id);
             return Task.FromResult(OperationResult<bool>.CreateFailure($"Validation failed: {ex.Message}"));
+        }
+    }
+
+    private static void ApplyPackageMetadata(IContentManifestBuilder manifestBuilder, ContentManifest packageManifest)
+    {
+        manifestBuilder
+            .WithBasicInfo(packageManifest.Id.Value, packageManifest.Name, packageManifest.Version)
+            .WithContentType(packageManifest.ContentType, packageManifest.TargetGame)
+            .WithPublisher(
+                packageManifest.Publisher?.Name ?? string.Empty,
+                packageManifest.Publisher?.Website ?? string.Empty,
+                packageManifest.Publisher?.SupportUrl ?? string.Empty,
+                packageManifest.Publisher?.ContactEmail ?? string.Empty,
+                packageManifest.Publisher?.PublisherType ?? string.Empty)
+            .WithMetadata(
+                packageManifest.Metadata?.Description ?? string.Empty,
+                packageManifest.Metadata?.Tags,
+                packageManifest.Metadata?.IconUrl ?? string.Empty,
+                packageManifest.Metadata?.ScreenshotUrls,
+                packageManifest.Metadata?.ChangelogUrl ?? string.Empty);
+
+        // Add dependencies
+        foreach (var dep in packageManifest.Dependencies)
+        {
+            manifestBuilder.AddDependency(
+                dep.Id,
+                dep.Name,
+                dep.DependencyType,
+                dep.InstallBehavior,
+                dep.MinVersion ?? string.Empty,
+                dep.MaxVersion ?? string.Empty,
+                dep.CompatibleVersions,
+                dep.IsExclusive,
+                dep.ConflictsWith);
+        }
+
+        // Add content references
+        foreach (var reference in packageManifest.ContentReferences)
+        {
+            manifestBuilder.AddContentReference(
+                reference.ContentId,
+                reference.PublisherId ?? string.Empty,
+                reference.ContentType,
+                reference.MinVersion ?? string.Empty,
+                reference.MaxVersion ?? string.Empty);
+        }
+    }
+
+    private static void ApplyDeliveredLayout(IContentManifestBuilder manifestBuilder, ContentManifest packageManifest)
+    {
+        // The delivered manifest is flat, so it carries the declared entry point and launch
+        // relationship the launcher resolves, in place of the variant list.
+        var declaredEntryPoint = ManifestVariantResolver.GetDeclaredEntryPoint(packageManifest);
+        if (!string.IsNullOrWhiteSpace(declaredEntryPoint))
+        {
+            manifestBuilder.WithEntryPoint(declaredEntryPoint);
+        }
+
+        var launchRelationship = ManifestVariantResolver.ResolveLaunchRelationship(packageManifest);
+        if (launchRelationship is not null)
+        {
+            manifestBuilder.WithLaunchRelationship(launchRelationship.ProcessName, launchRelationship.DiscoveryTimeoutMs);
+        }
+
+        // Add required directories
+        manifestBuilder.AddRequiredDirectories([.. packageManifest.RequiredDirectories]);
+
+        // Add installation instructions if present
+        if (packageManifest.InstallationInstructions != null)
+        {
+            manifestBuilder.WithInstallationInstructions(packageManifest.InstallationInstructions);
         }
     }
 

@@ -1562,7 +1562,7 @@ public class DropboxHostingProvider(ILogger<DropboxHostingProvider> logger, IHtt
     }
 
     private string GetNotAuthenticatedMessage() =>
-        localizationService != null && localizationService.TryGetString("Tools.PublisherStudio.Hosting.DropboxNotAuthenticated", out var localized)
+        localizationService?.TryGetString("Tools.PublisherStudio.Hosting.DropboxNotAuthenticated", out var localized) == true
             ? localized
             : HostingConstants.DropboxNotAuthenticated;
 

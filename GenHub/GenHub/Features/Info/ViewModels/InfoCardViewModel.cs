@@ -131,16 +131,11 @@ public partial class InfoCardViewModel : ObservableObject
         Title = ResolveString(_localizationService, $"Info.Card.{_sectionId}{cardKey}.Title", _model.Title);
         Content = ResolveString(_localizationService, $"Info.Card.{_sectionId}{cardKey}.Content", _model.Content);
 
-        if (!string.IsNullOrEmpty(_model.DetailedContent))
-        {
-            DetailedContent = ResolveString(_localizationService, $"Info.Card.{_sectionId}{cardKey}.DetailedContent", _model.DetailedContent);
-        }
-        else
-        {
-            DetailedContent = null;
-        }
+        DetailedContent = string.IsNullOrEmpty(_model.DetailedContent)
+            ? null
+            : ResolveString(_localizationService, $"Info.Card.{_sectionId}{cardKey}.DetailedContent", _model.DetailedContent);
 
-        if (_model.Actions != null && _model.Actions.Count > 0)
+        if (_model.Actions is { Count: > 0 })
         {
             var localizedActions = new List<InfoAction>(_model.Actions.Count);
             for (int i = 0; i < _model.Actions.Count; i++)

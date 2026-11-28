@@ -170,7 +170,19 @@ public class ContentStorageService : IContentStorageService
             var comparison = OperatingSystem.IsLinux() ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase;
             return fullPath.StartsWith(tempPath, comparison);
         }
-        catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException or System.Security.SecurityException)
+        catch (ArgumentException)
+        {
+            return false;
+        }
+        catch (NotSupportedException)
+        {
+            return false;
+        }
+        catch (PathTooLongException)
+        {
+            return false;
+        }
+        catch (System.Security.SecurityException)
         {
             return false;
         }
@@ -439,19 +451,20 @@ public class ContentStorageService : IContentStorageService
             // Hold the write fence until references are tracked and the manifest is
             // persisted so forced garbage collection cannot delete these blobs while
             // they are still invisible to the GC live set.
-            using var writeLease = await _writeFence.TrackWriteAsync(cancellationToken);
-
-            // Store content files in CAS with integrity verification
-            var storeFilesResult = await StoreContentFilesAsync(manifest, sourceDirectory, progress, cancellationToken);
-            if (!storeFilesResult.Success || storeFilesResult.Data == null)
+            using (await _writeFence.TrackWriteAsync(cancellationToken))
             {
-                return OperationResult<ContentManifest>.CreateFailure(
-                    storeFilesResult.FirstError ?? $"Failed to store content files for manifest {manifest.Id}");
+                // Store content files in CAS with integrity verification
+                var storeFilesResult = await StoreContentFilesAsync(manifest, sourceDirectory, progress, cancellationToken);
+                if (!storeFilesResult.Success || storeFilesResult.Data == null)
+                {
+                    return OperationResult<ContentManifest>.CreateFailure(
+                        storeFilesResult.FirstError ?? $"Failed to store content files for manifest {manifest.Id}");
+                }
+
+                var updatedManifest = storeFilesResult.Data;
+
+                return await FinalizeStoredContentAsync(updatedManifest, manifestPath, cancellationToken);
             }
-
-            var updatedManifest = storeFilesResult.Data;
-
-            return await FinalizeStoredContentAsync(updatedManifest, manifestPath, cancellationToken);
         }
         catch (OperationCanceledException)
         {
@@ -979,7 +992,6 @@ public class ContentStorageService : IContentStorageService
         var slots = new ManifestFile?[totalFiles];
         var processedCount = 0;
         string? firstError = null;
-        var errorLock = new object();
 
         using var failureScope = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         var parallelOptions = new ParallelOptions
@@ -1006,10 +1018,10 @@ public class ContentStorageService : IContentStorageService
 
                     if (!outcome.Success)
                     {
-                        lock (errorLock)
-                        {
-                            firstError ??= outcome.Error ?? $"Failed to store file '{item.file.RelativePath}' for manifest {manifest.Id}";
-                        }
+                        Interlocked.CompareExchange(
+                            ref firstError,
+                            outcome.Error ?? $"Failed to store file '{item.file.RelativePath}' for manifest {manifest.Id}",
+                            null);
 
                         await failureScope.CancelAsync().ConfigureAwait(false);
                         return;
@@ -1214,7 +1226,7 @@ public class ContentStorageService : IContentStorageService
     private string? ValidateAllRequiredFilesStored(ContentManifest manifest, IReadOnlyList<ManifestFile> files, List<ManifestFile> updatedFiles)
     {
         var missingRequiredFiles = files
-            .Where(f => f.IsRequired && !updatedFiles.Any(u => string.Equals(u.RelativePath, f.RelativePath, StringComparison.Ordinal)))
+            .Where(f => f.IsRequired && updatedFiles.All(u => !string.Equals(u.RelativePath, f.RelativePath, StringComparison.Ordinal)))
             .ToList();
 
         if (missingRequiredFiles.Count == 0)

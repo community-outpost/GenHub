@@ -59,7 +59,7 @@ public sealed class ProfileSharingImportInstallationManifestTests
     private readonly Mock<IGameProfileManager> _profileManagerMock = new();
     private readonly Mock<ICasService> _casServiceMock = new();
     private readonly Mock<IGameLaunchRunner> _launchRunnerMock = new();
-    private GameProfile? _savedProfile;
+    private GameProfile? _savedProfile; // skipcq: CS-R1137
 
     /// <summary>
     /// Initializes a new instance of the <see cref="ProfileSharingImportInstallationManifestTests"/> class.

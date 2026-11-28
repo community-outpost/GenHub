@@ -176,8 +176,7 @@ public sealed class BigFilePackerTests : IDisposable
             ReadBigEndianUInt32(reader);
             ReadBigEndianUInt32(reader);
             var nameBytes = new List<byte>();
-            byte b;
-            while ((b = reader.ReadByte()) != 0)
+            for (var b = reader.ReadByte(); b != 0; b = reader.ReadByte())
             {
                 nameBytes.Add(b);
             }

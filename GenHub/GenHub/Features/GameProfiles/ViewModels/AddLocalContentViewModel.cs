@@ -961,14 +961,9 @@ public partial class AddLocalContentViewModel(
 
             await RefreshStagingTreeAsync();
             HasInactiveArchives = CheckForInactiveArchives();
-            if (!HasInactiveArchives)
-            {
-                StatusMessage = GetLocalizedString("Profiles.AddLocalContent.StatusNormalizedSuccess", "Inactive archives normalized to .big successfully.");
-            }
-            else
-            {
-                StatusMessage = GetLocalizedString("Profiles.AddLocalContent.StatusPartialNormalization", "Some inactive archives could not be normalized.");
-            }
+            StatusMessage = HasInactiveArchives
+                ? GetLocalizedString("Profiles.AddLocalContent.StatusPartialNormalization", "Some inactive archives could not be normalized.")
+                : GetLocalizedString("Profiles.AddLocalContent.StatusNormalizedSuccess", "Inactive archives normalized to .big successfully.");
 
             Validate();
         }

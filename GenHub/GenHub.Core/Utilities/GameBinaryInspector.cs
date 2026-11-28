@@ -371,7 +371,7 @@ public static class GameBinaryInspector
 
     private static int IndexOfFolded(ReadOnlySpan<byte> haystack)
     {
-        for (var i = 0; i + GeneralsMarker.Length <= haystack.Length; i++)
+        for (var i = 0; i <= haystack.Length - GeneralsMarker.Length; i++)
         {
             if (MatchesFoldedAt(haystack, i))
             {
@@ -486,7 +486,15 @@ public static class GameBinaryInspector
                     return false;
                 }
             }
-            catch (Exception ex) when (ex is IOException or ArgumentException or NotSupportedException)
+            catch (IOException)
+            {
+                return false;
+            }
+            catch (ArgumentException)
+            {
+                return false;
+            }
+            catch (NotSupportedException)
             {
                 return false;
             }

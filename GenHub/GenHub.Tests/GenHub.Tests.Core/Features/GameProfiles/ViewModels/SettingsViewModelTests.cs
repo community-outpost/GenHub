@@ -1337,13 +1337,6 @@ public class SettingsViewModelTests
             Name = "Test Mod",
         };
 
-        var profile = new GameProfile
-        {
-            Id = "profile-1",
-            Name = "Test Profile",
-            EnabledContentIds = [manifestId],
-        };
-
         _mockManifestPool
             .Setup(x => x.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess([manifest]));

@@ -89,7 +89,7 @@ public static class ImageCacheConstants
     /// <param name="height">The image height in pixels.</param>
     /// <returns>A formatted Picsum photo URL.</returns>
     [SuppressMessage("Minor Code Smell", "S1075:URIs should not be hardcoded", Justification = "Stable placeholder image endpoint for artwork fallbacks.")]
-    public static string GetPicsumUrl(string? seed, int width, int height)
+    public static string GetPicsumUrl(string? seed, int width, int height) // skipcq: CS-A1000
     {
         var safeSeed = string.IsNullOrWhiteSpace(seed) ? "genhub" : Uri.EscapeDataString(seed.Trim().ToLowerInvariant());
         return $"https://picsum.photos/seed/{safeSeed}/{width}/{height}";

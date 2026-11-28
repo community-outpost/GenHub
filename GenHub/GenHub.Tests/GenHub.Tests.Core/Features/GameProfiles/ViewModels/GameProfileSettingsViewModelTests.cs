@@ -276,25 +276,26 @@ public class GameProfileSettingsViewModelTests
             null,
             null,
             NullLogger<GameProfileSettingsViewModel>.Instance,
-            NullLogger<GameSettingsViewModel>.Instance);
-
-        vm.Name = "Test Profile";
-        vm.SelectedGameInstallation = new GenHub.Features.GameProfiles.ViewModels.ContentDisplayItem
+            NullLogger<GameSettingsViewModel>.Instance)
         {
-            Id = "1.108.steam.gameinstallation.zh",
-            ManifestId = GenHub.Core.Models.Manifest.ManifestId.Create("1.108.steam.gameinstallation.zh"),
-            DisplayName = "Zero Hour",
-            ContentType = ContentType.GameInstallation,
-            GameType = GameType.ZeroHour,
-            InstallationType = GameInstallationType.Steam,
-            SourceId = "steam-zh",
-            GameClient = new GameClient
+            Name = "Test Profile",
+            SelectedGameInstallation = new GenHub.Features.GameProfiles.ViewModels.ContentDisplayItem
             {
-                Id = "client-zh",
-                Name = "Zero Hour Client",
+                Id = "1.108.steam.gameinstallation.zh",
+                ManifestId = GenHub.Core.Models.Manifest.ManifestId.Create("1.108.steam.gameinstallation.zh"),
+                DisplayName = "Zero Hour",
+                ContentType = ContentType.GameInstallation,
                 GameType = GameType.ZeroHour,
-                ExecutablePath = "generals.exe",
-                WorkingDirectory = "C:\\Games\\ZH",
+                InstallationType = GameInstallationType.Steam,
+                SourceId = "steam-zh",
+                GameClient = new GameClient
+                {
+                    Id = "client-zh",
+                    Name = "Zero Hour Client",
+                    GameType = GameType.ZeroHour,
+                    ExecutablePath = "generals.exe",
+                    WorkingDirectory = "C:\\Games\\ZH",
+                },
             },
         };
 
@@ -315,7 +316,7 @@ public class GameProfileSettingsViewModelTests
         // Assert
         mockProfileManager.Verify(
             m => m.CreateProfileAsync(
-                It.Is<CreateProfileRequest>(r =>
+                It.Is<CreateProfileRequest>(r => // skipcq: CS-R1136
                     r.GameClient != null &&
                     r.GameClient.Version == expectedVersion &&
                     r.GameClient.PublisherType == expectedPublisher &&
@@ -349,9 +350,10 @@ public class GameProfileSettingsViewModelTests
             null,
             null,
             NullLogger<GameProfileSettingsViewModel>.Instance,
-            NullLogger<GameSettingsViewModel>.Instance);
-
-        vm.IsInitializing = true;
+            NullLogger<GameSettingsViewModel>.Instance)
+        {
+            IsInitializing = true,
+        };
 
         // Act
         vm.GameTypeFilter = GameType.ZeroHour;
@@ -415,9 +417,10 @@ public class GameProfileSettingsViewModelTests
             null,
             null,
             NullLogger<GameProfileSettingsViewModel>.Instance,
-            NullLogger<GameSettingsViewModel>.Instance);
-
-        vm.IsInitializing = false;
+            NullLogger<GameSettingsViewModel>.Instance)
+        {
+            IsInitializing = false,
+        };
 
         // Act
         vm.GameTypeFilter = GameType.ZeroHour;

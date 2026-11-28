@@ -208,10 +208,13 @@ public sealed class GenLauncherDelivererTests
             manifest.Id,
             ManifestVariantResolver.CurrentRuntimeIdentifier);
 
-        OperationResult<ContentManifest> result;
         try
         {
-            result = await deliverer.DeliverContentAsync(manifest, targetDir, null, CancellationToken.None);
+            var result = await deliverer.DeliverContentAsync(manifest, targetDir, null, CancellationToken.None);
+
+            result.Success.Should().BeFalse();
+            result.FirstError.Should().Be(expected);
+            requested.Should().BeEmpty();
         }
         finally
         {
@@ -220,10 +223,6 @@ public sealed class GenLauncherDelivererTests
                 Directory.Delete(targetDir, recursive: true);
             }
         }
-
-        result.Success.Should().BeFalse();
-        result.FirstError.Should().Be(expected);
-        requested.Should().BeEmpty();
     }
 
     /// <summary>
@@ -296,6 +295,8 @@ public sealed class GenLauncherDelivererTests
             .Returns<DownloadConfiguration, IProgress<DownloadProgress>?, CancellationToken>(async (cfg, _, _) =>
             {
                 var current = Interlocked.Increment(ref inFlight);
+
+                // skipcq: CS-W1094
                 lock (lockObj)
                 {
                     if (current > maxInFlight)

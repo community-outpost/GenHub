@@ -637,7 +637,23 @@ public sealed class BuildEngineService(
         {
             return Path.GetFullPath(unified);
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException or ArgumentException or System.Security.SecurityException)
+        catch (IOException)
+        {
+            return unified;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return unified;
+        }
+        catch (NotSupportedException)
+        {
+            return unified;
+        }
+        catch (ArgumentException)
+        {
+            return unified;
+        }
+        catch (System.Security.SecurityException)
         {
             return unified;
         }
@@ -1271,7 +1287,11 @@ public sealed class BuildEngineService(
             entryCount = (int)BitConverter.ToUInt32(countBytes, 0);
             return true;
         }
-        catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException)
+        catch (IOException)
+        {
+            return false;
+        }
+        catch (UnauthorizedAccessException)
         {
             return false;
         }

@@ -36,7 +36,7 @@ public sealed class WndEditorViewsTests
     /// </summary>
     /// <returns>A task representing the asynchronous test operation.</returns>
     [AvaloniaFact]
-    public async Task WndEditorView_Loads_WithToolbarAndCanvas()
+    public async Task WndEditorView_Loads_WithToolbarAndCanvasAsync()
     {
         // Arrange
         var viewModel = CreateEditorViewModel();

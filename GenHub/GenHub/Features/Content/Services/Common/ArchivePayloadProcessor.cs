@@ -9,6 +9,7 @@ using SharpCompress.Archives;
 using SharpCompress.Common;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
@@ -358,12 +359,7 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
         {
             cancellationToken.ThrowIfCancellationRequested();
             var current = pending.Pop();
-            string[] entries;
-            try
-            {
-                entries = Directory.GetFileSystemEntries(current);
-            }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
+            if (!TryQueryFileSystem(() => Directory.GetFileSystemEntries(current), out var entries))
             {
                 continue;
             }
@@ -429,12 +425,7 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
     {
         changed = false;
 
-        FileAttributes attributes;
-        try
-        {
-            attributes = File.GetAttributes(entry);
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
+        if (!TryQueryFileSystem(() => File.GetAttributes(entry), out var attributes))
         {
             return false;
         }
@@ -479,12 +470,7 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
         }
 
         var entryDirectory = Path.GetDirectoryName(entry) ?? context.RootFull;
-        string targetFull = string.Empty;
-        try
-        {
-            targetFull = Path.GetFullPath(Path.Combine(entryDirectory, target));
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
+        if (!TryQueryFileSystem(() => Path.GetFullPath(Path.Combine(entryDirectory, target)), out var targetFull))
         {
             return false;
         }
@@ -991,12 +977,7 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
         var pending = new Queue<string>();
         pending.Enqueue(rootDirectory);
 
-        string rootCanonical = string.Empty;
-        try
-        {
-            rootCanonical = CanonicalizePath(rootDirectory) ?? Path.GetFullPath(rootDirectory);
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
+        if (!TryQueryFileSystem(() => CanonicalizePath(rootDirectory) ?? Path.GetFullPath(rootDirectory), out var rootCanonical))
         {
             yield break;
         }
@@ -1008,24 +989,14 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
             var current = pending.Dequeue();
             yield return current;
 
-            string[] subDirs;
-            try
-            {
-                subDirs = Directory.GetDirectories(current);
-            }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
+            if (!TryQueryFileSystem(() => Directory.GetDirectories(current), out var subDirs))
             {
                 continue;
             }
 
             foreach (var subDir in subDirs)
             {
-                FileAttributes attrs;
-                try
-                {
-                    attrs = File.GetAttributes(subDir);
-                }
-                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
+                if (!TryQueryFileSystem(() => File.GetAttributes(subDir), out var attrs))
                 {
                     continue;
                 }
@@ -1035,12 +1006,7 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
                     continue;
                 }
 
-                string fullSubDir = string.Empty;
-                try
-                {
-                    fullSubDir = Path.GetFullPath(subDir);
-                }
-                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
+                if (!TryQueryFileSystem(() => Path.GetFullPath(subDir), out var fullSubDir))
                 {
                     continue;
                 }
@@ -1053,16 +1019,35 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
         }
     }
 
+    private static bool TryQueryFileSystem<T>(Func<T> query, [MaybeNullWhen(false)] out T result)
+    {
+        try
+        {
+            result = query();
+            return true;
+        }
+        catch (IOException)
+        {
+            result = default;
+            return false;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            result = default;
+            return false;
+        }
+        catch (ArgumentException)
+        {
+            result = default;
+            return false;
+        }
+    }
+
     private static IEnumerable<string> EnumerateDirectoriesSafe(string rootDirectory, string searchPattern = "*")
     {
         foreach (var dir in TraverseNonReparseDirectoriesSafe(rootDirectory))
         {
-            string[] matchingDirs;
-            try
-            {
-                matchingDirs = Directory.GetDirectories(dir, searchPattern);
-            }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
+            if (!TryQueryFileSystem(() => Directory.GetDirectories(dir, searchPattern), out var matchingDirs))
             {
                 continue;
             }
@@ -1078,12 +1063,7 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
     {
         foreach (var dir in TraverseNonReparseDirectoriesSafe(rootDirectory))
         {
-            string[] files;
-            try
-            {
-                files = Directory.GetFiles(dir, searchPattern);
-            }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
+            if (!TryQueryFileSystem(() => Directory.GetFiles(dir, searchPattern), out var files))
             {
                 continue;
             }
@@ -1207,15 +1187,13 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
             throw new InvalidDataException(
                 $"File '{Path.GetFileName(archivePath)}' is not a valid BZip2 archive. The download server may have returned an error page or corrupted content. Preview: {preview}");
         }
-        else if (ext.Equals(".xz", StringComparison.OrdinalIgnoreCase))
+        else if (ext.Equals(".xz", StringComparison.OrdinalIgnoreCase) &&
+                 !header.StartsWith(ArchiveSignatureConstants.Xz))
         {
             // XZ files start with 0xFD, '7', 'z', 'X', 'Z', 0x00
-            if (!header.StartsWith(ArchiveSignatureConstants.Xz))
-            {
-                var preview = ReadTextPreview(archivePath, maxChars: 120);
-                throw new InvalidDataException(
-                    $"File '{Path.GetFileName(archivePath)}' is not a valid XZ archive. The download server may have returned an error page or corrupted content. Preview: {preview}");
-            }
+            var preview = ReadTextPreview(archivePath, maxChars: 120);
+            throw new InvalidDataException(
+                $"File '{Path.GetFileName(archivePath)}' is not a valid XZ archive. The download server may have returned an error page or corrupted content. Preview: {preview}");
         }
     }
 

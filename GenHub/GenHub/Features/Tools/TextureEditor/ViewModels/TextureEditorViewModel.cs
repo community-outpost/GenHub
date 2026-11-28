@@ -1007,7 +1007,19 @@ public sealed partial class TextureEditorViewModel(
             string rightDirectory = Path.GetFullPath(Path.GetDirectoryName(cleanRight) ?? cleanRight);
             return string.Equals(leftDirectory, rightDirectory, comparison);
         }
-        catch (Exception ex) when (ex is ArgumentException or IOException or NotSupportedException or SecurityException)
+        catch (ArgumentException)
+        {
+            return false;
+        }
+        catch (IOException)
+        {
+            return false;
+        }
+        catch (NotSupportedException)
+        {
+            return false;
+        }
+        catch (SecurityException)
         {
             return false;
         }
@@ -1025,7 +1037,19 @@ public sealed partial class TextureEditorViewModel(
             string fullRoot = Path.GetFullPath(root).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) + Path.DirectorySeparatorChar;
             return fullPath.StartsWith(fullRoot, comparison);
         }
-        catch (Exception ex) when (ex is ArgumentException or IOException or NotSupportedException or SecurityException)
+        catch (ArgumentException)
+        {
+            return false;
+        }
+        catch (IOException)
+        {
+            return false;
+        }
+        catch (NotSupportedException)
+        {
+            return false;
+        }
+        catch (SecurityException)
         {
             return false;
         }
@@ -1064,6 +1088,22 @@ public sealed partial class TextureEditorViewModel(
         return StringComparer.OrdinalIgnoreCase.Compare(a, b);
     }
 
+    private static string[]? TryGetBigArchiveFiles(string directory, EnumerationOptions enumOptions)
+    {
+        try
+        {
+            return Directory.GetFiles(directory, TextureEditorConstants.BigArchiveSearchPattern, enumOptions);
+        }
+        catch (IOException)
+        {
+            return null;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return null;
+        }
+    }
+
     private string? FindTextureInBigArchives(string directory, HashSet<string> candidates, bool recurse = false)
     {
         if (!Directory.Exists(directory))
@@ -1078,17 +1118,8 @@ public sealed partial class TextureEditorViewModel(
             MatchCasing = MatchCasing.CaseInsensitive,
         };
 
-        string[] bigFiles;
-        try
-        {
-            bigFiles = Directory.GetFiles(directory, TextureEditorConstants.BigArchiveSearchPattern, enumOptions);
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-            return null;
-        }
-
-        if (bigFiles.Length == 0)
+        var bigFiles = TryGetBigArchiveFiles(directory, enumOptions);
+        if (bigFiles is null || bigFiles.Length == 0)
         {
             return null;
         }
@@ -1547,12 +1578,14 @@ public sealed partial class TextureEditorViewModel(
 
     private FileExplorerViewModel CreateFileExplorer()
     {
-        var explorer = new FileExplorerViewModel(logger);
-        explorer.FilePatterns = TextureEditorConstants.ExplorerFilePatterns;
-        explorer.ShowFileExtensions = true;
-        explorer.ExcludedDirectoryNames = [ModBuilderConstants.DefaultBuildDir, ModBuilderConstants.DefaultReleaseDir];
-        explorer.BrowseFolderAsync = BrowseExplorerFolderAsync;
-        explorer.DirectoryAdoptedAsync = OnExplorerDirectoryAdoptedAsync;
+        var explorer = new FileExplorerViewModel(logger)
+        {
+            FilePatterns = TextureEditorConstants.ExplorerFilePatterns,
+            ShowFileExtensions = true,
+            ExcludedDirectoryNames = [ModBuilderConstants.DefaultBuildDir, ModBuilderConstants.DefaultReleaseDir],
+            BrowseFolderAsync = BrowseExplorerFolderAsync,
+            DirectoryAdoptedAsync = OnExplorerDirectoryAdoptedAsync,
+        };
         explorer.FileActivated += OnExplorerFileActivated;
         return explorer;
     }
@@ -2600,7 +2633,19 @@ public sealed partial class TextureEditorViewModel(
                 list.Add(current.FullName);
             }
         }
-        catch (Exception ex) when (ex is ArgumentException or IOException or SecurityException or NotSupportedException)
+        catch (ArgumentException)
+        {
+            // Ignore invalid paths
+        }
+        catch (IOException)
+        {
+            // Ignore invalid paths
+        }
+        catch (SecurityException)
+        {
+            // Ignore invalid paths
+        }
+        catch (NotSupportedException)
         {
             // Ignore invalid paths
         }

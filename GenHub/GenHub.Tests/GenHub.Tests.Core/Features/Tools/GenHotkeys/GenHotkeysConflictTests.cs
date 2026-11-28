@@ -80,15 +80,7 @@ public class GenHotkeysConflictTests
                         {
                             var vms = layout.Select(a =>
                             {
-                                char? key = null;
-                                if (profile.KeyMappings.TryGetValue(a.HotkeyString ?? string.Empty, out var mappedKey))
-                                {
-                                    key = mappedKey;
-                                }
-                                else
-                                {
-                                    key = a.DefaultHotkey;
-                                }
+                                char? key = profile.KeyMappings.TryGetValue(a.HotkeyString ?? string.Empty, out var mappedKey) ? mappedKey : a.DefaultHotkey;
 
                                 return new HotkeyActionViewModel
                                 {
@@ -176,15 +168,7 @@ public class GenHotkeysConflictTests
                     {
                         var vms = layout.Select(a =>
                         {
-                            char? key = null;
-                            if (profile.KeyMappings.TryGetValue(a.HotkeyString ?? string.Empty, out var mappedKey))
-                            {
-                                key = mappedKey;
-                            }
-                            else
-                            {
-                                key = a.DefaultHotkey;
-                            }
+                            char? key = profile.KeyMappings.TryGetValue(a.HotkeyString ?? string.Empty, out var mappedKey) ? mappedKey : a.DefaultHotkey;
 
                             return new HotkeyActionViewModel
                             {

@@ -259,7 +259,7 @@ public partial class LocalizationParityTests
         }
 
         // Pure numbers, symbols, icons, emojis, or punctuation without word letters
-        if (!value.Any(char.IsLetter))
+        if (value.All(c => !char.IsLetter(c)))
         {
             return true;
         }

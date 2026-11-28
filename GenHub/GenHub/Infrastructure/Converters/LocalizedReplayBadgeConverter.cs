@@ -28,28 +28,13 @@ public class LocalizedReplayBadgeConverter : IValueConverter
 
             if (value is ReplayCompatibilityStatus status)
             {
-                return status switch
-                {
-                    ReplayCompatibilityStatus.Compatible => loc.GetString("Tools.ReplayManager.Badge.ProfileReady") ?? "Profile Ready",
-                    ReplayCompatibilityStatus.RequiresProfile => loc.GetString("Tools.ReplayManager.Badge.ProfileNeeded") ?? "Profile Needed",
-                    ReplayCompatibilityStatus.Downloadable => loc.GetString("Tools.ReplayManager.Badge.DownloadRequired") ?? "Download Required",
-                    ReplayCompatibilityStatus.Orphaned => loc.GetString("Tools.ReplayManager.Badge.CustomUnmapped") ?? "Custom / Unmapped",
-                    ReplayCompatibilityStatus.RequiresRetailInstallation => loc.GetString("Tools.ReplayManager.Badge.RetailInstallNeeded") ?? "Retail Install Needed",
-                    _ => loc.GetString("Tools.ReplayManager.Badge.Unknown") ?? "Unknown",
-                };
+                var (key, fallback) = GetStatusBadge(status);
+                return loc.GetString(key) ?? fallback;
             }
 
             var text = value?.ToString() ?? string.Empty;
-            return text switch
-            {
-                "Profile Ready" => loc.GetString("Tools.ReplayManager.Badge.ProfileReady") ?? text,
-                "Profile Needed" => loc.GetString("Tools.ReplayManager.Badge.ProfileNeeded") ?? text,
-                "Download Required" => loc.GetString("Tools.ReplayManager.Badge.DownloadRequired") ?? text,
-                "Custom / Unmapped" => loc.GetString("Tools.ReplayManager.Badge.CustomUnmapped") ?? text,
-                "Retail Install Needed" => loc.GetString("Tools.ReplayManager.Badge.RetailInstallNeeded") ?? text,
-                "Unknown" => loc.GetString("Tools.ReplayManager.Badge.Unknown") ?? text,
-                _ => text,
-            };
+            var textKey = GetTextBadgeKey(text);
+            return textKey == null ? text : loc.GetString(textKey) ?? text;
         }
         catch
         {
@@ -60,4 +45,25 @@ public class LocalizedReplayBadgeConverter : IValueConverter
     /// <inheritdoc/>
     public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture) =>
         throw new NotSupportedException();
+
+    private static (string Key, string Fallback) GetStatusBadge(ReplayCompatibilityStatus status) => status switch
+    {
+        ReplayCompatibilityStatus.Compatible => ("Tools.ReplayManager.Badge.ProfileReady", "Profile Ready"),
+        ReplayCompatibilityStatus.RequiresProfile => ("Tools.ReplayManager.Badge.ProfileNeeded", "Profile Needed"),
+        ReplayCompatibilityStatus.Downloadable => ("Tools.ReplayManager.Badge.DownloadRequired", "Download Required"),
+        ReplayCompatibilityStatus.Orphaned => ("Tools.ReplayManager.Badge.CustomUnmapped", "Custom / Unmapped"),
+        ReplayCompatibilityStatus.RequiresRetailInstallation => ("Tools.ReplayManager.Badge.RetailInstallNeeded", "Retail Install Needed"),
+        _ => ("Tools.ReplayManager.Badge.Unknown", "Unknown"),
+    };
+
+    private static string? GetTextBadgeKey(string text) => text switch
+    {
+        "Profile Ready" => "Tools.ReplayManager.Badge.ProfileReady",
+        "Profile Needed" => "Tools.ReplayManager.Badge.ProfileNeeded",
+        "Download Required" => "Tools.ReplayManager.Badge.DownloadRequired",
+        "Custom / Unmapped" => "Tools.ReplayManager.Badge.CustomUnmapped",
+        "Retail Install Needed" => "Tools.ReplayManager.Badge.RetailInstallNeeded",
+        "Unknown" => "Tools.ReplayManager.Badge.Unknown",
+        _ => null,
+    };
 }

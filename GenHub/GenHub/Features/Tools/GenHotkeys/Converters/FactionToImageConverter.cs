@@ -56,7 +56,15 @@ public class FactionToImageConverter : IValueConverter
                 return new Bitmap(stream);
             }
         }
-        catch (Exception ex) when (ex is IOException or ArgumentException or NotSupportedException)
+        catch (IOException)
+        {
+            // Fall back to null if resource cannot be loaded
+        }
+        catch (ArgumentException)
+        {
+            // Fall back to null if resource cannot be loaded
+        }
+        catch (NotSupportedException)
         {
             // Fall back to null if resource cannot be loaded
         }

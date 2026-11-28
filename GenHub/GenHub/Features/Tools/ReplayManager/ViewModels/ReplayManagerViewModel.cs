@@ -666,7 +666,19 @@ public partial class ReplayManagerViewModel(
                 using var response = await httpClient.SendAsync(request, token);
                 exists = response.IsSuccessStatusCode;
             }
-            catch (Exception ex) when (ex is HttpRequestException or OperationCanceledException or InvalidOperationException or UriFormatException)
+            catch (HttpRequestException)
+            {
+                // An unreachable or invalid URL counts as a missing file.
+            }
+            catch (OperationCanceledException)
+            {
+                // An unreachable or invalid URL counts as a missing file.
+            }
+            catch (InvalidOperationException)
+            {
+                // An unreachable or invalid URL counts as a missing file.
+            }
+            catch (UriFormatException)
             {
                 // An unreachable or invalid URL counts as a missing file.
             }

@@ -51,7 +51,7 @@ public class ToolDemoViewModelTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [AvaloniaFact]
-    public async Task CreateDemoWndEditor_ReturnsActualViewModelWithSampleDocument()
+    public async Task CreateDemoWndEditor_ReturnsActualViewModelWithSampleDocumentAsync()
     {
         var viewModel = DemoViewModelFactory.CreateDemoWndEditor();
 
@@ -68,7 +68,7 @@ public class ToolDemoViewModelTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [AvaloniaFact]
-    public async Task CreateDemoWndEditor_SeedsMainMenuAndPresetsZoom()
+    public async Task CreateDemoWndEditor_SeedsMainMenuAndPresetsZoomAsync()
     {
         var viewModel = DemoViewModelFactory.CreateDemoWndEditor();
 
@@ -91,7 +91,7 @@ public class ToolDemoViewModelTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [AvaloniaFact]
-    public async Task CreateDemoModBuilder_LoadsSampleProjectWithBundles()
+    public async Task CreateDemoModBuilder_LoadsSampleProjectWithBundlesAsync()
     {
         var viewModel = DemoViewModelFactory.CreateDemoModBuilder();
 
@@ -124,7 +124,7 @@ public class ToolDemoViewModelTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [AvaloniaFact]
-    public async Task CreateDemoModBuilder_SeedingDoesNotNotify()
+    public async Task CreateDemoModBuilder_SeedingDoesNotNotifyAsync()
     {
         var notificationMock = new Mock<INotificationService>();
         var viewModel = DemoViewModelFactory.CreateDemoModBuilder(notificationMock.Object);
@@ -149,7 +149,7 @@ public class ToolDemoViewModelTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [AvaloniaFact]
-    public async Task CreateDemoGenHotkeys_ReturnsActualViewModelWithSampleProfile()
+    public async Task CreateDemoGenHotkeys_ReturnsActualViewModelWithSampleProfileAsync()
     {
         var viewModel = DemoViewModelFactory.CreateDemoGenHotkeys();
 
@@ -172,7 +172,7 @@ public class ToolDemoViewModelTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [AvaloniaFact]
-    public async Task CreateDemoPublisherStudio_ReturnsActualViewModelWithSampleProject()
+    public async Task CreateDemoPublisherStudio_ReturnsActualViewModelWithSampleProjectAsync()
     {
         var viewModel = DemoViewModelFactory.CreateDemoPublisherStudio();
 
@@ -195,7 +195,7 @@ public class ToolDemoViewModelTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [AvaloniaFact]
-    public async Task CreateDemoPublisherStudio_SeedsAuthenticatedMockHosting()
+    public async Task CreateDemoPublisherStudio_SeedsAuthenticatedMockHostingAsync()
     {
         var viewModel = DemoViewModelFactory.CreateDemoPublisherStudio();
 
@@ -214,7 +214,7 @@ public class ToolDemoViewModelTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task CreateDemoPublisherStudio_MockUploadSucceedsWithProgress()
+    public async Task CreateDemoPublisherStudio_MockUploadSucceedsWithProgressAsync()
     {
         var viewModel = DemoViewModelFactory.CreateDemoPublisherStudio();
 
@@ -325,7 +325,7 @@ public class ToolDemoViewModelTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [AvaloniaFact]
-    public async Task ChangelogSection_PinsOverviewAboveReleasesAndHidesThemFromMainColumn()
+    public async Task ChangelogSection_PinsOverviewAboveReleasesAndHidesThemFromMainColumnAsync()
     {
         var gitHubMock = new Mock<IGitHubApiClient>();
         gitHubMock
@@ -366,7 +366,7 @@ public class ToolDemoViewModelTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [AvaloniaFact]
-    public async Task ToolsSection_ExposesPerToolCardGroups()
+    public async Task ToolsSection_ExposesPerToolCardGroupsAsync()
     {
         var viewModel = await CreateInitializedViewModelAsync();
         var toolsSection = viewModel.Sections.First(s => s.Id == InfoConstants.SectionTools);

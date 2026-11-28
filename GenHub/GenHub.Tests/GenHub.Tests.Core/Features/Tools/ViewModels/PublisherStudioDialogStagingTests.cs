@@ -180,10 +180,11 @@ public sealed class PublisherStudioDialogStagingTests : IDisposable
         };
 
         CatalogContentItem? savedItem = null;
-        using var vm = new AddContentDialogViewModel(existingItem, item => savedItem = item);
-
-        // Clear the icon in edit mode
-        vm.IconArtwork = string.Empty;
+        using var vm = new AddContentDialogViewModel(existingItem, item => savedItem = item)
+        {
+            // Clear the icon in edit mode
+            IconArtwork = string.Empty,
+        };
 
         // Save
         vm.CreateContentCommand.Execute(null);
@@ -596,9 +597,10 @@ public sealed class PublisherStudioDialogStagingTests : IDisposable
     [Fact]
     public void CheckingFeatured_WithoutAccentColor_DefaultsToGold()
     {
-        using var vm = new AddContentDialogViewModel(_ => { });
-
-        vm.IsFeatured = true;
+        using var vm = new AddContentDialogViewModel(_ => { })
+        {
+            IsFeatured = true,
+        };
 
         Assert.Equal(CatalogConstants.FeaturedDefaultColor, vm.AccentColor);
     }
@@ -609,8 +611,10 @@ public sealed class PublisherStudioDialogStagingTests : IDisposable
     [Fact]
     public void CheckingFeatured_WithAccentColor_KeepsCustomColor()
     {
-        using var vm = new AddContentDialogViewModel(_ => { });
-        vm.AccentColor = "#FF0000";
+        using var vm = new AddContentDialogViewModel(_ => { })
+        {
+            AccentColor = "#FF0000",
+        };
 
         vm.IsFeatured = true;
 
@@ -626,9 +630,10 @@ public sealed class PublisherStudioDialogStagingTests : IDisposable
     [InlineData("TheSuperHackers")]
     public void UpstreamProvider_GitHubFamily_ShowsRepositoryAndChannel(string provider)
     {
-        using var vm = new AddContentDialogViewModel(_ => { });
-
-        vm.SelectedUpstreamProvider = provider;
+        using var vm = new AddContentDialogViewModel(_ => { })
+        {
+            SelectedUpstreamProvider = provider,
+        };
 
         Assert.True(vm.ShowUpstreamRepository);
         Assert.True(vm.ShowUpstreamChannel);
@@ -644,9 +649,10 @@ public sealed class PublisherStudioDialogStagingTests : IDisposable
     [InlineData("CommunityOutpost")]
     public void UpstreamProvider_CatalogBacked_ShowsContentCodeOnly(string provider)
     {
-        using var vm = new AddContentDialogViewModel(_ => { });
-
-        vm.SelectedUpstreamProvider = provider;
+        using var vm = new AddContentDialogViewModel(_ => { })
+        {
+            SelectedUpstreamProvider = provider,
+        };
 
         Assert.False(vm.ShowUpstreamRepository);
         Assert.False(vm.ShowUpstreamChannel);

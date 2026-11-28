@@ -69,7 +69,7 @@ SimpleDownloadLink: 'https://dropbox.com/s/test/camera.zip?dl=0'
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task DiscoverAsync_FetchesAndParsesCatalogsWithVariants()
+    public async Task DiscoverAsync_FetchesAndParsesCatalogsWithVariantsAsync()
     {
         var mockHttp = new Mock<HttpMessageHandler>();
 
@@ -181,7 +181,7 @@ SimpleDownloadLink: 'https://dropbox.com/s/test/camera.zip?dl=0'
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task DiscoverAsync_ReturnsAllCatalogItemsWithoutTruncation()
+    public async Task DiscoverAsync_ReturnsAllCatalogItemsWithoutTruncationAsync()
     {
         var mockHttp = new Mock<HttpMessageHandler>();
 
@@ -275,7 +275,7 @@ SimpleDownloadLink: 'https://dropbox.com/s/test/camera.zip?dl=0'
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task DiscoverAsync_ChildManifestWithDiscordIcon_InheritsParentIcon()
+    public async Task DiscoverAsync_ChildManifestWithDiscordIcon_InheritsParentIconAsync()
     {
         const string childWithDiscordIconYaml = @"
 Name: 'Shockwave 1.2 Patch 1'
@@ -378,7 +378,7 @@ SimpleDownloadLink: 'https://dropbox.com/s/test/patch.zip?dl=0'
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task DiscoverAsync_WithUnsafeUrls_RejectsAndSkipsUnsafeRequests()
+    public async Task DiscoverAsync_WithUnsafeUrls_RejectsAndSkipsUnsafeRequestsAsync()
     {
         const string unsafeManifest = @"
 LauncherVersion: '1.0'
@@ -461,7 +461,7 @@ globalAddonsData:
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task DiscoverAsync_WhenChildManifestOmitsModificationType_InheritsDefaultType()
+    public async Task DiscoverAsync_WhenChildManifestOmitsModificationType_InheritsDefaultTypeAsync()
     {
         var mockHttp = new Mock<HttpMessageHandler>();
 
@@ -571,7 +571,7 @@ SimpleDownloadLink: 'https://example.com/test-patch.zip'
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task DiscoverAsync_WhenDownloadLinkRedirects_FollowsRedirectForSize()
+    public async Task DiscoverAsync_WhenDownloadLinkRedirects_FollowsRedirectForSizeAsync()
     {
         var mockHttp = new Mock<HttpMessageHandler>();
 
@@ -670,7 +670,7 @@ SimpleDownloadLink: 'http://cdn.example.com/redirect-mod.zip'
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task DiscoverAsync_WhenDownloadLinksAreOneDriveEmbeds_UsesDistinctArchiveFileNames()
+    public async Task DiscoverAsync_WhenDownloadLinksAreOneDriveEmbeds_UsesDistinctArchiveFileNamesAsync()
     {
         var mockHttp = new Mock<HttpMessageHandler>();
 
@@ -766,7 +766,7 @@ SimpleDownloadLink: 'https://onedrive.live.com/embed?cid=0A88C98986A457EB&resid=
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task DiscoverAsync_ChildManifestWithModDbLink_SkipsAutomaticWebParsing()
+    public async Task DiscoverAsync_ChildManifestWithModDbLink_SkipsAutomaticWebParsingAsync()
     {
         const string rootYaml = @"
 LauncherVersion: '1.0'
@@ -857,7 +857,7 @@ SimpleDownloadLink: 'https://dropbox.com/s/test/patch.zip?dl=0'
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task DiscoverAsync_ResolvedUrlEqualsPreviousSource_LeavesFlagFalse()
+    public async Task DiscoverAsync_ResolvedUrlEqualsPreviousSource_LeavesFlagFalseAsync()
     {
         const string rootYaml = @"
 LauncherVersion: '1.0'
@@ -901,7 +901,7 @@ SimpleDownloadLink: 'https://dropbox.com/s/test/solo.zip?dl=0'
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task DiscoverAsync_ParentWithYamlOnlyLinks_ResolvesEmptySourceUrl()
+    public async Task DiscoverAsync_ParentWithYamlOnlyLinks_ResolvesEmptySourceUrlAsync()
     {
         const string rootYaml = @"
 LauncherVersion: '1.0'
@@ -946,7 +946,7 @@ SimpleDownloadLink: 'https://dropbox.com/s/test/yamlonly.zip?dl=0'
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task DiscoverAsync_LoopbackFallbackCandidate_PrefersSafeLink()
+    public async Task DiscoverAsync_LoopbackFallbackCandidate_PrefersSafeLinkAsync()
     {
         const string rootYaml = @"
 LauncherVersion: '1.0'
@@ -991,7 +991,7 @@ SimpleDownloadLink: 'https://dropbox.com/s/test/safeonly.zip?dl=0'
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task DiscoverAsync_ChildWithLoopbackOnlyLink_ResolvesEmptySourceUrlWithoutFlag()
+    public async Task DiscoverAsync_ChildWithLoopbackOnlyLink_ResolvesEmptySourceUrlWithoutFlagAsync()
     {
         const string rootYaml = @"
 LauncherVersion: '1.0'

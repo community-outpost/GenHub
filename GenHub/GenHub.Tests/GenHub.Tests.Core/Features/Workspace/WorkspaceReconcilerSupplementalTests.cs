@@ -321,7 +321,7 @@ public class WorkspaceReconcilerSupplementalTests : IDisposable
     public async Task AnalyzeWorkspaceDelta_LargeFileDifferingAtEndWithFullVerification_StillRemovedAsync()
     {
         // Arrange
-        var (workspaceInfo, config) = await CreateLargeWorkspaceAsync("ws13", bytes => bytes[bytes.Length - 1] = 1);
+        var (workspaceInfo, config) = await CreateLargeWorkspaceAsync("ws13", bytes => bytes[^1] = 1);
 
         // Act
         var result = await _reconciler.AnalyzeWorkspaceDeltaAsync(workspaceInfo, config, forceFullVerification: true);

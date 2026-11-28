@@ -62,9 +62,10 @@ public sealed class VariantAxisSelectorTests
     [Fact]
     public void CustomValue_Cleared_YieldsNull()
     {
-        var selector = new VariantAxisSelector(null, "compatibility");
-
-        selector.CustomValue = "   ";
+        var selector = new VariantAxisSelector(null, "compatibility")
+        {
+            CustomValue = "   ",
+        };
 
         Assert.Null(selector.EffectiveValue);
     }

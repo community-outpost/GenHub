@@ -4,9 +4,11 @@
  * 1:1 Flow, Modals, State Handling, Notifications, Diagnostics
  */
 (function() {
-    'use strict';
-
-    // HTML Escape Helper
+    /**
+     * Escapes a value for safe interpolation into HTML markup.
+     * @param {*} str Value to escape.
+     * @returns {string} The escaped text, or an empty string for falsy input.
+     */
     function escapeHtml(str) {
         if (!str) return '';
         return String(str)
@@ -17,7 +19,12 @@
             .replace(/'/g, '&#39;');
     }
 
-    // Global Toast Notification Helper
+    /**
+     * Shows a dismissible toast notification inside the simulated client.
+     * @param {string} type Toast kind such as Success, Warning or Info.
+     * @param {string} title Toast heading.
+     * @param {string} desc Toast body text.
+     */
     window.showGenHubToast = function(type, title, desc) {
         if (window.isToastsMuted) return;
         const container = document.getElementById('ghToastContainer');
@@ -57,15 +64,22 @@
         }, 4000);
     };
 
-    // Document Escape Key Listener
-    document.addEventListener('keydown', (e) => {
+    /**
+     * Closes every open modal backdrop when Escape is pressed.
+     * @param {KeyboardEvent} e Keydown event.
+     */
+    function handleEscapeKey(e) {
         if (e.key === 'Escape') {
             document.querySelectorAll('.gh-modal-backdrop.open').forEach(modal => {
                 closeModal(modal.id);
             });
         }
-    });
-    // Modal Control Helpers
+    }
+
+    /**
+     * Opens the modal with the given element id.
+     * @param {string} id Modal element id.
+     */
     function openModal(id) {
         const modal = document.getElementById(id);
         if (modal) {
@@ -73,6 +87,10 @@
         }
     }
 
+    /**
+     * Closes the modal with the given element id.
+     * @param {string} id Modal element id.
+     */
     function closeModal(id) {
         const modal = document.getElementById(id);
         if (modal) {
@@ -80,21 +98,29 @@
         }
     }
 
-    document.querySelectorAll('[data-close-modal]').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            const targetId = btn.getAttribute('data-close-modal');
-            closeModal(targetId);
+    /**
+     * Wires the Escape key, explicit close buttons and backdrop clicks of every modal.
+     */
+    function initModals() {
+        document.addEventListener('keydown', handleEscapeKey);
+        document.querySelectorAll('[data-close-modal]').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const targetId = btn.getAttribute('data-close-modal');
+                closeModal(targetId);
+            });
         });
-    });
 
-    document.querySelectorAll('.gh-modal-backdrop').forEach(modal => {
-        modal.addEventListener('click', (e) => {
-            if (e.target === modal) {
-                modal.classList.remove('active');
-            }
+        document.querySelectorAll('.gh-modal-backdrop').forEach(modal => {
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    modal.classList.remove('active');
+                }
+            });
         });
-    });
+    }
+
+    initModals();
 
     // Navigation Tabs Switching (Game Profiles, Downloads, Tools, Settings, Info)
     const pillButtons = document.querySelectorAll('.genhub-pill-btn');
@@ -106,7 +132,18 @@
         'info': document.getElementById('gh-pane-info')
     };
     let activeToolKey = 'replay';
+    const paneStatusMessages = new Map([
+        ['profiles', 'Ready • Workspaces Synced (NTFS Hardlinks Active)'],
+        ['downloads', 'Downloads Browser • Connected to Community Catalog'],
+        ['tools', 'Tools Suite • Replay Analyzer, Map Manager & Hotkeys Editor Active'],
+        ['settings', 'Configuration Loaded (~/.config/GenHub/settings.json)'],
+        ['info', 'Documentation & Frequently Asked Questions']
+    ]);
 
+    /**
+     * Activates the given main navigation pane and syncs the titlebar and status bar.
+     * @param {string} paneKey Pane key from a pill button's data-pane attribute.
+     */
     function switchViewPane(paneKey) {
         pillButtons.forEach(btn => {
             const isTarget = btn.getAttribute('data-pane') === paneKey;
@@ -114,15 +151,7 @@
             btn.setAttribute('aria-selected', isTarget ? 'true' : 'false');
         });
 
-        // Hide notification flyout if open
-        const notifFlyout = document.getElementById('ghNotificationFlyout');
-        if (notifFlyout) notifFlyout.classList.remove('active');
-
-        // Toggle titlebar buttons active states
-        const infoBtn = document.getElementById('ghTbBtnInfo');
-        const settingsBtn = document.getElementById('ghTbBtnSettings');
-        if (infoBtn) infoBtn.classList.toggle('active', paneKey === 'info');
-        if (settingsBtn) settingsBtn.classList.toggle('active', paneKey === 'settings');
+        updateTitlebarForPane(paneKey);
 
         Object.keys(panes).forEach(k => {
             if (panes[k]) {
@@ -130,60 +159,122 @@
             }
         });
 
-        // Update statusbar text
+        updateStatusForPane(paneKey);
+    }
+
+    /**
+     * Hides the notification flyout and highlights the titlebar button for the pane.
+     * @param {string} paneKey Active pane key.
+     */
+    function updateTitlebarForPane(paneKey) {
+            const notifFlyout = document.getElementById('ghNotificationFlyout');
+            if (notifFlyout) notifFlyout.classList.remove('active');
+
+            // Toggle titlebar buttons active states
+            const infoBtn = document.getElementById('ghTbBtnInfo');
+            const settingsBtn = document.getElementById('ghTbBtnSettings');
+            if (infoBtn) infoBtn.classList.toggle('active', paneKey === 'info');
+            if (settingsBtn) settingsBtn.classList.toggle('active', paneKey === 'settings');
+    }
+
+    /**
+     * Updates the status bar text for the pane and runs pane-specific refreshes.
+     * @param {string} paneKey Active pane key.
+     */
+    function updateStatusForPane(paneKey) {
         const statusText = document.getElementById('ghStatusText');
-        if (statusText) {
-            if (paneKey === 'profiles') statusText.textContent = 'Ready • Workspaces Synced (NTFS Hardlinks Active)';
-            else if (paneKey === 'downloads') statusText.textContent = 'Downloads Browser • Connected to Community Catalog';
-            else if (paneKey === 'tools') {
-                statusText.textContent = 'Tools Suite • Replay Analyzer, Map Manager & Hotkeys Editor Active';
-                document.querySelectorAll('.gh-tool-item').forEach(b => {
-                    b.classList.toggle('active', b.getAttribute('data-tool') === activeToolKey);
-                });
-                document.querySelectorAll('.gh-tool-subpane').forEach(pane => {
-                    pane.classList.toggle('active', pane.id === `tool-pane-${activeToolKey}`);
-                });
-            }
-            else if (paneKey === 'settings') statusText.textContent = 'Configuration Loaded (~/.config/GenHub/settings.json)';
-            else if (paneKey === 'info') {
-                statusText.textContent = 'Documentation & Frequently Asked Questions';
-                const infoContent = document.getElementById('ghInfoContentArea');
-                if (infoContent) infoContent.scrollTop = 0;
-            }
+        const statusMessage = paneStatusMessages.get(paneKey);
+        if (!statusText || statusMessage === undefined) return;
+        statusText.textContent = statusMessage;
+        if (paneKey === 'tools') {
+            syncActiveToolPane();
+        } else if (paneKey === 'info') {
+            resetInfoContentScroll();
         }
     }
 
-    pillButtons.forEach(btn => {
-        btn.addEventListener('click', () => {
-            const paneKey = btn.getAttribute('data-pane');
-            switchViewPane(paneKey);
+    /**
+     * Highlights the remembered tool in the Tools sidebar and shows its subpane.
+     */
+    function syncActiveToolPane() {
+        document.querySelectorAll('.gh-tool-item').forEach(b => {
+            b.classList.toggle('active', b.getAttribute('data-tool') === activeToolKey);
         });
-    });
-
-    // Titlebar Action Buttons
-    const infoTbBtn = document.getElementById('ghTbBtnInfo');
-    if (infoTbBtn) {
-        infoTbBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            switchViewPane('info');
+        document.querySelectorAll('.gh-tool-subpane').forEach(pane => {
+            pane.classList.toggle('active', pane.id === `tool-pane-${activeToolKey}`);
         });
     }
 
-    const settingsTbBtn = document.getElementById('ghTbBtnSettings');
-    if (settingsTbBtn) {
-        settingsTbBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            switchViewPane('settings');
-        });
+    /**
+     * Scrolls the Info content area back to the top.
+     */
+    function resetInfoContentScroll() {
+        const infoContent = document.getElementById('ghInfoContentArea');
+        if (infoContent) infoContent.scrollTop = 0;
     }
 
-    // Notification Bell & Flyout
-    const notifTbBtn = document.getElementById('ghTbBtnBell') || document.getElementById('ghTbBtnNotifications');
-    const notifFlyout = document.getElementById('ghNotificationFlyout');
-    const notifBadge = document.getElementById('ghBellBadge') || document.getElementById('ghTbBellBadge') || document.getElementById('ghNotifBadge');
-    const notifFlyoutBadge = document.getElementById('ghNotifFlyoutBadge');
+    /**
+     * Wires the pill navigation buttons and the Info and Settings titlebar buttons.
+     */
+    function initViewNavigation() {
+        pillButtons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const paneKey = btn.getAttribute('data-pane');
+                switchViewPane(paneKey);
+            });
+        });
 
-    if (notifTbBtn && notifFlyout) {
+        // Titlebar Action Buttons
+        const infoTbBtn = document.getElementById('ghTbBtnInfo');
+        if (infoTbBtn) {
+            infoTbBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                switchViewPane('info');
+            });
+        }
+
+        const settingsTbBtn = document.getElementById('ghTbBtnSettings');
+        if (settingsTbBtn) {
+            settingsTbBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                switchViewPane('settings');
+            });
+        }
+    }
+
+    /**
+     * Finds the notification badge element under any of its known ids.
+     * @returns {HTMLElement|null} The badge element, if present.
+     */
+    function findNotificationBadge() {
+        return document.getElementById('ghBellBadge') || document.getElementById('ghTbBellBadge') || document.getElementById('ghNotifBadge');
+    }
+
+    /**
+     * Wires the notification bell, flyout, clear and mute buttons.
+     */
+    function initNotifications() {
+        const notifTbBtn = document.getElementById('ghTbBtnBell') || document.getElementById('ghTbBtnNotifications');
+        const notifFlyout = document.getElementById('ghNotificationFlyout');
+        const notifBadge = findNotificationBadge();
+        const notifFlyoutBadge = document.getElementById('ghNotifFlyoutBadge');
+
+        if (notifTbBtn && notifFlyout) {
+            wireNotificationFlyout(notifTbBtn, notifFlyout, notifBadge, notifFlyoutBadge);
+        }
+
+        wireClearNotificationsButton(notifBadge, notifFlyoutBadge);
+        wireMuteNotificationsButton();
+    }
+
+    /**
+     * Toggles the notification flyout from the bell and closes it on outside clicks.
+     * @param {HTMLElement} notifTbBtn Bell button.
+     * @param {HTMLElement} notifFlyout Flyout panel.
+     * @param {HTMLElement|null} notifBadge Unread badge on the bell.
+     * @param {HTMLElement|null} notifFlyoutBadge Unread counter inside the flyout.
+     */
+    function wireNotificationFlyout(notifTbBtn, notifFlyout, notifBadge, notifFlyoutBadge) {
         notifTbBtn.addEventListener('click', (e) => {
             e.stopPropagation();
             const isActive = notifFlyout.classList.toggle('active');
@@ -202,194 +293,292 @@
         });
     }
 
-    const clearNotifsBtn = document.getElementById('ghNotifClearBtn') || document.getElementById('ghClearNotifsBtn');
-    if (clearNotifsBtn) {
-        clearNotifsBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            const list = document.getElementById('ghNotifList');
-            if (list) {
-                list.innerHTML = `
+    /**
+     * Wires the button that clears the notification feed.
+     * @param {HTMLElement|null} notifBadge Unread badge on the bell.
+     * @param {HTMLElement|null} notifFlyoutBadge Unread counter inside the flyout.
+     */
+    function wireClearNotificationsButton(notifBadge, notifFlyoutBadge) {
+        const clearNotifsBtn = document.getElementById('ghNotifClearBtn') || document.getElementById('ghClearNotifsBtn');
+        if (clearNotifsBtn) {
+            clearNotifsBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const list = document.getElementById('ghNotifList');
+                if (list) {
+                    list.innerHTML = `
                     <div style="padding: 28px 16px; text-align: center; color: #64748b; font-size: 12.5px;">
                         No pending notifications
                     </div>
                 `;
-            }
-            if (notifBadge) notifBadge.style.display = 'none';
-            if (notifFlyoutBadge) notifFlyoutBadge.textContent = '0 Unread';
-            window.showGenHubToast('Info', 'Notifications Cleared', 'All feed alerts have been marked as read.');
+                }
+                if (notifBadge) notifBadge.style.display = 'none';
+                if (notifFlyoutBadge) notifFlyoutBadge.textContent = '0 Unread';
+                window.showGenHubToast('Info', 'Notifications Cleared', 'All feed alerts have been marked as read.');
+            });
+        }
+    }
+
+    /**
+     * Wires the button that toggles the notification mute indicator.
+     */
+    function wireMuteNotificationsButton() {
+        const muteNotifsBtn = document.getElementById('ghNotifMuteBtn');
+        if (muteNotifsBtn) {
+            let isMuted = false;
+            muteNotifsBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                isMuted = !isMuted;
+                muteNotifsBtn.style.color = isMuted ? '#ef4444' : '#94a3b8';
+                window.showGenHubToast('Info', isMuted ? 'Notifications Muted' : 'Notifications Unmuted', isMuted ? 'Toast popups silenced for session.' : 'Toast popups enabled.');
+            });
+        }
+    }
+
+    /**
+     * Wires the simulated window close buttons.
+     */
+    function initWindowControls() {
+        document.querySelectorAll('.gh-win-btn.close').forEach(btn => {
+            btn.addEventListener('click', () => {
+                window.showGenHubToast('Warning', 'Close Attempt', 'Desktop client minimizes to system tray when closed.');
+            });
         });
     }
 
-    const muteNotifsBtn = document.getElementById('ghNotifMuteBtn');
-    if (muteNotifsBtn) {
-        let isMuted = false;
-        muteNotifsBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            isMuted = !isMuted;
-            muteNotifsBtn.style.color = isMuted ? '#ef4444' : '#94a3b8';
-            window.showGenHubToast('Info', isMuted ? 'Notifications Muted' : 'Notifications Unmuted', isMuted ? 'Toast popups silenced for session.' : 'Toast popups enabled.');
-        });
-    }
-
-    // Window controls
-    document.querySelectorAll('.gh-win-btn.close').forEach(btn => {
-        btn.addEventListener('click', () => {
-            window.showGenHubToast('Warning', 'Close Attempt', 'Desktop client minimizes to system tray when closed.');
-        });
-    });
+    initViewNavigation();
+    initNotifications();
+    initWindowControls();
 
     // Profile Card State and Context Management
     let activeCardEditing = null;
     let isCreatingProfile = false;
 
+    /**
+     * Wires a profile card's launch and action buttons.
+     * @param {HTMLElement} card Profile card element.
+     */
     function wireProfileCard(card) {
-        // Play / Stop Launch Button
-        const launchBtn = card.querySelector('.gh-launch-btn');
-        if (launchBtn) {
-            launchBtn.addEventListener('click', (e) => {
+        bindProfileCardButton(card, '.gh-launch-btn', toggleProfileLaunch);
+        bindProfileCardButton(card, '.share-btn', openShareProfileDialog);
+        bindProfileCardButton(card, '.steam-btn', announceSteamIntegration);
+        bindProfileCardButton(card, '.edit-btn', openProfileSettingsForCard);
+        bindProfileCardButton(card, '.clone-btn', cloneProfileCard);
+        bindProfileCardButton(card, '.shortcut-btn', announceProfileShortcut);
+        bindProfileCardButton(card, '.delete-btn', deleteProfileCard);
+    }
+
+    /**
+     * Binds a click handler to a card button that stops propagation before running.
+     * @param {HTMLElement} card Profile card element.
+     * @param {string} selector Selector of the button inside the card.
+     * @param {function(HTMLElement, HTMLElement): void} handler Receives the card and the button.
+     */
+    function bindProfileCardButton(card, selector, handler) {
+        const button = card.querySelector(selector);
+        if (button) {
+            button.addEventListener('click', (e) => {
                 e.stopPropagation();
-                const pName = card.getAttribute('data-name') || 'Zero Hour';
-                const isRunning = card.classList.contains('active-profile');
-                const textSpan = launchBtn.querySelector('.launch-text');
-
-                if (!isRunning) {
-                    document.querySelectorAll('.gh-profile-card').forEach(c => {
-                        c.classList.remove('active-profile');
-                        const otherBtn = c.querySelector('.launch-text');
-                        if (otherBtn) otherBtn.textContent = 'LAUNCH';
-                    });
-                    card.classList.add('active-profile');
-                    if (!card.querySelector('.gh-running-badge')) {
-                        const badge = document.createElement('div');
-                        badge.className = 'gh-running-badge';
-                        badge.innerHTML = '<span class="gh-running-dot"></span> RUNNING';
-                        const grad = card.querySelector('.gh-card-gradient');
-                        if (grad) grad.after(badge);
-                        else card.prepend(badge);
-                    }
-                    if (textSpan) textSpan.textContent = 'STOP';
-                    const statusText = document.getElementById('ghStatusText');
-                    if (statusText) statusText.textContent = `Running: ${pName} (PID: 14820)`;
-                    window.showGenHubToast('Success', 'Game Launched', `Process started for "${pName}". DirectDraw and GenTool injected.`);
-                } else {
-                    card.classList.remove('active-profile');
-                    if (textSpan) textSpan.textContent = 'LAUNCH';
-                    const statusText = document.getElementById('ghStatusText');
-                    if (statusText) statusText.textContent = 'Ready • Workspaces Synced (NTFS Hardlinks Active)';
-                    window.showGenHubToast('Info', 'Process Stopped', `Closed "${pName}". Hardlink workspace intact.`);
-                }
-            });
-        }
-
-        // Share Profile Button (PR #400 Parity)
-        const shareBtn = card.querySelector('.share-btn');
-        if (shareBtn) {
-            shareBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                const pName = card.getAttribute('data-name') || 'Zero Hour';
-                const shareTitle = document.getElementById('ghShareProfileName');
-                const shareUriInput = document.getElementById('ghShareUriInput');
-                const shareCover = document.getElementById('ghShareProfileCover');
-                const cardImg = card.querySelector('.gh-card-bg');
-                
-                if (shareTitle) shareTitle.textContent = pName;
-                if (shareCover && cardImg) shareCover.src = cardImg.src;
-                
-                const dummyToken = btoa(unescape(encodeURIComponent(JSON.stringify({
-                    name: pName,
-                    version: '1.04',
-                    created: new Date().toISOString()
-                })))).substring(0, 32);
-                if (shareUriInput) shareUriInput.value = `genhub://profile/import?data=${dummyToken}`;
-
-                openModal('ghShareProfileDialogModal');
-            });
-        }
-
-        // Steam Integration Button
-        const steamBtn = card.querySelector('.steam-btn');
-        if (steamBtn) {
-            steamBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                const pName = card.getAttribute('data-name') || 'Profile';
-                window.showGenHubToast('Info', 'Steam Integration', `Connected "${pName}" with Steam Overlay & Friends Broadcast (AppID: 24860).`);
-            });
-        }
-
-        // Edit Profile Settings -> Opens GameProfileSettingsWindow
-        const editBtn = card.querySelector('.edit-btn');
-        if (editBtn) {
-            editBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                activeCardEditing = card;
-                isCreatingProfile = false;
-                const pName = card.getAttribute('data-name') || 'Shockwave 1.201';
-                
-                const titleEl = document.getElementById('ghWinProfileTitle');
-                const nameInput = document.getElementById('ghProfileNameInput');
-                if (titleEl) titleEl.textContent = pName;
-                if (nameInput) nameInput.value = pName;
-
-                if (typeof selectWinTab === 'function') selectWinTab(1);
-                if (typeof selectSubCategory === 'function') selectSubCategory('identity');
-                openModal('ghGameProfileSettingsWindow');
-            });
-        }
-
-        // Clone Profile
-        const cloneBtn = card.querySelector('.clone-btn');
-        if (cloneBtn) {
-            cloneBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                const pName = card.getAttribute('data-name') || 'Profile';
-                const clone = card.cloneNode(true);
-                clone.setAttribute('data-name', `${pName} (Copy)`);
-                clone.classList.remove('active-profile');
-                const titleEl = clone.querySelector('.gh-card-title');
-                if (titleEl) titleEl.textContent = `${pName} (Copy)`;
-
-                const cloneLaunch = clone.querySelector('.gh-launch-btn');
-                if (cloneLaunch) {
-                    cloneLaunch.classList.remove('running');
-                    cloneLaunch.style.background = '';
-                    const launchText = cloneLaunch.querySelector('.launch-text') || cloneLaunch;
-                    if (launchText) launchText.textContent = 'LAUNCH';
-                }
-                
-                wireProfileCard(clone);
-                const list = document.getElementById('ghProfilesList');
-                const addCard = document.getElementById('ghAddNewProfileBtn');
-                list.insertBefore(clone, addCard);
-                updateProfilesCount();
-                window.showGenHubToast('Success', 'Profile Cloned', `Created isolated copy: "${pName} (Copy)".`);
-            });
-        }
-
-        // Shortcut Button
-        const shortcutBtn = card.querySelector('.shortcut-btn');
-        if (shortcutBtn) {
-            shortcutBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                const pName = card.getAttribute('data-name') || 'Profile';
-                window.showGenHubToast('Success', 'Shortcut Created', `Added desktop launcher icon for "${pName}".`);
-            });
-        }
-
-        // Delete Profile
-        const delBtn = card.querySelector('.delete-btn');
-        if (delBtn) {
-            delBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                const pName = card.getAttribute('data-name') || 'Profile';
-                card.remove();
-                updateProfilesCount();
-                window.showGenHubToast('Warning', 'Profile Removed', `Deleted "${pName}" workspace from disk.`);
+                handler(card, button);
             });
         }
     }
 
+    /**
+     * Starts or stops the simulated game process for a profile card.
+     * @param {HTMLElement} card Profile card element.
+     * @param {HTMLElement} launchBtn The card's launch button.
+     */
+    function toggleProfileLaunch(card, launchBtn) {
+        const pName = card.getAttribute('data-name') || 'Zero Hour';
+        const isRunning = card.classList.contains('active-profile');
+        const textSpan = launchBtn.querySelector('.launch-text');
+
+        if (!isRunning) {
+            startProfileProcess(card, textSpan, pName);
+        } else {
+            stopProfileProcess(card, textSpan, pName);
+        }
+    }
+
+    /**
+     * Marks a card as the only running profile and announces the launch.
+     * @param {HTMLElement} card Profile card element.
+     * @param {HTMLElement|null} textSpan Launch button label.
+     * @param {string} pName Profile name.
+     */
+    function startProfileProcess(card, textSpan, pName) {
+        document.querySelectorAll('.gh-profile-card').forEach(c => {
+            c.classList.remove('active-profile');
+            const otherBtn = c.querySelector('.launch-text');
+            if (otherBtn) otherBtn.textContent = 'LAUNCH';
+        });
+        card.classList.add('active-profile');
+        if (!card.querySelector('.gh-running-badge')) {
+            addRunningBadge(card);
+        }
+        if (textSpan) textSpan.textContent = 'STOP';
+        const statusText = document.getElementById('ghStatusText');
+        if (statusText) statusText.textContent = `Running: ${pName} (PID: 14820)`;
+        window.showGenHubToast('Success', 'Game Launched', `Process started for "${pName}". DirectDraw and GenTool injected.`);
+    }
+
+    /**
+     * Inserts the RUNNING badge into a profile card.
+     * @param {HTMLElement} card Profile card element.
+     */
+    function addRunningBadge(card) {
+        const badge = document.createElement('div');
+        badge.className = 'gh-running-badge';
+        badge.innerHTML = '<span class="gh-running-dot"></span> RUNNING';
+        const grad = card.querySelector('.gh-card-gradient');
+        if (grad) grad.after(badge);
+        else card.prepend(badge);
+    }
+
+    /**
+     * Marks a card as stopped and announces the process exit.
+     * @param {HTMLElement} card Profile card element.
+     * @param {HTMLElement|null} textSpan Launch button label.
+     * @param {string} pName Profile name.
+     */
+    function stopProfileProcess(card, textSpan, pName) {
+        card.classList.remove('active-profile');
+        if (textSpan) textSpan.textContent = 'LAUNCH';
+        const statusText = document.getElementById('ghStatusText');
+        if (statusText) statusText.textContent = 'Ready • Workspaces Synced (NTFS Hardlinks Active)';
+        window.showGenHubToast('Info', 'Process Stopped', `Closed "${pName}". Hardlink workspace intact.`);
+    }
+
+    /**
+     * Opens the share dialog populated with a profile's name, cover and genhub:// link.
+     * @param {HTMLElement} card Profile card element.
+     */
+    function openShareProfileDialog(card) {
+        const pName = card.getAttribute('data-name') || 'Zero Hour';
+        const shareUriInput = document.getElementById('ghShareUriInput');
+        populateShareDialogHeader(card, pName);
+
+        const dummyToken = btoa(unescape(encodeURIComponent(JSON.stringify({
+            name: pName,
+            version: '1.04',
+            created: new Date().toISOString()
+        })))).substring(0, 32);
+        if (shareUriInput) shareUriInput.value = `genhub://profile/import?data=${dummyToken}`;
+
+        openModal('ghShareProfileDialogModal');
+    }
+
+    /**
+     * Copies a profile's name and cover image into the share dialog header.
+     * @param {HTMLElement} card Profile card element.
+     * @param {string} pName Profile name.
+     */
+    function populateShareDialogHeader(card, pName) {
+        const shareTitle = document.getElementById('ghShareProfileName');
+        const shareCover = document.getElementById('ghShareProfileCover');
+        const cardImg = card.querySelector('.gh-card-bg');
+
+        if (shareTitle) shareTitle.textContent = pName;
+        if (shareCover && cardImg) shareCover.src = cardImg.src;
+    }
+
+    /**
+     * Announces that a profile is connected to the Steam overlay.
+     * @param {HTMLElement} card Profile card element.
+     */
+    function announceSteamIntegration(card) {
+        const pName = card.getAttribute('data-name') || 'Profile';
+        window.showGenHubToast('Info', 'Steam Integration', `Connected "${pName}" with Steam Overlay & Friends Broadcast (AppID: 24860).`);
+    }
+
+    /**
+     * Opens the profile settings window to edit an existing card.
+     * @param {HTMLElement} card Profile card element.
+     */
+    function openProfileSettingsForCard(card) {
+        activeCardEditing = card;
+        isCreatingProfile = false;
+        const pName = card.getAttribute('data-name') || 'Shockwave 1.201';
+        fillProfileEditorHeader(pName, pName);
+
+        if (typeof selectWinTab === 'function') selectWinTab(1);
+        if (typeof selectSubCategory === 'function') selectSubCategory('identity');
+        openModal('ghGameProfileSettingsWindow');
+    }
+
+    /**
+     * Sets the profile settings window title and the profile name input.
+     * @param {string} titleText Window title text.
+     * @param {string} nameValue Profile name input value.
+     */
+    function fillProfileEditorHeader(titleText, nameValue) {
+        const titleEl = document.getElementById('ghWinProfileTitle');
+        const nameInput = document.getElementById('ghProfileNameInput');
+        if (titleEl) titleEl.textContent = titleText;
+        if (nameInput) nameInput.value = nameValue;
+    }
+
+    /**
+     * Duplicates a profile card into the profile list.
+     * @param {HTMLElement} card Profile card element.
+     */
+    function cloneProfileCard(card) {
+        const pName = card.getAttribute('data-name') || 'Profile';
+        const clone = card.cloneNode(true);
+        clone.setAttribute('data-name', `${pName} (Copy)`);
+        clone.classList.remove('active-profile');
+        const titleEl = clone.querySelector('.gh-card-title');
+        if (titleEl) titleEl.textContent = `${pName} (Copy)`;
+
+        resetClonedLaunchButton(clone);
+
+        wireProfileCard(clone);
+        const list = document.getElementById('ghProfilesList');
+        const addCard = document.getElementById('ghAddNewProfileBtn');
+        list.insertBefore(clone, addCard);
+        updateProfilesCount();
+        window.showGenHubToast('Success', 'Profile Cloned', `Created isolated copy: "${pName} (Copy)".`);
+    }
+
+    /**
+     * Resets the launch button of a cloned card to its idle state.
+     * @param {HTMLElement} clone Cloned profile card.
+     */
+    function resetClonedLaunchButton(clone) {
+        const cloneLaunch = clone.querySelector('.gh-launch-btn');
+        if (cloneLaunch) {
+            cloneLaunch.classList.remove('running');
+            cloneLaunch.style.background = '';
+            const launchText = cloneLaunch.querySelector('.launch-text') || cloneLaunch;
+            if (launchText) launchText.textContent = 'LAUNCH';
+        }
+    }
+
+    /**
+     * Announces a desktop shortcut for a profile.
+     * @param {HTMLElement} card Profile card element.
+     */
+    function announceProfileShortcut(card) {
+        const pName = card.getAttribute('data-name') || 'Profile';
+        window.showGenHubToast('Success', 'Shortcut Created', `Added desktop launcher icon for "${pName}".`);
+    }
+
+    /**
+     * Removes a profile card from the list.
+     * @param {HTMLElement} card Profile card element.
+     */
+    function deleteProfileCard(card) {
+        const pName = card.getAttribute('data-name') || 'Profile';
+        card.remove();
+        updateProfilesCount();
+        window.showGenHubToast('Warning', 'Profile Removed', `Deleted "${pName}" workspace from disk.`);
+    }
+
     document.querySelectorAll('.gh-profile-card:not(.add-card)').forEach(wireProfileCard);
 
+    /**
+     * Refreshes the loaded profile counter.
+     */
     function updateProfilesCount() {
         const count = document.querySelectorAll('#ghProfilesList .gh-profile-card:not(.add-card)').length;
         const countEl = document.getElementById('ghProfilesCount');
@@ -404,6 +593,10 @@
         document.getElementById('ghWinTabGame')
     ];
 
+    /**
+     * Shows the profile settings window tab at the given index.
+     * @param {number} idx Tab index.
+     */
     function selectWinTab(idx) {
         winNavBtns.forEach((b, bIdx) => {
             b.classList.toggle('active', bIdx === idx);
@@ -427,6 +620,10 @@
         'theme': document.getElementById('ghSubTheme')
     };
 
+    /**
+     * Shows the profile settings sub-category panel with the given key.
+     * @param {string} cat Sub-category key.
+     */
     function selectSubCategory(cat) {
         subNavBtns.forEach(b => {
             b.classList.toggle('active', b.getAttribute('data-sub-category') === cat);
@@ -443,61 +640,99 @@
         });
     });
 
-    // Add New Profile Card -> Opens GameProfileSettingsWindow at Profile Settings Identity
     const addProfileBtn = document.getElementById('ghAddNewProfileBtn');
-    if (addProfileBtn) {
-        addProfileBtn.addEventListener('click', () => {
-            activeCardEditing = null;
-            isCreatingProfile = true;
-            const titleEl = document.getElementById('ghWinProfileTitle');
-            const nameInput = document.getElementById('ghProfileNameInput');
-            if (titleEl) titleEl.textContent = 'New Profile';
-            if (nameInput) nameInput.value = 'Custom Profile';
-            selectWinTab(1);
-            selectSubCategory('identity');
-            openModal('ghGameProfileSettingsWindow');
-        });
+
+    /**
+     * Wires the add profile card, accent randomizer and fullscreen toggle.
+     */
+    function initProfileEditorActions() {
+        if (addProfileBtn) {
+            addProfileBtn.addEventListener('click', () => {
+                activeCardEditing = null;
+                isCreatingProfile = true;
+                fillProfileEditorHeader('New Profile', 'Custom Profile');
+                selectWinTab(1);
+                selectSubCategory('identity');
+                openModal('ghGameProfileSettingsWindow');
+            });
+        }
+
+        const randColorBtn = document.getElementById('ghWinRandomizeColorBtn');
+        if (randColorBtn) {
+            randColorBtn.addEventListener('click', () => {
+                const colors = ['#8b5cf6', '#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#06b6d4'];
+                const randomColor = colors[Math.floor(Math.random() * colors.length)];
+                applyThemeAccent(randomColor);
+                window.showGenHubToast('Info', 'Accent Randomized', `Applied highlight color: ${randomColor}`);
+            });
+        }
+
+        // Window Fullscreen / Maximize Toggle (Constrained cleanly inside App Window)
+        const fsBtn = document.getElementById('ghWinFullscreenBtn');
+        if (fsBtn) {
+            fsBtn.addEventListener('click', () => {
+                const win = document.querySelector('.gh-profile-settings-window');
+                if (win) {
+                    win.style.width = '';
+                    win.style.maxWidth = '';
+                    win.style.height = '';
+                    win.style.maxHeight = '';
+                    win.classList.toggle('fullscreen-max');
+                }
+            });
+        }
     }
 
-    // Window Randomize Color Button
-    const randColorBtn = document.getElementById('ghWinRandomizeColorBtn');
-    if (randColorBtn) {
-        randColorBtn.addEventListener('click', () => {
-            const colors = ['#8b5cf6', '#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#06b6d4'];
-            const randomColor = colors[Math.floor(Math.random() * colors.length)];
-            applyThemeAccent(randomColor);
-            window.showGenHubToast('Info', 'Accent Randomized', `Applied highlight color: ${randomColor}`);
-        });
+    /**
+     * Wires the save button and the add local content button of the profile settings window.
+     */
+    function initProfileEditorSave() {
+        const saveFabBtn = document.getElementById('ghSaveProfileFabBtn');
+        if (saveFabBtn) {
+            saveFabBtn.addEventListener('click', saveProfileFromEditor);
+        }
+
+        const addLocalBtn = document.getElementById('ghWinAddLocalContentBtn');
+        if (addLocalBtn) {
+            addLocalBtn.addEventListener('click', () => {
+                window.showGenHubToast('Info', 'Local Content', 'Select a folder or BIG archive to link into this profile workspace.');
+            });
+        }
     }
 
-    // Window Fullscreen / Maximize Toggle (Constrained cleanly inside App Window)
-    const fsBtn = document.getElementById('ghWinFullscreenBtn');
-    if (fsBtn) {
-        fsBtn.addEventListener('click', () => {
-            const win = document.querySelector('.gh-profile-settings-window');
-            if (win) {
-                win.style.width = '';
-                win.style.maxWidth = '';
-                win.style.height = '';
-                win.style.maxHeight = '';
-                win.classList.toggle('fullscreen-max');
-            }
-        });
+    /**
+     * Creates or updates a profile from the settings window and closes it.
+     */
+    function saveProfileFromEditor() {
+        const name = readProfileEditorName();
+
+        if (isCreatingProfile) {
+            addCreatedProfileCard(name);
+        } else if (activeCardEditing) {
+            updateEditedProfileCard(name);
+        }
+
+        closeModal('ghGameProfileSettingsWindow');
     }
 
-    // Save Profile FAB Button
-    const saveFabBtn = document.getElementById('ghSaveProfileFabBtn');
-    if (saveFabBtn) {
-        saveFabBtn.addEventListener('click', () => {
-            const nameInput = document.getElementById('ghProfileNameInput');
-            const name = nameInput ? nameInput.value.trim() || 'Custom Profile' : 'Custom Profile';
+    /**
+     * Reads the profile name from the settings window.
+     * @returns {string} The trimmed name, or Custom Profile when empty.
+     */
+    function readProfileEditorName() {
+        const nameInput = document.getElementById('ghProfileNameInput');
+        return nameInput ? nameInput.value.trim() || 'Custom Profile' : 'Custom Profile';
+    }
 
-            if (isCreatingProfile) {
-                // Create a new card in the profile list
-                const newCard = document.createElement('div');
-                newCard.className = 'gh-profile-card';
-                newCard.setAttribute('data-name', name);
-                newCard.innerHTML = `
+    /**
+     * Adds a new profile card built from the settings window.
+     * @param {string} name Profile name.
+     */
+    function addCreatedProfileCard(name) {
+        const newCard = document.createElement('div');
+        newCard.className = 'gh-profile-card';
+        newCard.setAttribute('data-name', name);
+        newCard.innerHTML = `
                     <img src="./assets/images/zerohour-cover.png" alt="Profile Cover" class="gh-card-bg">
                     <div class="gh-card-gradient"></div>
                     <div class="gh-card-actions-bar">
@@ -539,84 +774,112 @@
                         </div>
                     </div>
                 `;
-                wireProfileCard(newCard);
-                const list = document.getElementById('ghProfilesList');
-                list.insertBefore(newCard, addProfileBtn);
-                updateProfilesCount();
-                window.showGenHubToast('Success', 'Profile Created', `"${name}" configured with NTFS hardlinks.`);
-            } else if (activeCardEditing) {
-                // Update existing card
-                activeCardEditing.setAttribute('data-name', name);
-                const titleEl = activeCardEditing.querySelector('.gh-card-title');
-                if (titleEl) titleEl.textContent = name;
-                window.showGenHubToast('Success', 'Profile Saved', `Settings saved for "${name}".`);
-            }
-
-            closeModal('ghGameProfileSettingsWindow');
-        });
+        wireProfileCard(newCard);
+        const list = document.getElementById('ghProfilesList');
+        list.insertBefore(newCard, addProfileBtn);
+        updateProfilesCount();
+        window.showGenHubToast('Success', 'Profile Created', `"${name}" configured with NTFS hardlinks.`);
     }
 
-    // Add Local Content button inside Content Editor
-    const addLocalBtn = document.getElementById('ghWinAddLocalContentBtn');
-    if (addLocalBtn) {
-        addLocalBtn.addEventListener('click', () => {
-            window.showGenHubToast('Info', 'Local Content', 'Select a folder or BIG archive to link into this profile workspace.');
-        });
+    /**
+     * Applies the edited name to the card being edited.
+     * @param {string} name Profile name.
+     */
+    function updateEditedProfileCard(name) {
+        activeCardEditing.setAttribute('data-name', name);
+        const titleEl = activeCardEditing.querySelector('.gh-card-title');
+        if (titleEl) titleEl.textContent = name;
+        window.showGenHubToast('Success', 'Profile Saved', `Settings saved for "${name}".`);
     }
+
+    initProfileEditorActions();
+    initProfileEditorSave();
 
     // -------------------------------------------------------------
     // PR #400: PROFILE SHARING & RICH IMPORT INSPECTION
     // -------------------------------------------------------------
-    // Copy Share Link Button
-    const copyShareLinkBtn = document.getElementById('ghCopyShareLinkBtn');
-    if (copyShareLinkBtn) {
-        copyShareLinkBtn.addEventListener('click', () => {
-            const shareUriInput = document.getElementById('ghShareUriInput');
-            const link = shareUriInput ? shareUriInput.value : 'genhub://profile/import?...';
-            if (navigator.clipboard?.writeText) {
-                navigator.clipboard.writeText(link).catch(() => { /* ignore clipboard errors */ });
-            }
-            const orig = copyShareLinkBtn.textContent;
-            copyShareLinkBtn.textContent = 'Copied!';
-            setTimeout(() => { copyShareLinkBtn.textContent = orig; }, 1500);
-            window.showGenHubToast('Success', 'Share Link Copied', 'Protocol link copied! Paste into Discord or browser to share.');
-        });
+    /**
+     * Wires the share link copy, package export and profile import buttons.
+     */
+    function initProfileSharing() {
+        const copyShareLinkBtn = document.getElementById('ghCopyShareLinkBtn');
+        if (copyShareLinkBtn) {
+            copyShareLinkBtn.addEventListener('click', () => {
+                const shareUriInput = document.getElementById('ghShareUriInput');
+                const link = shareUriInput ? shareUriInput.value : 'genhub://profile/import?...';
+                if (navigator.clipboard?.writeText) {
+                    navigator.clipboard.writeText(link).catch(() => { /* ignore clipboard errors */ });
+                }
+                const orig = copyShareLinkBtn.textContent;
+                copyShareLinkBtn.textContent = 'Copied!';
+                setTimeout(() => { copyShareLinkBtn.textContent = orig; }, 1500);
+                window.showGenHubToast('Success', 'Share Link Copied', 'Protocol link copied! Paste into Discord or browser to share.');
+            });
+        }
+
+        // Export .ghprofile Package Button
+        const exportGhProfileBtn = document.getElementById('ghExportGhProfileBtn');
+        if (exportGhProfileBtn) {
+            exportGhProfileBtn.addEventListener('click', () => {
+                const shareTitle = document.getElementById('ghShareProfileName')?.textContent || 'Profile';
+                const safeName = shareTitle.replace(/[^a-zA-Z0-9_-]/g, '_');
+                window.showGenHubToast('Success', 'Package Exported', `Saved "${safeName}.ghprofile" package to Downloads folder.`);
+                closeModal('ghShareProfileDialogModal');
+            });
+        }
+
+        // Header Import Button
+        const importProfileBtn = document.getElementById('ghImportProfileBtn');
+        if (importProfileBtn) {
+            importProfileBtn.addEventListener('click', () => {
+                openModal('ghImportProfileInspectionModal');
+            });
+        }
+
+        const confirmImportProfileBtn = document.getElementById('ghConfirmImportProfileBtn');
+        if (confirmImportProfileBtn) {
+            confirmImportProfileBtn.addEventListener('click', confirmProfileImport);
+        }
     }
 
-    // Export .ghprofile Package Button
-    const exportGhProfileBtn = document.getElementById('ghExportGhProfileBtn');
-    if (exportGhProfileBtn) {
-        exportGhProfileBtn.addEventListener('click', () => {
-            const shareTitle = document.getElementById('ghShareProfileName')?.textContent || 'Profile';
-            const safeName = shareTitle.replace(/[^a-zA-Z0-9_-]/g, '_');
-            window.showGenHubToast('Success', 'Package Exported', `Saved "${safeName}.ghprofile" package to Downloads folder.`);
-            closeModal('ghShareProfileDialogModal');
-        });
+    /**
+     * Adds the inspected shared profile to the profile list.
+     */
+    function confirmProfileImport() {
+        const importedName = readImportedProfileName();
+
+        const list = document.getElementById('ghProfilesList');
+        const addNewBtn = document.getElementById('ghAddNewProfileBtn');
+        const newCard = createImportedProfileCard(importedName);
+        wireProfileCard(newCard);
+        if (list && addNewBtn) {
+            list.insertBefore(newCard, addNewBtn);
+        }
+        updateProfilesCount();
+        closeModal('ghImportProfileInspectionModal');
+        window.showGenHubToast('Success', 'Profile Imported', `Successfully imported "${importedName}" with 3 verified manifests!`);
     }
 
-    // Header Import Button
-    const importProfileBtn = document.getElementById('ghImportProfileBtn');
-    if (importProfileBtn) {
-        importProfileBtn.addEventListener('click', () => {
-            openModal('ghImportProfileInspectionModal');
-        });
+    /**
+     * Reads the profile name from the import inspection dialog.
+     * @returns {string} The trimmed name, or the default tournament profile name.
+     */
+    function readImportedProfileName() {
+        const nameInput = document.getElementById('ghImportProfileNameInput');
+        return nameInput?.value?.trim() || 'Tournament Zero Hour v1.04';
     }
 
-    // Confirm Import Profile Button
-    const confirmImportProfileBtn = document.getElementById('ghConfirmImportProfileBtn');
-    if (confirmImportProfileBtn) {
-        confirmImportProfileBtn.addEventListener('click', () => {
-            const nameInput = document.getElementById('ghImportProfileNameInput');
-            const importedName = nameInput?.value?.trim() || 'Tournament Zero Hour v1.04';
-            
-            // Create a new card in ghProfilesList
-            const list = document.getElementById('ghProfilesList');
-            const addNewBtn = document.getElementById('ghAddNewProfileBtn');
-            const newCard = document.createElement('div');
-            newCard.className = 'gh-profile-card';
-            newCard.setAttribute('data-profile-id', `p_${Date.now()}`);
-            newCard.setAttribute('data-name', importedName);
-            newCard.innerHTML = `
+    /**
+     * Builds the profile card for an imported shared profile.
+     * @param {string} importedName Profile name.
+     * @returns {HTMLDivElement} The new, unwired card.
+     */
+    function createImportedProfileCard(importedName) {
+        const newCard = document.createElement('div');
+        newCard.className = 'gh-profile-card';
+        newCard.setAttribute('data-profile-id', `p_${Date.now()}`);
+        newCard.setAttribute('data-name', importedName);
+        newCard.innerHTML = `
                 <img src="./assets/images/zerohour-cover.png" alt="${escapeHtml(importedName)} Cover" class="gh-card-bg">
                 <div class="gh-card-gradient"></div>
                 <div class="gh-card-actions-bar">
@@ -661,28 +924,28 @@
                     </div>
                 </div>
             `;
-            wireProfileCard(newCard);
-            if (list && addNewBtn) {
-                list.insertBefore(newCard, addNewBtn);
-            }
-            updateProfilesCount();
-            closeModal('ghImportProfileInspectionModal');
-            window.showGenHubToast('Success', 'Profile Imported', `Successfully imported "${importedName}" with 3 verified manifests!`);
-        });
+        return newCard;
     }
 
-    // Scan Button
-    const scanBtn = document.getElementById('ghScanBtn');
-    if (scanBtn) {
-        scanBtn.addEventListener('click', () => {
-            const orig = scanBtn.textContent;
-            scanBtn.textContent = 'SCANNING...';
-            setTimeout(() => {
-                scanBtn.textContent = orig;
-                window.showGenHubToast('Info', 'Scan Complete', 'Discovered 4 local game installations across Steam & EA directories.');
-            }, 600);
-        });
+    /**
+     * Wires the game installation scan button.
+     */
+    function initScanButton() {
+        const scanBtn = document.getElementById('ghScanBtn');
+        if (scanBtn) {
+            scanBtn.addEventListener('click', () => {
+                const orig = scanBtn.textContent;
+                scanBtn.textContent = 'SCANNING...';
+                setTimeout(() => {
+                    scanBtn.textContent = orig;
+                    window.showGenHubToast('Info', 'Scan Complete', 'Discovered 4 local game installations across Steam & EA directories.');
+                }, 600);
+            });
+        }
     }
+
+    initProfileSharing();
+    initScanButton();
 
     // -------------------------------------------------------------
     // DOWNLOADS: PUBLISHER SWITCHING & CONTENT DETAIL VIEW
@@ -699,89 +962,160 @@
 
     let activePublisherKey = 'hackers';
 
+    /**
+     * Shows only the catalog cards that match the publisher, search text and category.
+     */
     function filterDownloadsCatalog() {
-        let searchFilterQuery = (document.getElementById('ghCatalogSearch')?.value || '').toLowerCase().trim();
+        const searchFilterQuery = readCatalogSearchQuery();
         const cat = document.getElementById('ghCatalogFilter')?.value || 'all';
 
-        // ModDB direct URL search parsing (PR #481)
-        if (searchFilterQuery.includes('moddb.com/')) {
-            const cleanUrl = searchFilterQuery.split('?')[0].replace(/\/+$/, '');
-            const slug = cleanUrl.split('/').pop();
-            if (slug) {
-                searchFilterQuery = slug.replace(/[-_]/g, ' ');
-            }
-        }
-
         document.querySelectorAll('#ghCatalogGrid .gh-content-card').forEach(card => {
-            const cardPub = card.getAttribute('data-pub') || '';
-            const cardTitle = (card.getAttribute('data-title') || '').toLowerCase();
-            const cardCat = card.getAttribute('data-category') || '';
-
-            const matchesPub = cardPub === activePublisherKey;
-            const matchesQuery = !searchFilterQuery || cardTitle.includes(searchFilterQuery);
-            const matchesCat = cat === 'all' || cardCat === cat;
-
-            card.style.display = (matchesPub && matchesQuery && matchesCat) ? '' : 'none';
+            card.style.display = catalogCardMatches(readCatalogCard(card), searchFilterQuery, cat) ? '' : 'none';
         });
     }
 
-    const pubBtns = document.querySelectorAll('.gh-pub-btn');
-    pubBtns.forEach(btn => {
-        btn.addEventListener('click', () => {
-            const key = btn.getAttribute('data-pub');
-            activePublisherKey = key;
+    /**
+     * Reads the catalog search text, reducing a ModDB URL to its slug (PR #481).
+     * @returns {string} Lowercase search query.
+     */
+    function readCatalogSearchQuery() {
+        const searchFilterQuery = (document.getElementById('ghCatalogSearch')?.value || '').toLowerCase().trim();
+        if (!searchFilterQuery.includes('moddb.com/')) {
+            return searchFilterQuery;
+        }
+        const cleanUrl = searchFilterQuery.split('?')[0].replace(/\/+$/, '');
+        const slug = cleanUrl.split('/').pop();
+        return slug ? slug.replace(/[-_]/g, ' ') : searchFilterQuery;
+    }
 
-            pubBtns.forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
+    /**
+     * Reads the filterable attributes of a catalog card.
+     * @param {HTMLElement} card Catalog card element.
+     * @returns {{pub: string, title: string, category: string}} Card publisher, lowercase title and category.
+     */
+    function readCatalogCard(card) {
+        return {
+            pub: card.getAttribute('data-pub') || '',
+            title: (card.getAttribute('data-title') || '').toLowerCase(),
+            category: card.getAttribute('data-category') || ''
+        };
+    }
 
-            if (pubMeta[key]) {
-                const tEl = document.getElementById('ghActivePubTitle');
-                const dEl = document.getElementById('ghActivePubDesc');
-                if (tEl) tEl.textContent = pubMeta[key].title;
-                if (dEl) dEl.textContent = pubMeta[key].desc;
-            }
+    /**
+     * Tests a catalog card against the active publisher, search query and category.
+     * @param {{pub: string, title: string, category: string}} cardInfo Card attributes.
+     * @param {string} query Lowercase search query.
+     * @param {string} cat Selected category, or all.
+     * @returns {boolean} True when the card should be shown.
+     */
+    function catalogCardMatches(cardInfo, query, cat) {
+        const matchesQuery = !query || cardInfo.title.includes(query);
+        const matchesCat = cat === 'all' || cardInfo.category === cat;
+        return cardInfo.pub === activePublisherKey && matchesQuery && matchesCat;
+    }
 
-            // Update category/section filter options dynamically (PR #481 ModDB sections)
-            const cFilter = document.getElementById('ghCatalogFilter');
-            if (cFilter) {
-                if (key === 'moddb') {
-                    cFilter.innerHTML = `
+    /**
+     * Switches the downloads catalog to the publisher of the clicked button.
+     * @param {HTMLElement} btn Publisher button.
+     * @param {NodeListOf<HTMLElement>} pubBtns All publisher buttons.
+     */
+    function selectPublisher(btn, pubBtns) {
+        const key = btn.getAttribute('data-pub');
+        activePublisherKey = key;
+
+        pubBtns.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+
+        updatePublisherHeader(key);
+        updateCatalogFilterOptions(key);
+        showDownloadsBrowserView();
+
+        filterDownloadsCatalog();
+        window.showGenHubToast('Info', 'Switched Publisher', `Viewing catalog from ${describePublisher(key)}`);
+    }
+
+    /**
+     * Returns the display title of a publisher.
+     * @param {string} key Publisher key.
+     * @returns {string} Publisher title, or the key when unknown.
+     */
+    function describePublisher(key) {
+        return pubMeta[key]?.title || key;
+    }
+
+    /**
+     * Shows the publisher title and description above the catalog.
+     * @param {string} key Publisher key.
+     */
+    function updatePublisherHeader(key) {
+        if (pubMeta[key]) {
+            const tEl = document.getElementById('ghActivePubTitle');
+            const dEl = document.getElementById('ghActivePubDesc');
+            if (tEl) tEl.textContent = pubMeta[key].title;
+            if (dEl) dEl.textContent = pubMeta[key].desc;
+        }
+    }
+
+    /**
+     * Updates the category filter options for the publisher (PR #481 ModDB sections).
+     * @param {string} key Publisher key.
+     */
+    function updateCatalogFilterOptions(key) {
+        const cFilter = document.getElementById('ghCatalogFilter');
+        if (!cFilter) return;
+        if (key === 'moddb') {
+            cFilter.innerHTML = `
                         <option value="all">All Sections</option>
                         <option value="mod">Mods (Total Conversions)</option>
                         <option value="addon">Addons &amp; Sub-Mods</option>
                         <option value="patch">Downloads &amp; Patches</option>
                     `;
-                } else {
-                    cFilter.innerHTML = `
+        } else {
+            cFilter.innerHTML = `
                         <option value="all">All Categories</option>
                         <option value="patch">Engine Patches</option>
                         <option value="mod">Mods</option>
                         <option value="addon">Addons &amp; HUD</option>
                         <option value="map">Maps</option>
                     `;
-                }
-            }
+        }
+    }
 
-            // Return to browse view if inside detail view
-            const browserView = document.getElementById('ghDownloadsBrowserView');
-            const detailView = document.getElementById('ghContentDetailView');
-            if (browserView) browserView.style.display = '';
-            if (detailView) detailView.style.display = 'none';
+    /**
+     * Returns from the content detail view to the catalog browser.
+     */
+    function showDownloadsBrowserView() {
+        const browserView = document.getElementById('ghDownloadsBrowserView');
+        const detailView = document.getElementById('ghContentDetailView');
+        if (browserView) browserView.style.display = '';
+        if (detailView) detailView.style.display = 'none';
+    }
 
-            filterDownloadsCatalog();
-            window.showGenHubToast('Info', 'Switched Publisher', `Viewing catalog from ${pubMeta[key]?.title || key}`);
+    /**
+     * Wires the publisher buttons, catalog search box and category filter.
+     */
+    function initDownloadsCatalog() {
+        const pubBtns = document.querySelectorAll('.gh-pub-btn');
+        pubBtns.forEach(btn => {
+            btn.addEventListener('click', () => selectPublisher(btn, pubBtns));
         });
-    });
 
-    const catalogSearch = document.getElementById('ghCatalogSearch');
-    const catalogFilter = document.getElementById('ghCatalogFilter');
-    if (catalogSearch) catalogSearch.addEventListener('input', filterDownloadsCatalog);
-    if (catalogFilter) catalogFilter.addEventListener('change', filterDownloadsCatalog);
+        const catalogSearch = document.getElementById('ghCatalogSearch');
+        const catalogFilter = document.getElementById('ghCatalogFilter');
+        if (catalogSearch) catalogSearch.addEventListener('input', filterDownloadsCatalog);
+        if (catalogFilter) catalogFilter.addEventListener('change', filterDownloadsCatalog);
+    }
+
+    initDownloadsCatalog();
 
     // Initial filter run
     filterDownloadsCatalog();
 
-    // Content Detail View Transition
+    /**
+     * Switches the downloads pane to the detail view for a catalog item.
+     * @param {string} contentName Fallback item name.
+     * @param {HTMLElement|null} card Catalog card that was opened.
+     */
     function showContentDetail(contentName, card) {
         const browserView = document.getElementById('ghDownloadsBrowserView');
         const detailView = document.getElementById('ghContentDetailView');
@@ -790,165 +1124,269 @@
         browserView.style.display = 'none';
         detailView.style.display = 'flex';
 
-        // Populate detail fields
-        const titleEl = document.getElementById('ghDetailTitle');
-        const badgeEl = document.getElementById('ghDetailBadge');
-        const authorEl = document.getElementById('ghDetailAuthor');
-        const summaryTextEl = document.getElementById('ghDetailSummaryText');
-        const iconEl = document.getElementById('ghDetailIconImg');
-
         if (card) {
-            const cardTitle = card.querySelector('.gh-content-title')?.textContent || contentName;
-            const cardDesc = card.querySelector('.gh-content-desc')?.textContent || '';
-            const cardImg = card.querySelector('.gh-banner-bg')?.getAttribute('src') || './assets/images/zerohour-cover.png';
-            const cardBadge = card.querySelector('.badge-tag')?.textContent || 'Package';
-
-            if (titleEl) titleEl.textContent = cardTitle;
-            if (badgeEl) badgeEl.textContent = cardBadge;
-            if (summaryTextEl) summaryTextEl.textContent = cardDesc;
-            if (iconEl) iconEl.src = cardImg;
-            if (authorEl) authorEl.textContent = pubMeta[activePublisherKey]?.title || 'Community';
+            applyContentDetail(readContentCard(card, contentName));
         }
     }
 
-    document.querySelectorAll('.gh-card-details-btn').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            const card = btn.closest('.gh-content-card');
-            const contentName = btn.getAttribute('data-view-content') || card?.getAttribute('data-title') || 'Item';
-            showContentDetail(contentName, card);
-        });
-    });
-
-    // Also clicking the card body opens detail view
-    document.querySelectorAll('.gh-content-card').forEach(card => {
-        card.addEventListener('click', (e) => {
-            if (e.target.closest('button') || e.target.closest('input')) return;
-            const title = card.getAttribute('data-title') || 'Item';
-            showContentDetail(title, card);
-        });
-    });
-
-    const backToBrowseBtn = document.getElementById('ghBackToBrowseBtn');
-    if (backToBrowseBtn) {
-        backToBrowseBtn.addEventListener('click', () => {
-            const browserView = document.getElementById('ghDownloadsBrowserView');
-            const detailView = document.getElementById('ghContentDetailView');
-            if (detailView) detailView.style.display = 'none';
-            if (browserView) browserView.style.display = '';
-        });
+    /**
+     * Reads the display fields of a catalog card.
+     * @param {HTMLElement} card Catalog card element.
+     * @param {string} contentName Fallback item name.
+     * @returns {{title: string, desc: string, image: string, badge: string}} Detail view fields.
+     */
+    function readContentCard(card, contentName) {
+        return {
+            title: readCardText(card, '.gh-content-title', contentName),
+            desc: readCardText(card, '.gh-content-desc', ''),
+            image: card.querySelector('.gh-banner-bg')?.getAttribute('src') || './assets/images/zerohour-cover.png',
+            badge: readCardText(card, '.badge-tag', 'Package')
+        };
     }
 
-    // Detail View Subtabs (Summary, Releases, Dependencies)
-    document.querySelectorAll('[data-detail-tab]').forEach(btn => {
-        btn.addEventListener('click', () => {
-            const tabKey = btn.getAttribute('data-detail-tab');
-            document.querySelectorAll('[data-detail-tab]').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-
-            const pSummary = document.getElementById('ghDetailPaneSummary');
-            const pReleases = document.getElementById('ghDetailPaneReleases');
-            const pDependencies = document.getElementById('ghDetailPaneDependencies');
-
-            if (pSummary) pSummary.style.display = tabKey === 'summary' ? 'block' : 'none';
-            if (pReleases) pReleases.style.display = tabKey === 'releases' ? 'block' : 'none';
-            if (pDependencies) pDependencies.style.display = tabKey === 'dependencies' ? 'block' : 'none';
-        });
-    });
-
-    // Detail Install Button
-    const detailInstallBtn = document.getElementById('ghDetailInstallBtn');
-    if (detailInstallBtn) {
-        detailInstallBtn.addEventListener('click', () => {
-            const profile = document.getElementById('ghDetailTargetProfile')?.value || 'Shockwave 1.201';
-            const item = document.getElementById('ghDetailTitle')?.textContent || 'Package';
-            window.showGenHubToast('Success', 'Linked to Profile', `Added "${item}" to workspace "${profile}" with 0 B duplication.`);
-        });
+    /**
+     * Reads the text of a card child element.
+     * @param {HTMLElement} card Card element.
+     * @param {string} selector Child selector.
+     * @param {string} fallback Value used when the child is missing or empty.
+     * @returns {string} The child text, or the fallback.
+     */
+    function readCardText(card, selector, fallback) {
+        return card.querySelector(selector)?.textContent || fallback;
     }
 
-    // Add to Profile Buttons
-    document.querySelectorAll('.gh-open-add-modal-btn').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            const contentName = btn.getAttribute('data-content-name') || 'Item';
-            const subEl = document.getElementById('ghAddModalSubtitle');
-            if (subEl) subEl.textContent = `${contentName} — Zero Hour`;
-            openModal('ghAddToProfileModal');
-        });
-    });
+    /**
+     * Fills the content detail view with a catalog card's fields.
+     * @param {{title: string, desc: string, image: string, badge: string}} details Detail view fields.
+     */
+    function applyContentDetail(details) {
+        const iconEl = document.getElementById('ghDetailIconImg');
 
-    document.querySelectorAll('.gh-sel-card:not(.create-new)').forEach(card => {
-        card.addEventListener('click', () => {
-            const pName = card.getAttribute('data-target-profile') || card.getAttribute('data-profile-name') || 'Profile';
-            const rawSub = document.getElementById('ghAddModalSubtitle')?.textContent || 'Item';
-            const cTitle = rawSub.split(' — ')[0];
-            closeModal('ghAddToProfileModal');
-            window.showGenHubToast('Success', 'Content Attached', `"${cTitle}" linked to "${pName}" workspace.`);
-        });
-    });
-
-    const addModalCreateNewBtn = document.getElementById('ghAddModalCreateNewBtn');
-    if (addModalCreateNewBtn) {
-        addModalCreateNewBtn.addEventListener('click', () => {
-            closeModal('ghAddToProfileModal');
-            activeCardEditing = null;
-            isCreatingProfile = true;
-            const winTitle = document.getElementById('ghWinProfileTitle');
-            if (winTitle) winTitle.textContent = 'New Profile';
-            const nameInput = document.getElementById('ghProfileNameInput');
-            if (nameInput) nameInput.value = 'Custom Profile';
-            openModal('ghGameProfileSettingsWindow');
-        });
+        setTextById('ghDetailTitle', details.title);
+        setTextById('ghDetailBadge', details.badge);
+        setTextById('ghDetailSummaryText', details.desc);
+        if (iconEl) iconEl.src = details.image;
+        setTextById('ghDetailAuthor', describeActivePublisherAuthor());
     }
 
-    const openManifestBtn = document.getElementById('ghOpenManifestBtn');
-    if (openManifestBtn) {
-        openManifestBtn.addEventListener('click', () => {
-            window.showGenHubToast('Info', 'Manifests Directory', 'Storage path: ~/.local/share/GenHub/manifests/');
-        });
+    /**
+     * Returns the author label for the active publisher.
+     * @returns {string} Publisher title, or Community when unknown.
+     */
+    function describeActivePublisherAuthor() {
+        return pubMeta[activePublisherKey]?.title || 'Community';
     }
+
+    /**
+     * Sets the text of the element with the given id, if it exists.
+     * @param {string} id Element id.
+     * @param {string} text New text content.
+     */
+    function setTextById(id, text) {
+        const el = document.getElementById(id);
+        if (el) el.textContent = text;
+    }
+
+    /**
+     * Shows or hides a content detail subtab pane.
+     * @param {string} id Pane element id.
+     * @param {boolean} isVisible Whether the pane is shown.
+     */
+    function setDetailPaneDisplay(id, isVisible) {
+        const pane = document.getElementById(id);
+        if (pane) pane.style.display = isVisible ? 'block' : 'none';
+    }
+
+    /**
+     * Wires the catalog cards, detail view navigation, subtabs and install button.
+     */
+    function initContentDetailView() {
+        document.querySelectorAll('.gh-card-details-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const card = btn.closest('.gh-content-card');
+                const contentName = btn.getAttribute('data-view-content') || card?.getAttribute('data-title') || 'Item';
+                showContentDetail(contentName, card);
+            });
+        });
+
+        // Also clicking the card body opens detail view
+        document.querySelectorAll('.gh-content-card').forEach(card => {
+            card.addEventListener('click', (e) => {
+                if (e.target.closest('button') || e.target.closest('input')) return;
+                const title = card.getAttribute('data-title') || 'Item';
+                showContentDetail(title, card);
+            });
+        });
+
+        const backToBrowseBtn = document.getElementById('ghBackToBrowseBtn');
+        if (backToBrowseBtn) {
+            backToBrowseBtn.addEventListener('click', () => {
+                const browserView = document.getElementById('ghDownloadsBrowserView');
+                const detailView = document.getElementById('ghContentDetailView');
+                if (detailView) detailView.style.display = 'none';
+                if (browserView) browserView.style.display = '';
+            });
+        }
+
+        // Detail View Subtabs (Summary, Releases, Dependencies)
+        document.querySelectorAll('[data-detail-tab]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const tabKey = btn.getAttribute('data-detail-tab');
+                document.querySelectorAll('[data-detail-tab]').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+
+                setDetailPaneDisplay('ghDetailPaneSummary', tabKey === 'summary');
+                setDetailPaneDisplay('ghDetailPaneReleases', tabKey === 'releases');
+                setDetailPaneDisplay('ghDetailPaneDependencies', tabKey === 'dependencies');
+            });
+        });
+
+        // Detail Install Button
+        const detailInstallBtn = document.getElementById('ghDetailInstallBtn');
+        if (detailInstallBtn) {
+            detailInstallBtn.addEventListener('click', () => {
+                const profile = document.getElementById('ghDetailTargetProfile')?.value || 'Shockwave 1.201';
+                const item = document.getElementById('ghDetailTitle')?.textContent || 'Package';
+                window.showGenHubToast('Success', 'Linked to Profile', `Added "${item}" to workspace "${profile}" with 0 B duplication.`);
+            });
+        }
+    }
+
+    /**
+     * Wires the add to profile modal and the manifests directory button.
+     */
+    function initAddToProfile() {
+        // Add to Profile Buttons
+        document.querySelectorAll('.gh-open-add-modal-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const contentName = btn.getAttribute('data-content-name') || 'Item';
+                const subEl = document.getElementById('ghAddModalSubtitle');
+                if (subEl) subEl.textContent = `${contentName} — Zero Hour`;
+                openModal('ghAddToProfileModal');
+            });
+        });
+
+        document.querySelectorAll('.gh-sel-card:not(.create-new)').forEach(card => {
+            card.addEventListener('click', () => {
+                const pName = card.getAttribute('data-target-profile') || card.getAttribute('data-profile-name') || 'Profile';
+                const rawSub = document.getElementById('ghAddModalSubtitle')?.textContent || 'Item';
+                const cTitle = rawSub.split(' — ')[0];
+                closeModal('ghAddToProfileModal');
+                window.showGenHubToast('Success', 'Content Attached', `"${cTitle}" linked to "${pName}" workspace.`);
+            });
+        });
+
+        const addModalCreateNewBtn = document.getElementById('ghAddModalCreateNewBtn');
+        if (addModalCreateNewBtn) {
+            addModalCreateNewBtn.addEventListener('click', () => {
+                closeModal('ghAddToProfileModal');
+                activeCardEditing = null;
+                isCreatingProfile = true;
+                fillProfileEditorHeader('New Profile', 'Custom Profile');
+                openModal('ghGameProfileSettingsWindow');
+            });
+        }
+
+        const openManifestBtn = document.getElementById('ghOpenManifestBtn');
+        if (openManifestBtn) {
+            openManifestBtn.addEventListener('click', () => {
+                window.showGenHubToast('Info', 'Manifests Directory', 'Storage path: ~/.local/share/GenHub/manifests/');
+            });
+        }
+    }
+
+    initContentDetailView();
+    initAddToProfile();
 
     // -------------------------------------------------------------
     // TOOLS TAB: REPLAY & MAP MANAGERS
     // -------------------------------------------------------------
-    const toolBtns = document.querySelectorAll('.gh-tool-item');
-    const toolPanes = {
-        'replay': document.getElementById('tool-pane-replay'),
-        'map': document.getElementById('tool-pane-map'),
-        'hotkeys': document.getElementById('tool-pane-hotkeys'),
-        'genpatcher': document.getElementById('tool-pane-genpatcher')
-    };
+    /**
+     * Wires the Tools sidebar so each tool button shows its pane.
+     */
+    function initToolSelection() {
+        const toolBtns = document.querySelectorAll('.gh-tool-item');
+        const toolPanes = {
+            'replay': document.getElementById('tool-pane-replay'),
+            'map': document.getElementById('tool-pane-map'),
+            'hotkeys': document.getElementById('tool-pane-hotkeys'),
+            'genpatcher': document.getElementById('tool-pane-genpatcher')
+        };
 
-    toolBtns.forEach(btn => {
-        btn.addEventListener('click', () => {
-            const key = btn.getAttribute('data-tool');
-            activeToolKey = key;
-            toolBtns.forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
+        toolBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const key = btn.getAttribute('data-tool');
+                activeToolKey = key;
+                toolBtns.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
 
-            Object.keys(toolPanes).forEach(k => {
-                if (toolPanes[k]) toolPanes[k].classList.toggle('active', k === key);
+                Object.keys(toolPanes).forEach(k => {
+                    if (toolPanes[k]) toolPanes[k].classList.toggle('active', k === key);
+                });
             });
         });
-    });
+    }
 
-    // Map Manager Interactivity - Unified Filter
+    initToolSelection();
+
+    /**
+     * Shows only the map rows that match the selected game and search text.
+     */
     function filterMaps() {
-        const activeTab = document.querySelector('[data-map-game].active');
-        const selectedGame = activeTab ? activeTab.getAttribute('data-map-game') : 'zerohour';
+        const selectedGame = readSelectedMapGame();
         const mapSearchQuery = (document.getElementById('ghMapSearchInput')?.value || '').toLowerCase().trim();
         let count = 0;
 
         document.querySelectorAll('#ghMapTable tbody tr').forEach(row => {
-            const rowGame = row.getAttribute('data-game') || 'zerohour';
-            const name = (row.querySelector('.map-name')?.textContent || '').toLowerCase();
-            const matchesGame = !selectedGame || rowGame === selectedGame;
-            const matchesQuery = !mapSearchQuery || name.includes(mapSearchQuery);
-            const show = matchesGame && matchesQuery;
+            const show = mapRowMatches(readMapRow(row), selectedGame, mapSearchQuery);
             row.style.display = show ? '' : 'none';
             if (show) count++;
         });
 
+        updateMapStatusBar(count, selectedGame);
+    }
+
+    /**
+     * Returns the game selected by the map manager subtabs.
+     * @returns {string} The data-map-game value of the active tab, or zerohour.
+     */
+    function readSelectedMapGame() {
+        const activeTab = document.querySelector('[data-map-game].active');
+        return activeTab ? activeTab.getAttribute('data-map-game') : 'zerohour';
+    }
+
+    /**
+     * Reads the filterable attributes of a map table row.
+     * @param {HTMLTableRowElement} row Map row.
+     * @returns {{game: string, name: string}} Row game and lowercase map name.
+     */
+    function readMapRow(row) {
+        return {
+            game: row.getAttribute('data-game') || 'zerohour',
+            name: (row.querySelector('.map-name')?.textContent || '').toLowerCase()
+        };
+    }
+
+    /**
+     * Tests a map row against the selected game and search query.
+     * @param {{game: string, name: string}} rowInfo Row attributes.
+     * @param {string} selectedGame Selected game key.
+     * @param {string} query Lowercase search query.
+     * @returns {boolean} True when the row should be shown.
+     */
+    function mapRowMatches(rowInfo, selectedGame, query) {
+        const matchesGame = !selectedGame || rowInfo.game === selectedGame;
+        return matchesGame && (!query || rowInfo.name.includes(query));
+    }
+
+    /**
+     * Shows the visible map count and game in the map status bar.
+     * @param {number} count Number of visible maps.
+     * @param {string} selectedGame Selected game key.
+     */
+    function updateMapStatusBar(count, selectedGame) {
         const statusBar = document.getElementById('ghMapStatusBar');
         if (statusBar) {
             const gameLabel = selectedGame === 'generals' ? 'Generals' : 'Zero Hour';
@@ -956,108 +1394,141 @@
         }
     }
 
-    const mapGameSubtabs = document.querySelectorAll('[data-map-game]');
-    mapGameSubtabs.forEach(btn => {
-        btn.addEventListener('click', () => {
-            mapGameSubtabs.forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            filterMaps();
+    /**
+     * Wires the map manager game subtabs and search box.
+     */
+    function initMapFilters() {
+        const mapGameSubtabs = document.querySelectorAll('[data-map-game]');
+        mapGameSubtabs.forEach(btn => {
+            btn.addEventListener('click', () => {
+                mapGameSubtabs.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                filterMaps();
+            });
         });
-    });
 
-    const mapSearchInput = document.getElementById('ghMapSearchInput');
-    if (mapSearchInput) {
-        mapSearchInput.addEventListener('input', () => filterMaps());
+        const mapSearchInput = document.getElementById('ghMapSearchInput');
+        if (mapSearchInput) {
+            mapSearchInput.addEventListener('input', () => filterMaps());
+        }
     }
 
-    // Initialize Map filtering on load
-    filterMaps();
+    /**
+     * Wires the map import, browse and refresh buttons.
+     */
+    function initMapImport() {
+        const mapImportSubmitBtn = document.getElementById('ghMapImportSubmitBtn');
+        if (mapImportSubmitBtn) {
+            mapImportSubmitBtn.addEventListener('click', () => {
+                const input = document.getElementById('ghMapUrlInput');
+                const url = input ? input.value.trim() : '';
+                if (!url) {
+                    window.showGenHubToast('Warning', 'Import Map', 'Please paste a map download URL or archive link first.');
+                } else {
+                    window.showGenHubToast('Success', 'Map Downloaded', `Successfully imported tournament map from: ${url}`);
+                    if (input) input.value = '';
+                }
+            });
+        }
 
-    const mapImportSubmitBtn = document.getElementById('ghMapImportSubmitBtn');
-    if (mapImportSubmitBtn) {
-        mapImportSubmitBtn.addEventListener('click', () => {
-            const input = document.getElementById('ghMapUrlInput');
-            const url = input ? input.value.trim() : '';
-            if (!url) {
-                window.showGenHubToast('Warning', 'Import Map', 'Please paste a map download URL or archive link first.');
-            } else {
-                window.showGenHubToast('Success', 'Map Downloaded', `Successfully imported tournament map from: ${url}`);
-                if (input) input.value = '';
-            }
-        });
+        const mapBrowseBtn = document.getElementById('ghMapBrowseBtn');
+        if (mapBrowseBtn) {
+            mapBrowseBtn.addEventListener('click', () => {
+                window.showGenHubToast('Info', 'Browse Map Files', 'Select .map or .zip archive from your local filesystem.');
+            });
+        }
+
+        const mapRefreshBtn = document.getElementById('ghMapRefreshBtn');
+        if (mapRefreshBtn) {
+            mapRefreshBtn.addEventListener('click', () => {
+                window.showGenHubToast('Info', 'Maps Refreshed', 'Rescanned ~/.local/share/GenHub/Maps/ directory (6 maps loaded).');
+            });
+        }
     }
 
-    const mapBrowseBtn = document.getElementById('ghMapBrowseBtn');
-    if (mapBrowseBtn) {
-        mapBrowseBtn.addEventListener('click', () => {
-            window.showGenHubToast('Info', 'Browse Map Files', 'Select .map or .zip archive from your local filesystem.');
-        });
+    /**
+     * Wires the Tools sidebar actions and the map folder and map pack buttons.
+     */
+    function initToolSidebarActions() {
+        const addToolBtn = document.getElementById('ghAddToolBtn');
+        if (addToolBtn) {
+            addToolBtn.addEventListener('click', () => {
+                window.showGenHubToast('Tools', 'Tool Catalog', 'Scanning extension manifests... All 4 official tools are installed and ready.');
+            });
+        }
+
+        const refreshToolsBtn = document.getElementById('ghRefreshToolsBtn');
+        if (refreshToolsBtn) {
+            refreshToolsBtn.addEventListener('click', () => {
+                window.showGenHubToast('Tools', 'Tools Synchronized', 'Validated plugins: Replay Manager, Map Manager, Hotkeys Editor, and GenPatcher.');
+            });
+        }
+
+        const mapFolderBtn = document.getElementById('ghMapFolderBtn');
+        if (mapFolderBtn) {
+            mapFolderBtn.addEventListener('click', () => {
+                window.showGenHubToast('Info', 'Maps Folder', 'Opened path: ~/.local/share/GenHub/Maps/');
+            });
+        }
+
+        const mapPackBtn = document.getElementById('ghMapPackBtn');
+        if (mapPackBtn) {
+            mapPackBtn.addEventListener('click', () => {
+                window.showGenHubToast('Info', 'MapPack Manager', 'Manage bundled tournament collections and archive extraction.');
+            });
+        }
     }
 
-    const mapRefreshBtn = document.getElementById('ghMapRefreshBtn');
-    if (mapRefreshBtn) {
-        mapRefreshBtn.addEventListener('click', () => {
-            window.showGenHubToast('Info', 'Maps Refreshed', 'Rescanned ~/.local/share/GenHub/Maps/ directory (6 maps loaded).');
+    /**
+     * Wires the per-map integrity test and delete buttons.
+     */
+    function initMapRowActions() {
+        document.querySelectorAll('[data-map-test]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const mapName = btn.getAttribute('data-map-test');
+                window.showGenHubToast('Success', 'Integrity Verified', `Map "${mapName}" SHA-256 matches competitive standard.`);
+            });
         });
-    }
 
-    // Tools Sidebar Action Buttons
-    const addToolBtn = document.getElementById('ghAddToolBtn');
-    if (addToolBtn) {
-        addToolBtn.addEventListener('click', () => {
-            window.showGenHubToast('Tools', 'Tool Catalog', 'Scanning extension manifests... All 4 official tools are installed and ready.');
-        });
-    }
-
-    const refreshToolsBtn = document.getElementById('ghRefreshToolsBtn');
-    if (refreshToolsBtn) {
-        refreshToolsBtn.addEventListener('click', () => {
-            window.showGenHubToast('Tools', 'Tools Synchronized', 'Validated plugins: Replay Manager, Map Manager, Hotkeys Editor, and GenPatcher.');
-        });
-    }
-
-    const mapFolderBtn = document.getElementById('ghMapFolderBtn');
-    if (mapFolderBtn) {
-        mapFolderBtn.addEventListener('click', () => {
-            window.showGenHubToast('Info', 'Maps Folder', 'Opened path: ~/.local/share/GenHub/Maps/');
-        });
-    }
-
-    const mapPackBtn = document.getElementById('ghMapPackBtn');
-    if (mapPackBtn) {
-        mapPackBtn.addEventListener('click', () => {
-            window.showGenHubToast('Info', 'MapPack Manager', 'Manage bundled tournament collections and archive extraction.');
-        });
-    }
-
-    document.querySelectorAll('[data-map-test]').forEach(btn => {
-        btn.addEventListener('click', () => {
-            const mapName = btn.getAttribute('data-map-test');
-            window.showGenHubToast('Success', 'Integrity Verified', `Map "${mapName}" SHA-256 matches competitive standard.`);
-        });
-    });
-
-    document.querySelectorAll('[data-map-del]').forEach(btn => {
-        btn.addEventListener('click', () => {
-            const mapName = btn.getAttribute('data-map-del');
-            const row = btn.closest('tr');
-            if (row) row.remove();
-            window.showGenHubToast('Warning', 'Map Deleted', `Removed map "${mapName}" from local directory.`);
-        });
-    });
-
-    // Replay Manager Actions (PR #422 CRC Catalog & Compatibility Integration)
-    const replaySearch = document.getElementById("ghReplaySearch");
-    if (replaySearch) {
-        replaySearch.addEventListener("input", (e) => {
-            const q = e.target.value.toLowerCase().trim();
-            document.querySelectorAll("#ghReplaysTable tbody tr").forEach(row => {
-                const text = row.textContent.toLowerCase();
-                row.style.display = text.includes(q) ? "" : "none";
+        document.querySelectorAll('[data-map-del]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const mapName = btn.getAttribute('data-map-del');
+                const row = btn.closest('tr');
+                if (row) row.remove();
+                window.showGenHubToast('Warning', 'Map Deleted', `Removed map "${mapName}" from local directory.`);
             });
         });
     }
 
+    initMapFilters();
+
+    // Initialize Map filtering on load
+    filterMaps();
+
+    initMapImport();
+    initToolSidebarActions();
+    initMapRowActions();
+
+    // Replay Manager Actions (PR #422 CRC Catalog & Compatibility Integration)
+    /**
+     * Wires the replay search box.
+     */
+    function initReplaySearch() {
+        const replaySearch = document.getElementById("ghReplaySearch");
+        if (replaySearch) {
+            replaySearch.addEventListener("input", (e) => {
+                const searchQuery = e.target.value.toLowerCase().trim();
+                document.querySelectorAll("#ghReplaysTable tbody tr").forEach(row => {
+                    const text = row.textContent.toLowerCase();
+                    row.style.display = text.includes(searchQuery) ? "" : "none";
+                });
+            });
+        }
+    }
+
+    /**
+     * Refreshes the selected replay counter.
+     */
     function updateReplaySelectedCount() {
         const countSpan = document.getElementById("ghReplaySelectedCount");
         if (!countSpan) return;
@@ -1066,104 +1537,194 @@
         countSpan.innerHTML = `<strong>${selected || (total > 0 ? 1 : 0)}</strong> Selected`;
     }
 
-    // Row selection toggle
-    document.querySelectorAll("#ghReplaysTable tbody tr").forEach(row => {
-        row.addEventListener("click", (e) => {
-            if (e.target.closest("button") || e.target.closest("input")) return;
-            row.classList.toggle("selected");
-            updateReplaySelectedCount();
+    /**
+     * Wires replay row selection and the delegated replay row actions.
+     */
+    function initReplayRows() {
+        document.querySelectorAll("#ghReplaysTable tbody tr").forEach(row => {
+            row.addEventListener("click", (e) => {
+                if (e.target.closest("button") || e.target.closest("input")) return;
+                row.classList.toggle("selected");
+                updateReplaySelectedCount();
+            });
         });
-    });
 
-    // Replay row actions (Launch, Setup, Profile, Folder, Delete)
-    document.getElementById("ghReplaysTable")?.addEventListener("click", (e) => {
+        document.getElementById("ghReplaysTable")?.addEventListener("click", handleReplayTableClick);
+    }
+
+    /**
+     * Runs the replay row action of the clicked action button.
+     * @param {MouseEvent} e Click event from the replay table.
+     */
+    function handleReplayTableClick(e) {
         const actBtn = e.target.closest("[data-rep-act]");
         if (!actBtn) return;
         e.stopPropagation();
 
         const act = actBtn.getAttribute("data-rep-act");
         const row = actBtn.closest("tr");
-        const matchName = row ? (row.querySelector("strong")?.textContent || "Replay") : "Replay";
-        const client = row?.getAttribute("data-rep-client") || "Zero Hour Client";
-        const exeCrc = row?.getAttribute("data-rep-exe") || "0x8F3A2B1C";
+        const replay = readReplayRow(row);
+        const action = replayRowActions.get(act);
+        if (action) action(row, replay);
+    }
 
-        if (act === "launch") {
-            window.showGenHubToast("Success", "Launching Replay", `Matched ${client} (${exeCrc}). Starting desync-free playback for "${matchName}".`);
-        } else if (act === "setup") {
-            window.showGenHubToast("Info", "Auto-Configuring Profile", `Creating dedicated profile for ${client} via CRC catalog mapping.`);
-        } else if (act === "profile") {
-            window.showGenHubToast("Info", "Replay Profile Options", `Opening client selector dialog for "${matchName}".`);
-        } else if (act === "folder") {
-            window.showGenHubToast("Info", "Opening Explorer", "Revealed replay file in ~/.local/share/GenHub/Replays/");
-        } else if (act === "delete") {
-            row.remove();
-            updateReplaySelectedCount();
-            window.showGenHubToast("Warning", "Replay Deleted", `Removed "${matchName}" from local storage.`);
-        }
-    });
+    /**
+     * Reads the match name, client and executable CRC of a replay row.
+     * @param {HTMLTableRowElement|null} row Replay row.
+     * @returns {{matchName: string, client: string, exeCrc: string}} Replay fields with defaults.
+     */
+    function readReplayRow(row) {
+        return {
+            matchName: readReplayMatchName(row),
+            client: row?.getAttribute("data-rep-client") || "Zero Hour Client",
+            exeCrc: row?.getAttribute("data-rep-exe") || "0x8F3A2B1C"
+        };
+    }
 
-    // Replay Action Bar Controls
-    document.getElementById("ghReplayDeleteSelectedBtn")?.addEventListener("click", () => {
-        const selected = document.querySelectorAll("#ghReplaysTable tbody tr.selected");
-        if (selected.length > 0) {
-            const count = selected.length;
-            selected.forEach(r => r.remove());
-            updateReplaySelectedCount();
-            window.showGenHubToast("Warning", "Replays Deleted", `Deleted ${count} selected replay file(s).`);
-        } else {
-            const firstRow = document.querySelector("#ghReplaysTable tbody tr");
-            if (firstRow) {
-                firstRow.remove();
+    /**
+     * Reads the match name of a replay row.
+     * @param {HTMLTableRowElement|null} row Replay row.
+     * @returns {string} The match name, or Replay.
+     */
+    function readReplayMatchName(row) {
+        return row ? (row.querySelector("strong")?.textContent || "Replay") : "Replay";
+    }
+
+    /**
+     * Announces playback of a replay with its matched client.
+     * @param {HTMLTableRowElement|null} row Replay row.
+     * @param {{matchName: string, client: string, exeCrc: string}} replay Replay fields.
+     */
+    function launchReplay(row, replay) {
+        window.showGenHubToast("Success", "Launching Replay", `Matched ${replay.client} (${replay.exeCrc}). Starting desync-free playback for "${replay.matchName}".`);
+    }
+
+    /**
+     * Announces automatic profile creation for a replay's client.
+     * @param {HTMLTableRowElement|null} row Replay row.
+     * @param {{matchName: string, client: string, exeCrc: string}} replay Replay fields.
+     */
+    function setupReplayProfile(row, replay) {
+        window.showGenHubToast("Info", "Auto-Configuring Profile", `Creating dedicated profile for ${replay.client} via CRC catalog mapping.`);
+    }
+
+    /**
+     * Announces the client selector for a replay.
+     * @param {HTMLTableRowElement|null} row Replay row.
+     * @param {{matchName: string, client: string, exeCrc: string}} replay Replay fields.
+     */
+    function openReplayProfileOptions(row, replay) {
+        window.showGenHubToast("Info", "Replay Profile Options", `Opening client selector dialog for "${replay.matchName}".`);
+    }
+
+    /**
+     * Announces that the replay file was revealed in the file explorer.
+     */
+    function revealReplayFile() {
+        window.showGenHubToast("Info", "Opening Explorer", "Revealed replay file in ~/.local/share/GenHub/Replays/");
+    }
+
+    /**
+     * Removes a replay row and refreshes the selection counter.
+     * @param {HTMLTableRowElement} row Replay row.
+     * @param {{matchName: string, client: string, exeCrc: string}} replay Replay fields.
+     */
+    function deleteReplayRow(row, replay) {
+        row.remove();
+        updateReplaySelectedCount();
+        window.showGenHubToast("Warning", "Replay Deleted", `Removed "${replay.matchName}" from local storage.`);
+    }
+
+    const replayRowActions = new Map([
+        ["launch", launchReplay],
+        ["setup", setupReplayProfile],
+        ["profile", openReplayProfileOptions],
+        ["folder", revealReplayFile],
+        ["delete", deleteReplayRow]
+    ]);
+
+    /**
+     * Wires the replay action bar delete button.
+     */
+    function initReplayDeleteSelected() {
+        document.getElementById("ghReplayDeleteSelectedBtn")?.addEventListener("click", () => {
+            const selected = document.querySelectorAll("#ghReplaysTable tbody tr.selected");
+            if (selected.length > 0) {
+                const count = selected.length;
+                selected.forEach(r => r.remove());
                 updateReplaySelectedCount();
-                window.showGenHubToast("Warning", "Replay Deleted", "Deleted 1 selected replay.");
-            }
-        }
-    });
-
-    document.getElementById("ghReplayUncompressBtn")?.addEventListener("click", () => {
-        window.showGenHubToast("Success", "Uncompress Archives", "Extracted .rep recordings from selected archives into replay directory.");
-    });
-
-    document.getElementById("ghReplayZipBtn")?.addEventListener("click", () => {
-        const zipName = document.getElementById("ghReplayZipName")?.value || "Replays.zip";
-        window.showGenHubToast("Success", "ZIP Export Complete", `Archived selected replays into "${zipName}".`);
-    });
-
-    document.getElementById("ghReplayUploadShareBtn")?.addEventListener("click", () => {
-        window.showGenHubToast("Success", "Cloud Link Ready", "Uploaded replay to cloud: https://genhub.online/r/8f3a2b1c");
-    });
-
-    document.getElementById("ghReplayHistoryToggleBtn")?.addEventListener("click", () => {
-        window.showGenHubToast("Info", "Upload History", "Viewing cloud upload history (3 shared replays active).");
-    });
-
-    const replayImportBtn = document.getElementById('ghReplayImportBtn');
-    if (replayImportBtn) {
-        replayImportBtn.addEventListener('click', () => {
-            const input = document.getElementById('ghReplayUrlInput');
-            const val = input ? input.value.trim() : '';
-            if (!val) {
-                window.showGenHubToast('Warning', 'Import Replay', 'Please paste a match URL or ID first.');
+                window.showGenHubToast("Warning", "Replays Deleted", `Deleted ${count} selected replay file(s).`);
             } else {
-                window.showGenHubToast('Success', 'Replay Downloaded', `Successfully imported replay "${val}".`);
-                if (input) input.value = '';
+                const firstRow = document.querySelector("#ghReplaysTable tbody tr");
+                if (firstRow) {
+                    firstRow.remove();
+                    updateReplaySelectedCount();
+                    window.showGenHubToast("Warning", "Replay Deleted", "Deleted 1 selected replay.");
+                }
             }
         });
     }
 
-    const replayRefreshBtn = document.getElementById('ghReplayRefreshBtn');
-    if (replayRefreshBtn) {
-        replayRefreshBtn.addEventListener('click', () => {
-            window.showGenHubToast('Info', 'Replays Refreshed', 'Rescanned ~/Zero Hour Data/Replays directory.');
+    /**
+     * Wires the replay archive, upload and history buttons.
+     */
+    function initReplayArchiveActions() {
+        document.getElementById("ghReplayUncompressBtn")?.addEventListener("click", () => {
+            window.showGenHubToast("Success", "Uncompress Archives", "Extracted .rep recordings from selected archives into replay directory.");
+        });
+
+        document.getElementById("ghReplayZipBtn")?.addEventListener("click", () => {
+            const zipName = document.getElementById("ghReplayZipName")?.value || "Replays.zip";
+            window.showGenHubToast("Success", "ZIP Export Complete", `Archived selected replays into "${zipName}".`);
+        });
+
+        document.getElementById("ghReplayUploadShareBtn")?.addEventListener("click", () => {
+            window.showGenHubToast("Success", "Cloud Link Ready", "Uploaded replay to cloud: https://genhub.online/r/8f3a2b1c");
+        });
+
+        document.getElementById("ghReplayHistoryToggleBtn")?.addEventListener("click", () => {
+            window.showGenHubToast("Info", "Upload History", "Viewing cloud upload history (3 shared replays active).");
         });
     }
 
-    const replayFolderBtn = document.getElementById('ghReplayFolderBtn');
-    if (replayFolderBtn) {
-        replayFolderBtn.addEventListener('click', () => {
-            window.showGenHubToast('Info', 'Replays Folder', 'Opened path: ~/Zero Hour Data/Replays/');
-        });
+    /**
+     * Wires the replay import, refresh and folder buttons.
+     */
+    function initReplayImport() {
+        const replayImportBtn = document.getElementById('ghReplayImportBtn');
+        if (replayImportBtn) {
+            replayImportBtn.addEventListener('click', () => {
+                const input = document.getElementById('ghReplayUrlInput');
+                const val = input ? input.value.trim() : '';
+                if (!val) {
+                    window.showGenHubToast('Warning', 'Import Replay', 'Please paste a match URL or ID first.');
+                } else {
+                    window.showGenHubToast('Success', 'Replay Downloaded', `Successfully imported replay "${val}".`);
+                    if (input) input.value = '';
+                }
+            });
+        }
+
+        const replayRefreshBtn = document.getElementById('ghReplayRefreshBtn');
+        if (replayRefreshBtn) {
+            replayRefreshBtn.addEventListener('click', () => {
+                window.showGenHubToast('Info', 'Replays Refreshed', 'Rescanned ~/Zero Hour Data/Replays directory.');
+            });
+        }
+
+        const replayFolderBtn = document.getElementById('ghReplayFolderBtn');
+        if (replayFolderBtn) {
+            replayFolderBtn.addEventListener('click', () => {
+                window.showGenHubToast('Info', 'Replays Folder', 'Opened path: ~/Zero Hour Data/Replays/');
+            });
+        }
     }
+
+    initReplaySearch();
+    initReplayRows();
+    initReplayDeleteSelected();
+    initReplayArchiveActions();
+    initReplayImport();
 
     // GenHotkeys Interactivity (PR #451)
     const factionTabs = document.querySelectorAll("#ghHotkeyFactionTabs .gh-faction-btn");
@@ -1199,6 +1760,9 @@
         ]
     };
 
+    /**
+     * Shows only the hotkey cards of the active faction and category.
+     */
     function filterHotkeyCards() {
         hotkeyCards.forEach(card => {
             const cFaction = card.getAttribute("data-faction");
@@ -1209,48 +1773,55 @@
         });
     }
 
-    factionTabs.forEach(btn => {
-        btn.addEventListener("click", () => {
-            factionTabs.forEach(b => b.classList.remove("active"));
-            btn.classList.add("active");
-            activeFaction = btn.getAttribute("data-faction") || "usa";
+    /**
+     * Wires the hotkey faction tabs, category pills and general and profile selectors.
+     */
+    function initHotkeyFilters() {
+        factionTabs.forEach(btn => {
+            btn.addEventListener("click", () => {
+                factionTabs.forEach(b => b.classList.remove("active"));
+                btn.classList.add("active");
+                activeFaction = btn.getAttribute("data-faction") || "usa";
 
-            if (generalSelect && factionGenerals[activeFaction]) {
-                generalSelect.innerHTML = "";
-                factionGenerals[activeFaction].forEach(g => {
-                    const opt = document.createElement("option");
-                    opt.value = g.val;
-                    opt.textContent = g.label;
-                    generalSelect.appendChild(opt);
-                });
-            }
+                if (generalSelect && factionGenerals[activeFaction]) {
+                    generalSelect.innerHTML = "";
+                    factionGenerals[activeFaction].forEach(g => {
+                        const opt = document.createElement("option");
+                        opt.value = g.val;
+                        opt.textContent = g.label;
+                        generalSelect.appendChild(opt);
+                    });
+                }
 
-            filterHotkeyCards();
+                filterHotkeyCards();
+            });
         });
-    });
 
-    catPills.forEach(pill => {
-        pill.addEventListener("click", () => {
-            catPills.forEach(p => p.classList.remove("active"));
-            pill.classList.add("active");
-            activeCat = pill.getAttribute("data-cat") || "all";
-            filterHotkeyCards();
+        catPills.forEach(pill => {
+            pill.addEventListener("click", () => {
+                catPills.forEach(p => p.classList.remove("active"));
+                pill.classList.add("active");
+                activeCat = pill.getAttribute("data-cat") || "all";
+                filterHotkeyCards();
+            });
         });
-    });
 
-    if (generalSelect) {
-        generalSelect.addEventListener("change", () => {
-            const label = generalSelect.options[generalSelect.selectedIndex]?.text || "General";
-            window.showGenHubToast("GenHotkeys", "General Profile", `Switched variant: ${label}`);
-        });
+        if (generalSelect) {
+            generalSelect.addEventListener("change", () => {
+                const label = generalSelect.options[generalSelect.selectedIndex]?.text || "General";
+                window.showGenHubToast("GenHotkeys", "General Profile", `Switched variant: ${label}`);
+            });
+        }
+
+        if (profileSelect) {
+            profileSelect.addEventListener("change", () => {
+                const label = profileSelect.options[profileSelect.selectedIndex]?.text || "Profile";
+                window.showGenHubToast("GenHotkeys", "Profile Switched", `Active configuration: ${label}`);
+            });
+        }
     }
 
-    if (profileSelect) {
-        profileSelect.addEventListener("change", () => {
-            const label = profileSelect.options[profileSelect.selectedIndex]?.text || "Profile";
-            window.showGenHubToast("GenHotkeys", "Profile Switched", `Active configuration: ${label}`);
-        });
-    }
+    initHotkeyFilters();
 
     const hotkeyPresets = {
         "grid": {
@@ -1297,86 +1868,136 @@
         }
     };
 
-    if (presetSelect) {
-        presetSelect.addEventListener("change", () => {
-            const p = presetSelect.value;
-            const presetMap = hotkeyPresets[p];
-            if (presetMap) {
-                hotkeyCards.forEach(card => {
-                    const id = card.getAttribute("data-id");
-                    if (id && presetMap[id]) {
-                        const stamp = card.querySelector(".gh-hotkey-stamp");
-                        const badge = card.querySelector(".gh-key-badge");
-                        if (stamp) stamp.textContent = presetMap[id];
-                        if (badge) badge.textContent = presetMap[id];
-                    }
+    /**
+     * Applies the selected hotkey preset to every matching command card.
+     */
+    function applyHotkeyPreset() {
+        const presetKey = presetSelect.value;
+        const presetMap = hotkeyPresets[presetKey];
+        if (presetMap) {
+            hotkeyCards.forEach(card => {
+                const id = card.getAttribute("data-id");
+                if (id && presetMap[id]) {
+                    const stamp = card.querySelector(".gh-hotkey-stamp");
+                    const badge = card.querySelector(".gh-key-badge");
+                    if (stamp) stamp.textContent = presetMap[id];
+                    if (badge) badge.textContent = presetMap[id];
+                }
+            });
+            const label = presetSelect.options[presetSelect.selectedIndex]?.text || presetKey;
+            window.showGenHubToast("GenHotkeys", "Preset Applied", `Loaded ${label} key mapping preset.`);
+        }
+    }
+
+    /**
+     * Moves every hotkey stamp to the selected corner of its cameo.
+     */
+    function applyHotkeyStampCorner() {
+        const corner = cornerSelect.value;
+        const placement = getStampPlacement(corner);
+        const stamps = document.querySelectorAll(".gh-hotkey-stamp");
+        stamps.forEach(s => positionHotkeyStamp(s, placement));
+        const label = cornerSelect.options[cornerSelect.selectedIndex]?.text || corner;
+        window.showGenHubToast("GenHotkeys", "Stamp Position", `Badges aligned to ${label}.`);
+    }
+
+    /**
+     * Resolves which cameo edges a corner code touches.
+     * @param {string} corner Corner code: tl, tr, bl or br.
+     * @returns {{top: boolean, bottom: boolean, left: boolean, right: boolean}} Edges to anchor.
+     */
+    function getStampPlacement(corner) {
+        return {
+            top: corner === "tr" || corner === "tl",
+            bottom: corner === "br" || corner === "bl",
+            left: corner === "tl" || corner === "bl",
+            right: corner === "tr" || corner === "br"
+        };
+    }
+
+    /**
+     * Anchors a hotkey stamp to the given cameo edges.
+     * @param {HTMLElement} stamp Hotkey stamp element.
+     * @param {{top: boolean, bottom: boolean, left: boolean, right: boolean}} placement Edges to anchor.
+     */
+    function positionHotkeyStamp(stamp, placement) {
+        stamp.style.top = placement.top ? "3px" : "auto";
+        stamp.style.bottom = placement.bottom ? "3px" : "auto";
+        stamp.style.left = placement.left ? "4px" : "auto";
+        stamp.style.right = placement.right ? "4px" : "auto";
+    }
+
+    /**
+     * Wires the hotkey preset, stamp corner and overlay controls.
+     */
+    function initHotkeyDisplayOptions() {
+        if (presetSelect) {
+            presetSelect.addEventListener("change", applyHotkeyPreset);
+        }
+
+        if (cornerSelect) {
+            cornerSelect.addEventListener("change", applyHotkeyStampCorner);
+        }
+
+        if (overlayCheck) {
+            overlayCheck.addEventListener("change", () => {
+                const stamps = document.querySelectorAll(".gh-hotkey-stamp");
+                stamps.forEach(s => {
+                    s.style.display = overlayCheck.checked ? "block" : "none";
                 });
-                const label = presetSelect.options[presetSelect.selectedIndex]?.text || p;
-                window.showGenHubToast("GenHotkeys", "Preset Applied", `Loaded ${label} key mapping preset.`);
-            }
-        });
-    }
-
-    if (cornerSelect) {
-        cornerSelect.addEventListener("change", () => {
-            const corner = cornerSelect.value;
-            const stamps = document.querySelectorAll(".gh-hotkey-stamp");
-            stamps.forEach(s => {
-                s.style.top = (corner === "tr" || corner === "tl") ? "3px" : "auto";
-                s.style.bottom = (corner === "br" || corner === "bl") ? "3px" : "auto";
-                s.style.left = (corner === "tl" || corner === "bl") ? "4px" : "auto";
-                s.style.right = (corner === "tr" || corner === "br") ? "4px" : "auto";
+                window.showGenHubToast("GenHotkeys", "Cameo Badges", overlayCheck.checked ? "Enabled hotkey overlay badges." : "Disabled hotkey overlay badges.");
             });
-            const label = cornerSelect.options[cornerSelect.selectedIndex]?.text || corner;
-            window.showGenHubToast("GenHotkeys", "Stamp Position", `Badges aligned to ${label}.`);
-        });
+        }
     }
 
-    if (overlayCheck) {
-        overlayCheck.addEventListener("change", () => {
-            const stamps = document.querySelectorAll(".gh-hotkey-stamp");
-            stamps.forEach(s => {
-                s.style.display = overlayCheck.checked ? "block" : "none";
+    /**
+     * Wires hotkey command card selection and the addon compile button.
+     */
+    function initHotkeyCards() {
+        hotkeyCards.forEach(card => {
+            card.addEventListener("click", () => {
+                hotkeyCards.forEach(c => c.classList.remove("selected"));
+                card.classList.add("selected");
+                const title = card.querySelector(".gh-action-title")?.textContent || "Action";
+                const stamp = card.querySelector(".gh-hotkey-stamp")?.textContent || "";
+                window.showGenHubToast("Hotkeys Editor", "Command Selected", `${title} [${stamp}] ready for binding.`);
             });
-            window.showGenHubToast("GenHotkeys", "Cameo Badges", overlayCheck.checked ? "Enabled hotkey overlay badges." : "Disabled hotkey overlay badges.");
         });
+
+        if (createAddonBtn) {
+            createAddonBtn.addEventListener("click", () => {
+                createAddonBtn.disabled = true;
+                createAddonBtn.innerHTML = "<span>Compiling...</span>";
+                setTimeout(() => {
+                    createAddonBtn.disabled = false;
+                    createAddonBtn.innerHTML = "<svg viewBox=\"0 0 24 24\" width=\"12\" height=\"12\" fill=\"currentColor\"><path d=\"M19,9H15V3H9V9H5L12,16L19,9M5,18V20H19V18H5Z\"/></svg> <span>Create Addon</span>";
+                    window.showGenHubToast("GenHotkeys", "Addon Archive Compiled", "Generated !Hotkeys_Pro_ZH.big with stamped cameos. Registered into CAS.");
+                }, 600);
+            });
+        }
     }
 
-    hotkeyCards.forEach(card => {
-        card.addEventListener("click", () => {
-            hotkeyCards.forEach(c => c.classList.remove("selected"));
-            card.classList.add("selected");
-            const title = card.querySelector(".gh-action-title")?.textContent || "Action";
-            const stamp = card.querySelector(".gh-hotkey-stamp")?.textContent || "";
-            window.showGenHubToast("Hotkeys Editor", "Command Selected", `${title} [${stamp}] ready for binding.`);
-        });
-    });
-
-    if (createAddonBtn) {
-        createAddonBtn.addEventListener("click", () => {
-            createAddonBtn.disabled = true;
-            createAddonBtn.innerHTML = "<span>Compiling...</span>";
-            setTimeout(() => {
-                createAddonBtn.disabled = false;
-                createAddonBtn.innerHTML = "<svg viewBox=\"0 0 24 24\" width=\"12\" height=\"12\" fill=\"currentColor\"><path d=\"M19,9H15V3H9V9H5L12,16L19,9M5,18V20H19V18H5Z\"/></svg> <span>Create Addon</span>";
-                window.showGenHubToast("GenHotkeys", "Addon Archive Compiled", "Generated !Hotkeys_Pro_ZH.big with stamped cameos. Registered into CAS.");
-            }, 600);
-        });
+    /**
+     * Wires the GenPatcher apply fixes button.
+     */
+    function initGenPatcher() {
+        const gpBtn = document.getElementById('ghApplyGenPatcherBtn');
+        if (gpBtn) {
+            gpBtn.addEventListener('click', () => {
+                const orig = gpBtn.textContent;
+                gpBtn.textContent = 'Applying...';
+                setTimeout(() => {
+                    gpBtn.textContent = '✓ Fixes Applied';
+                    setTimeout(() => { gpBtn.textContent = orig; }, 1800);
+                    window.showGenHubToast('Success', 'GenPatcher Applied', 'DirectDraw fix, camera zoom, and GenTool 8.9 installed.');
+                }, 600);
+            });
+        }
     }
 
-    // GenPatcher Apply Fixes
-    const gpBtn = document.getElementById('ghApplyGenPatcherBtn');
-    if (gpBtn) {
-        gpBtn.addEventListener('click', () => {
-            const orig = gpBtn.textContent;
-            gpBtn.textContent = 'Applying...';
-            setTimeout(() => {
-                gpBtn.textContent = '✓ Fixes Applied';
-                setTimeout(() => { gpBtn.textContent = orig; }, 1800);
-                window.showGenHubToast('Success', 'GenPatcher Applied', 'DirectDraw fix, camera zoom, and GenTool 8.9 installed.');
-            }, 600);
-        });
-    }
+    initHotkeyDisplayOptions();
+    initHotkeyCards();
+    initGenPatcher();
 
     // -------------------------------------------------------------
     // SETTINGS TAB INTERACTIVITY (Avalonia Expander & Sidebar Nav)
@@ -1384,12 +2005,15 @@
     const settingNavBtns = document.querySelectorAll('.gh-setting-nav-btn');
     const settingsContent = document.getElementById('ghSettingsScrollContainer') || document.querySelector('.gh-settings-content');
 
+    /**
+     * Scrolls the settings pane to a section and highlights its sidebar button.
+     * @param {HTMLElement|null} targetEl Settings expander to show.
+     * @param {boolean} openIfClosed Whether to expand the section first.
+     */
     function scrollToSettingsSection(targetEl, openIfClosed) {
         if (!targetEl || !settingsContent) return;
-        if (openIfClosed && !targetEl.classList.contains('open')) {
-            targetEl.classList.add('open');
-            const header = targetEl.querySelector('.gh-expander-header');
-            if (header) header.setAttribute('aria-expanded', 'true');
+        if (openIfClosed) {
+            expandSettingsSection(targetEl);
         }
         const targetTop = targetEl.offsetTop - settingsContent.offsetTop;
         settingsContent.scrollTo({
@@ -1398,111 +2022,158 @@
         });
         const targetId = targetEl.id;
         if (targetId) {
-            settingNavBtns.forEach(b => {
-                if (b.getAttribute('data-s-target') === targetId) {
-                    b.classList.add('active');
-                } else {
-                    b.classList.remove('active');
+            highlightSettingsNav(targetId);
+        }
+    }
+
+    /**
+     * Expands a collapsed settings section.
+     * @param {HTMLElement} targetEl Settings expander.
+     */
+    function expandSettingsSection(targetEl) {
+        if (targetEl.classList.contains('open')) return;
+        targetEl.classList.add('open');
+        const header = targetEl.querySelector('.gh-expander-header');
+        if (header) header.setAttribute('aria-expanded', 'true');
+    }
+
+    /**
+     * Marks the settings sidebar button for a section as active.
+     * @param {string} targetId Section element id.
+     */
+    function highlightSettingsNav(targetId) {
+        settingNavBtns.forEach(b => {
+            if (b.getAttribute('data-s-target') === targetId) {
+                b.classList.add('active');
+            } else {
+                b.classList.remove('active');
+            }
+        });
+    }
+
+    /**
+     * Wires the settings expander headers and the expand and collapse all buttons.
+     */
+    function initSettingsExpanders() {
+        document.querySelectorAll('.gh-expander-header').forEach(header => {
+            header.addEventListener('click', (e) => {
+                e.preventDefault();
+                const expander = header.closest('.gh-settings-expander');
+                if (expander) {
+                    const willOpen = !expander.classList.contains('open');
+                    expander.classList.toggle('open', willOpen);
+                    header.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+                    if (willOpen) {
+                        scrollToSettingsSection(expander, false);
+                    }
                 }
+            });
+        });
+
+        // Expand All / Collapse All buttons
+        const expandAllBtn = document.getElementById('ghExpandAllSettingsBtn');
+        const collapseAllBtn = document.getElementById('ghCollapseAllSettingsBtn');
+        if (expandAllBtn) {
+            expandAllBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                document.querySelectorAll('.gh-settings-expander').forEach(el => {
+                    el.classList.add('open');
+                    const btn = el.querySelector('.gh-expander-header');
+                    if (btn) btn.setAttribute('aria-expanded', 'true');
+                });
+            });
+        }
+        if (collapseAllBtn) {
+            collapseAllBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                document.querySelectorAll('.gh-settings-expander').forEach(el => {
+                    el.classList.remove('open');
+                    const btn = el.querySelector('.gh-expander-header');
+                    if (btn) btn.setAttribute('aria-expanded', 'false');
+                });
             });
         }
     }
 
-    // Accordion toggle on headers
-    document.querySelectorAll('.gh-expander-header').forEach(header => {
-        header.addEventListener('click', (e) => {
-            e.preventDefault();
-            const expander = header.closest('.gh-settings-expander');
-            if (expander) {
-                const willOpen = !expander.classList.contains('open');
-                expander.classList.toggle('open', willOpen);
-                header.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
-                if (willOpen) {
-                    scrollToSettingsSection(expander, false);
-                }
-            }
-        });
-    });
-
-    // Expand All / Collapse All buttons
-    const expandAllBtn = document.getElementById('ghExpandAllSettingsBtn');
-    const collapseAllBtn = document.getElementById('ghCollapseAllSettingsBtn');
-    if (expandAllBtn) {
-        expandAllBtn.addEventListener('click', (e) => {
-            e.preventDefault();
-            document.querySelectorAll('.gh-settings-expander').forEach(el => {
-                el.classList.add('open');
-                const btn = el.querySelector('.gh-expander-header');
-                if (btn) btn.setAttribute('aria-expanded', 'true');
+    /**
+     * Wires the manual game installation button (PR #452).
+     */
+    function initCustomInstallButton() {
+        const addCustomInstallBtn = document.getElementById('ghAddCustomInstallBtn');
+        if (addCustomInstallBtn) {
+            addCustomInstallBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                registerCustomInstall(addCustomInstallBtn);
             });
-        });
-    }
-    if (collapseAllBtn) {
-        collapseAllBtn.addEventListener('click', (e) => {
-            e.preventDefault();
-            document.querySelectorAll('.gh-settings-expander').forEach(el => {
-                el.classList.remove('open');
-                const btn = el.querySelector('.gh-expander-header');
-                if (btn) btn.setAttribute('aria-expanded', 'false');
-            });
-        });
+        }
     }
 
-    // Manual Game Installation Registration (PR #452)
-    const addCustomInstallBtn = document.getElementById('ghAddCustomInstallBtn');
-    if (addCustomInstallBtn) {
-        addCustomInstallBtn.addEventListener('click', (e) => {
-            e.preventDefault();
-            const existing = document.getElementById('ghCustomInstallCustomRow');
-            if (existing) {
-                window.showGenHubToast('Settings', 'Installation Exists', 'Custom installation path is already registered and linked.');
-                return;
-            }
-            const container = addCustomInstallBtn.closest('.gh-form-group');
-            if (container) {
-                const newRow = document.createElement('div');
-                newRow.className = 'gh-install-row';
-                newRow.id = 'ghCustomInstallCustomRow';
-                newRow.innerHTML = `
+    /**
+     * Adds the simulated custom installation row once.
+     * @param {HTMLElement} addCustomInstallBtn The add installation button.
+     */
+    function registerCustomInstall(addCustomInstallBtn) {
+        const existing = document.getElementById('ghCustomInstallCustomRow');
+        if (existing) {
+            window.showGenHubToast('Settings', 'Installation Exists', 'Custom installation path is already registered and linked.');
+            return;
+        }
+        const container = addCustomInstallBtn.closest('.gh-form-group');
+        if (container) {
+            const newRow = document.createElement('div');
+            newRow.className = 'gh-install-row';
+            newRow.id = 'ghCustomInstallCustomRow';
+            newRow.innerHTML = `
                     <div>
                         <strong>D:\\Games\\Command &amp; Conquer Generals - Custom</strong>
                         <div style="font-size: 11px; color: #64748b;">Generals v1.08 • Custom Manual Installation</div>
                     </div>
                     <span class="gh-chip" style="color: #34d399;">Linked</span>
                 `;
-                container.appendChild(newRow);
-                window.showGenHubToast('Success', 'Game Installation Registered', 'Discovered generals.exe v1.08 in D:\\Games\\Command & Conquer Generals - Custom');
-            }
+            container.appendChild(newRow);
+            window.showGenHubToast('Success', 'Game Installation Registered', 'Discovered generals.exe v1.08 in D:\\Games\\Command & Conquer Generals - Custom');
+        }
+    }
+
+    /**
+     * Wires the settings sidebar so each button jumps to and opens its section.
+     */
+    function initSettingsNav() {
+        settingNavBtns.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                const targetId = btn.getAttribute('data-s-target');
+                const targetEl = document.getElementById(targetId);
+                if (targetEl) {
+                    scrollToSettingsSection(targetEl, true);
+                }
+            });
         });
     }
 
-    // Sidebar navigation jumps to and opens the target expander
-    settingNavBtns.forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            const targetId = btn.getAttribute('data-s-target');
-            const targetEl = document.getElementById(targetId);
-            if (targetEl) {
-                scrollToSettingsSection(targetEl, true);
-            }
-        });
-    });
+    initSettingsExpanders();
+    initCustomInstallButton();
+    initSettingsNav();
 
+    /**
+     * Applies an accent color to the client theme variables and swatches.
+     * @param {string} colorHex Accent color as #rrggbb.
+     */
     function applyThemeAccent(colorHex) {
         if (!colorHex) return;
-        const r = parseInt(colorHex.slice(1,3), 16) || 139;
-        const g = parseInt(colorHex.slice(3,5), 16) || 92;
-        const b = parseInt(colorHex.slice(5,7), 16) || 246;
+        const red = parseInt(colorHex.slice(1,3), 16) || 139;
+        const green = parseInt(colorHex.slice(3,5), 16) || 92;
+        const blue = parseInt(colorHex.slice(5,7), 16) || 246;
 
-        const rDark = Math.max(0, Math.round(r * 0.82));
-        const gDark = Math.max(0, Math.round(g * 0.82));
-        const bDark = Math.max(0, Math.round(b * 0.82));
+        const rDark = Math.max(0, Math.round(red * 0.82));
+        const gDark = Math.max(0, Math.round(green * 0.82));
+        const bDark = Math.max(0, Math.round(blue * 0.82));
         const colorHover = `rgb(${rDark}, ${gDark}, ${bDark})`;
 
-        const glow = `rgba(${r}, ${g}, ${b}, 0.45)`;
-        const light = `rgba(${r}, ${g}, ${b}, 0.18)`;
-        const border = `rgba(${r}, ${g}, ${b}, 0.5)`;
+        const glow = `rgba(${red}, ${green}, ${blue}, 0.45)`;
+        const light = `rgba(${red}, ${green}, ${blue}, 0.18)`;
+        const border = `rgba(${red}, ${green}, ${blue}, 0.5)`;
 
         const appEl = document.querySelector('.genhub-app-window');
         const targets = [document.documentElement, document.body, appEl].filter(Boolean);
@@ -1522,42 +2193,49 @@
         });
     }
 
-    document.querySelectorAll('.gh-theme-swatch').forEach(sw => {
-        sw.addEventListener('click', () => {
-            const color = sw.getAttribute('data-color');
-            applyThemeAccent(color);
-            window.showGenHubToast('Success', 'Theme Swatch Applied', `Updated client accent color to ${color}`);
+    /**
+     * Wires the theme swatches, directory shortcuts, log buttons and memory cleanup button.
+     */
+    function initSettingsActions() {
+        document.querySelectorAll('.gh-theme-swatch').forEach(sw => {
+            sw.addEventListener('click', () => {
+                const color = sw.getAttribute('data-color');
+                applyThemeAccent(color);
+                window.showGenHubToast('Success', 'Theme Swatch Applied', `Updated client accent color to ${color}`);
+            });
         });
-    });
 
-    document.querySelectorAll('.gh-dir-act-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-            const targetDirName = btn.getAttribute('data-dir');
-            window.showGenHubToast('Info', 'Opened Directory', `Accessed path: ~/.local/share/GenHub/${targetDirName.replace(' ', '')}/`);
+        document.querySelectorAll('.gh-dir-act-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const targetDirName = btn.getAttribute('data-dir');
+                window.showGenHubToast('Info', 'Opened Directory', `Accessed path: ~/.local/share/GenHub/${targetDirName.replace(' ', '')}/`);
+            });
         });
-    });
 
-    document.querySelectorAll('.gh-log-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-            const act = btn.getAttribute('data-log-act');
-            if (act === 'clear') {
-                window.showGenHubToast('Warning', 'Logs Cleared', 'Emptied ~/.local/share/GenHub/logs/');
-            } else if (act === 'copy-latest') {
-                window.showGenHubToast('Success', 'Copied to Clipboard', 'Copied 1,480 lines of GenHub.log to clipboard.');
-            } else {
-                window.showGenHubToast('Info', 'Log Viewer', 'Opened latest diagnostic session output.');
-            }
+        document.querySelectorAll('.gh-log-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const act = btn.getAttribute('data-log-act');
+                if (act === 'clear') {
+                    window.showGenHubToast('Warning', 'Logs Cleared', 'Emptied ~/.local/share/GenHub/logs/');
+                } else if (act === 'copy-latest') {
+                    window.showGenHubToast('Success', 'Copied to Clipboard', 'Copied 1,480 lines of GenHub.log to clipboard.');
+                } else {
+                    window.showGenHubToast('Info', 'Log Viewer', 'Opened latest diagnostic session output.');
+                }
+            });
         });
-    });
 
-    const gcBtn = document.getElementById('ghGcCollectBtn');
-    if (gcBtn) {
-        gcBtn.addEventListener('click', () => {
-            const memVal = document.getElementById('ghMemoryUsageVal');
-            if (memVal) memVal.textContent = '38.4 MB';
-            window.showGenHubToast('Success', 'Memory Cleaned', 'Garbage collection executed. Reclaimed 45.8 MB of heap memory.');
-        });
+        const gcBtn = document.getElementById('ghGcCollectBtn');
+        if (gcBtn) {
+            gcBtn.addEventListener('click', () => {
+                const memVal = document.getElementById('ghMemoryUsageVal');
+                if (memVal) memVal.textContent = '38.4 MB';
+                window.showGenHubToast('Success', 'Memory Cleaned', 'Garbage collection executed. Reclaimed 45.8 MB of heap memory.');
+            });
+        }
     }
+
+    initSettingsActions();
 
     // -------------------------------------------------------------
     // INFO TAB INTERACTIVITY (DefaultInfoContentProvider.cs Data)
@@ -2302,10 +2980,7 @@
     }
 };
 
-
-    function renderDemoContainer(secId) {
-        if (secId === 'profiles') {
-            return `
+    const PROFILES_DEMO_HTML = `
                 <div class="gh-demo-wrapper" style="margin-bottom: 24px; padding: 20px; background: rgba(139, 92, 246, 0.05); border: 1px solid rgba(139, 92, 246, 0.25); border-radius: 12px;">
                     <div style="font-size: 16px; font-weight: 700; color: #ffffff; margin-bottom: 4px;">Demo: Profile Card</div>
                     <div style="font-size: 12px; color: #94a3b8; margin-bottom: 14px;">Basic interaction reference. Try hovering or clicking the action buttons!</div>
@@ -2338,9 +3013,8 @@
                     </div>
                 </div>
             `;
-        }
-        if (secId === 'shortcuts') {
-            return `
+
+    const SHORTCUTS_DEMO_HTML = `
                 <div class="gh-demo-wrapper" style="margin-bottom: 24px; padding: 20px; background: rgba(139, 92, 246, 0.05); border: 1px solid rgba(139, 92, 246, 0.25); border-radius: 12px;">
                     <div style="font-size: 16px; font-weight: 700; color: #ffffff; margin-bottom: 4px;">Demo: Desktop Shortcuts</div>
                     <div style="font-size: 12px; color: #94a3b8; margin-bottom: 14px;">Shortcut creation flow directly from profile card actions.</div>
@@ -2362,9 +3036,8 @@
                     </div>
                 </div>
             `;
-        }
-        if (secId === 'steam') {
-            return `
+
+    const STEAM_DEMO_HTML = `
                 <div class="gh-demo-wrapper" style="margin-bottom: 24px; padding: 20px; background: rgba(139, 92, 246, 0.05); border: 1px solid rgba(139, 92, 246, 0.25); border-radius: 12px;">
                     <div style="font-size: 16px; font-weight: 700; color: #ffffff; margin-bottom: 4px;">Demo: Steam Status</div>
                     <div style="font-size: 12px; color: #94a3b8; margin-bottom: 14px;">Toggle Steam Broadcast and Overlay synchronization.</div>
@@ -2376,9 +3049,8 @@
                     </div>
                 </div>
             `;
-        }
-        if (secId === 'scangames') {
-            return `
+
+    const SCAN_GAMES_DEMO_HTML = `
                 <div class="gh-demo-wrapper">
                     <div style="font-size: 15px; font-weight: 700; color: #ffffff; margin-bottom: 4px;">Demo: Automatic Game Discovery</div>
                     <div style="font-size: 12px; color: #94a3b8; margin-bottom: 12px;">Scans registry keys, Steam libraries, and EA App directories.</div>
@@ -2389,9 +3061,8 @@
                     </div>
                 </div>
             `;
-        }
-        if (secId === 'workspace' || secId === 'workspaces') {
-            return `
+
+    const WORKSPACES_DEMO_HTML = `
                 <div class="gh-demo-wrapper">
                     <div style="font-size: 15px; font-weight: 700; color: #ffffff; margin-bottom: 4px;">Demo: Virtual Workspace (NTFS Hardlinks)</div>
                     <div style="font-size: 12px; color: #94a3b8; margin-bottom: 12px;">Instant profile launching with 0 extra disk duplication.</div>
@@ -2407,10 +3078,30 @@
                     </div>
                 </div>
             `;
-        }
-        return '';
+
+    const demoTemplates = new Map([
+        ['profiles', PROFILES_DEMO_HTML],
+        ['shortcuts', SHORTCUTS_DEMO_HTML],
+        ['steam', STEAM_DEMO_HTML],
+        ['scangames', SCAN_GAMES_DEMO_HTML],
+        ['workspace', WORKSPACES_DEMO_HTML],
+        ['workspaces', WORKSPACES_DEMO_HTML]
+    ]);
+
+    /**
+     * Returns the interactive demo markup shown above an Info section.
+     * @param {string} secId Info section id.
+     * @returns {string} Demo HTML, or an empty string when the section has none.
+     */
+    function renderDemoContainer(secId) {
+        return demoTemplates.get(secId) || '';
     }
 
+    /**
+     * Converts the small Markdown subset used by Info cards into HTML.
+     * @param {string} markdownText Markdown source.
+     * @returns {string} HTML markup.
+     */
     function formatMarkdown(markdownText) {
         if (!markdownText) return "";
         let html = markdownText
@@ -2426,6 +3117,11 @@
         return html.replace(/\n/g, "<br>");
     }
 
+    /**
+     * Returns the first two plain prose lines of a release body.
+     * @param {string} rawBody Release notes Markdown.
+     * @returns {string[]} Up to two summary lines.
+     */
     function extractSummaryLines(rawBody) {
         return (rawBody || "").split("\n")
             .map(lineText => lineText.trim())
@@ -2433,6 +3129,11 @@
             .slice(0, 2);
     }
 
+    /**
+     * Builds the one-line summary of a GenHub release.
+     * @param {string} rawBody Release notes Markdown.
+     * @returns {string} Summary text.
+     */
     function formatChangelogSummary(rawBody) {
         const summaryLines = extractSummaryLines(rawBody);
         if (summaryLines.length === 0) {
@@ -2441,6 +3142,11 @@
         return summaryLines.join(" ");
     }
 
+    /**
+     * Formats a release publish date for display.
+     * @param {string} publishedAt ISO publish timestamp.
+     * @returns {string} Short US date, or an empty string.
+     */
     function formatReleaseDate(publishedAt) {
         if (!publishedAt) {
             return "";
@@ -2448,11 +3154,21 @@
         return new Date(publishedAt).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
     }
 
+    /**
+     * Returns the card title for a GitHub release.
+     * @param {object} release GitHub release.
+     * @returns {string} Release name, or GenHub followed by the tag.
+     */
     function getChangelogCardTitle(release) {
         const tagName = release.tag_name || "";
         return release.name || `GenHub ${tagName}`;
     }
 
+    /**
+     * Returns the Markdown header block with the release date.
+     * @param {string} dateStr Formatted release date.
+     * @returns {string} Header Markdown.
+     */
     function getReleaseHeaderBlock(dateStr) {
         if (dateStr) {
             return `**Published:** ${dateStr}\n\n`;
@@ -2460,6 +3176,12 @@
         return "\n";
     }
 
+    /**
+     * Returns the card summary text for a release.
+     * @param {string} dateStr Formatted release date.
+     * @param {string} summaryText Release summary.
+     * @returns {string} Card content text.
+     */
     function getReleaseCardContent(dateStr, summaryText) {
         if (dateStr) {
             return `Released on ${dateStr}. ${summaryText}`;
@@ -2467,6 +3189,11 @@
         return summaryText;
     }
 
+    /**
+     * Returns the chip label for a release.
+     * @param {boolean} isPrerelease Whether the release is a prerelease.
+     * @returns {string} Pre-release or Release.
+     */
     function getReleaseType(isPrerelease) {
         if (isPrerelease) {
             return "Pre-release";
@@ -2474,6 +3201,11 @@
         return "Release";
     }
 
+    /**
+     * Builds an Info card from a GitHub release.
+     * @param {object} release GitHub release.
+     * @returns {{title: string, type: string, content: string, detailed: string}} Info card data.
+     */
     function createChangelogCard(release) {
         const tagName = release.tag_name || "";
         const cardTitle = getChangelogCardTitle(release);
@@ -2493,6 +3225,11 @@
         };
     }
 
+    /**
+     * Builds the Markdown change list of a Generals Online patch note.
+     * @param {object} note Patch note entry.
+     * @returns {string} Markdown bullet list.
+     */
     function getPatchNotesDetailsList(note) {
         if (Array.isArray(note.details) && note.details.length > 0) {
             return note.details.map(detailItem => `* ${detailItem}`).join("\n");
@@ -2503,6 +3240,11 @@
         return "* Stability and performance improvements.";
     }
 
+    /**
+     * Builds an Info card from a Generals Online patch note.
+     * @param {object} note Patch note entry.
+     * @returns {{title: string, type: string, content: string, detailed: string}} Info card data.
+     */
     function createPatchNotesCard(note) {
         const detailsList = getPatchNotesDetailsList(note);
         const detailedMarkdown = `**Official Patch Notes:** [${note.title} on playgenerals.online](${note.url})\n**Date:** ${note.date}\n\n**Changes & Fixes:**\n${detailsList}`;
@@ -2520,6 +3262,11 @@
         "gochange": { status: "idle", promise: null }
     };
 
+    /**
+     * Loads a changelog section once and re-renders it if it is still selected.
+     * @param {string} secKey Changelog section key: changelog or gochange.
+     * @returns {Promise<void>} Resolves when the section has loaded or failed.
+     */
     async function lazyLoadChangelog(secKey) {
         if (changelogState[secKey].status === "loaded") {
             return;
@@ -2531,6 +3278,21 @@
 
         changelogState[secKey].status = "loading";
 
+        showChangelogLoadingCard(secKey);
+
+        const promise = loadChangelogSection(secKey);
+
+        changelogState[secKey].promise = promise;
+        await promise;
+
+        rerenderInfoSectionIfActive(secKey);
+    }
+
+    /**
+     * Shows the loading card for a changelog section.
+     * @param {string} secKey Changelog section key.
+     */
+    function showChangelogLoadingCard(secKey) {
         const container = document.getElementById("ghInfoCardsContainer");
         if (container) {
             const isGH = secKey === "changelog";
@@ -2546,78 +3308,125 @@
                 </div>
             `;
         }
+    }
 
-        const promise = (async () => {
-            if (secKey === "changelog") {
-                try {
-                    let releases = null;
-                    // Attempt direct GitHub Releases API first
-                    try {
-                        const res = await fetch("https://api.github.com/repos/community-outpost/GenHub/releases");
-                        if (res.ok) {
-                            const data = await res.json();
-                            if (Array.isArray(data) && data.length > 0) {
-                                releases = data;
-                            }
-                        }
-                    } catch (netErr) {
-                        console.warn("Direct GitHub API fetch failed, trying local dataset:", netErr);
-                    }
+    /**
+     * Starts loading the cards of a changelog section.
+     * @param {string} secKey Changelog section key.
+     * @returns {Promise<void>} Resolves when loading has finished.
+     */
+    async function loadChangelogSection(secKey) {
+        if (secKey === "changelog") {
+            await loadGenHubReleaseCards();
+        } else if (secKey === "gochange") {
+            await loadPatchNotesCards();
+        }
+    }
 
-                    // Fallback to local cached release dataset
-                    if (!releases) {
-                        const localRes = await fetch("./assets/data/genhub_releases.json");
-                        if (localRes.ok) {
-                            releases = await localRes.json();
-                        }
-                    }
+    /**
+     * Loads the GenHub release cards, falling back to an error card.
+     * @returns {Promise<void>} Resolves when the cards are set.
+     */
+    async function loadGenHubReleaseCards() {
+        try {
+            const releases = await fetchGenHubReleases();
 
-                    if (Array.isArray(releases) && releases.length > 0) {
-                        infoData.changelog.cards = releases.map(createChangelogCard);
-                        changelogState.changelog.status = "loaded";
-                    } else {
-                        throw new Error("No release data found");
-                    }
-                } catch (err) {
-                    console.error("Failed to load GenHub changelog:", err);
-                    changelogState.changelog.status = "error";
-                    infoData.changelog.cards = [{
-                        title: "Unable to Load Releases",
-                        type: "Notice",
-                        content: "Could not fetch releases from GitHub API at this moment.",
-                        detailed: "Please view releases directly at [GitHub Releases](https://github.com/community-outpost/GenHub/releases)."
-                    }];
-                }
-            } else if (secKey === "gochange") {
-                try {
-                    let notes = null;
-                    const localRes = await fetch("./assets/data/generals_online_patchnotes.json");
-                    if (localRes.ok) {
-                        notes = await localRes.json();
-                    }
+            if (Array.isArray(releases) && releases.length > 0) {
+                infoData.changelog.cards = releases.map(createChangelogCard);
+                changelogState.changelog.status = "loaded";
+            } else {
+                throw new Error("No release data found");
+            }
+        } catch (err) {
+            console.error("Failed to load GenHub changelog:", err);
+            changelogState.changelog.status = "error";
+            infoData.changelog.cards = [{
+                title: "Unable to Load Releases",
+                type: "Notice",
+                content: "Could not fetch releases from GitHub API at this moment.",
+                detailed: "Please view releases directly at [GitHub Releases](https://github.com/community-outpost/GenHub/releases)."
+            }];
+        }
+    }
 
-                    if (Array.isArray(notes) && notes.length > 0) {
-                        infoData.gochange.cards = notes.map(createPatchNotesCard);
-                        changelogState.gochange.status = "loaded";
-                    } else {
-                        throw new Error("No patch notes data found");
-                    }
-                } catch (err) {
-                    console.error("Failed to load Generals Online patch notes:", err);
-                    changelogState.gochange.status = "error";
-                    infoData.gochange.cards = [{
-                        title: "Unable to Load Patch Notes",
-                        type: "Notice",
-                        content: "Could not load patch notes at this time.",
-                        detailed: "Please view patch notes directly at [playgenerals.online/patchnotes](https://www.playgenerals.online/patchnotes)."
-                    }];
+    /**
+     * Fetches GenHub releases from the GitHub API, then from the local dataset.
+     * @returns {Promise<Array|null>} Release list, or null when neither source has data.
+     */
+    async function fetchGenHubReleases() {
+        const releases = await fetchGitHubApiReleases();
+        if (releases) {
+            return releases;
+        }
+        return fetchLocalReleases();
+    }
+
+    /**
+     * Fetches GenHub releases from the GitHub Releases API.
+     * @returns {Promise<Array|null>} A non-empty release list, or null.
+     */
+    async function fetchGitHubApiReleases() {
+        try {
+            const res = await fetch("https://api.github.com/repos/community-outpost/GenHub/releases");
+            if (res.ok) {
+                const data = await res.json();
+                if (Array.isArray(data) && data.length > 0) {
+                    return data;
                 }
             }
-        })();
+        } catch (netErr) {
+            console.warn("Direct GitHub API fetch failed, trying local dataset:", netErr);
+        }
+        return null;
+    }
 
-        changelogState[secKey].promise = promise;
-        await promise;
+    /**
+     * Fetches the cached GenHub release dataset bundled with the landing page.
+     * @returns {Promise<*>} Parsed dataset, or null when unavailable.
+     */
+    async function fetchLocalReleases() {
+        const localRes = await fetch("./assets/data/genhub_releases.json");
+        if (localRes.ok) {
+            return localRes.json();
+        }
+        return null;
+    }
 
+    /**
+     * Loads the Generals Online patch note cards, falling back to an error card.
+     * @returns {Promise<void>} Resolves when the cards are set.
+     */
+    async function loadPatchNotesCards() {
+        try {
+            let notes = null;
+            const localRes = await fetch("./assets/data/generals_online_patchnotes.json");
+            if (localRes.ok) {
+                notes = await localRes.json();
+            }
+
+            if (Array.isArray(notes) && notes.length > 0) {
+                infoData.gochange.cards = notes.map(createPatchNotesCard);
+                changelogState.gochange.status = "loaded";
+            } else {
+                throw new Error("No patch notes data found");
+            }
+        } catch (err) {
+            console.error("Failed to load Generals Online patch notes:", err);
+            changelogState.gochange.status = "error";
+            infoData.gochange.cards = [{
+                title: "Unable to Load Patch Notes",
+                type: "Notice",
+                content: "Could not load patch notes at this time.",
+                detailed: "Please view patch notes directly at [playgenerals.online/patchnotes](https://www.playgenerals.online/patchnotes)."
+            }];
+        }
+    }
+
+    /**
+     * Re-renders an Info section if its navigation button is still active.
+     * @param {string} secKey Info section key.
+     */
+    function rerenderInfoSectionIfActive(secKey) {
         const currentActiveBtn = document.querySelector("#ghInfoNavList .gh-info-nav-btn.active");
         const currentActiveId = currentActiveBtn ? currentActiveBtn.getAttribute("data-info-id") : null;
         if (currentActiveId === secKey) {
@@ -2625,117 +3434,164 @@
         }
     }
 
-    function renderInfoSection(secKey) {
-        // Support section aliases
-        if (secKey === "workspace" && infoData.workspaces) secKey = "workspaces";
-        if (secKey === "faq" && infoData.gofaq) secKey = "gofaq";
+    const GENHUB_CHANGELOG_BANNER = `
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; background: rgba(139, 92, 246, 0.08); border: 1px solid rgba(139, 92, 246, 0.2); border-radius: 8px; margin-bottom: 12px; font-size: 12px; color: #cbd5e1;">
+                        <span>Source: <a href="https://github.com/community-outpost/GenHub/releases" target="_blank" rel="noopener noreferrer" style="color: #a78bfa; font-weight: 600; text-decoration: underline;">github.com/community-outpost/GenHub/releases</a></span>
+                        <button class="gh-btn-table" id="ghReloadChangelogBtn" style="font-size: 11px; padding: 2px 8px; height: 24px; cursor: pointer;">\u21bb Refresh</button>
+                    </div>`;
+    const GO_CHANGELOG_BANNER = `
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.2); border-radius: 8px; margin-bottom: 12px; font-size: 12px; color: #cbd5e1;">
+                        <span>Source: <a href="https://www.playgenerals.online/patchnotes" target="_blank" rel="noopener noreferrer" style="color: #60a5fa; font-weight: 600; text-decoration: underline;">playgenerals.online/patchnotes</a></span>
+                        <button class="gh-btn-table" id="ghReloadChangelogBtn" style="font-size: 11px; padding: 2px 8px; height: 24px; cursor: pointer;">\u21bb Refresh</button>
+                    </div>`;
+    const changelogBanners = new Map([
+        ["changelog", GENHUB_CHANGELOG_BANNER],
+        ["gochange", GO_CHANGELOG_BANNER]
+    ]);
+
+    /**
+     * Renders an Info section, lazy-loading changelog sections on first use.
+     * @param {string} requestedKey Info section key or alias.
+     */
+    function renderInfoSection(requestedKey) {
+        const secKey = resolveInfoSectionKey(requestedKey);
 
         // Lazy-load changelogs on demand when clicked
-        if ((secKey === "changelog" || secKey === "gochange") && changelogState[secKey].status !== "loaded") {
-            const section = infoData[secKey];
-            const titleEl = document.getElementById("ghInfoSectionTitle");
-            const descEl = document.getElementById("ghInfoSectionDesc");
-            if (titleEl && section) titleEl.textContent = section.title;
-            if (descEl && section) descEl.textContent = section.desc;
+        if (isUnloadedChangelog(secKey)) {
+            showInfoSectionHeading(infoData[secKey]);
             lazyLoadChangelog(secKey);
             return;
         }
 
         const section = infoData[secKey] || infoData.quickstart;
-        const titleEl = document.getElementById("ghInfoSectionTitle");
-        const descEl = document.getElementById("ghInfoSectionDesc");
         const container = document.getElementById("ghInfoCardsContainer");
-        const contentArea = document.getElementById("ghInfoContentArea");
-
-        if (titleEl) titleEl.textContent = section.title;
-        if (descEl) descEl.textContent = section.desc;
-        if (contentArea) contentArea.scrollTop = 0;
+        showInfoSectionHeading(section);
+        resetInfoContentScroll();
 
         if (container) {
-            const demoHtml = renderDemoContainer(secKey);
-
-            let sourceBanner = "";
-            if (secKey === "changelog") {
-                sourceBanner = `
-                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; background: rgba(139, 92, 246, 0.08); border: 1px solid rgba(139, 92, 246, 0.2); border-radius: 8px; margin-bottom: 12px; font-size: 12px; color: #cbd5e1;">
-                        <span>Source: <a href="https://github.com/community-outpost/GenHub/releases" target="_blank" rel="noopener noreferrer" style="color: #a78bfa; font-weight: 600; text-decoration: underline;">github.com/community-outpost/GenHub/releases</a></span>
-                        <button class="gh-btn-table" id="ghReloadChangelogBtn" style="font-size: 11px; padding: 2px 8px; height: 24px; cursor: pointer;">\u21bb Refresh</button>
-                    </div>`;
-            } else if (secKey === "gochange") {
-                sourceBanner = `
-                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.2); border-radius: 8px; margin-bottom: 12px; font-size: 12px; color: #cbd5e1;">
-                        <span>Source: <a href="https://www.playgenerals.online/patchnotes" target="_blank" rel="noopener noreferrer" style="color: #60a5fa; font-weight: 600; text-decoration: underline;">playgenerals.online/patchnotes</a></span>
-                        <button class="gh-btn-table" id="ghReloadChangelogBtn" style="font-size: 11px; padding: 2px 8px; height: 24px; cursor: pointer;">\u21bb Refresh</button>
-                    </div>`;
-            }
-
-            const cardsHtml = (section.cards || []).map(c => `
-                <div class="gh-info-card">
-                    <div class="gh-info-card-header">
-                        <h4>${c.title}</h4>
-                        <span class="gh-chip">${c.type || "Concept"}</span>
-                    </div>
-                    <p style="font-size: 13.5px; color: #cbd5e1; line-height: 1.5; margin: 8px 0;">${c.content}</p>
-                    ${c.detailed ? `<button class="gh-info-expand-btn">Show Details \u25be</button>
-                    <div class="gh-info-detailed-content" style="font-size: 13px; color: #94a3b8; line-height: 1.6; padding-top: 10px;">
-                        ${formatMarkdown(c.detailed)}
-                    </div>` : ""}
-                </div>
-            `).join("");
-
-            container.innerHTML = demoHtml + sourceBanner + cardsHtml;
-
-            // Wire expand buttons
-            container.querySelectorAll(".gh-info-expand-btn").forEach(b => {
-                b.addEventListener("click", () => {
-                    const content = b.nextElementSibling;
-                    if (content) {
-                        const isShown = content.classList.toggle("active");
-                        b.textContent = isShown ? "Hide Details \u25b4" : "Show Details \u25be";
-                    }
-                });
-            });
-
-            // Wire reload changelog button if present
-            const reloadBtn = container.querySelector("#ghReloadChangelogBtn");
-            if (reloadBtn) {
-                reloadBtn.addEventListener("click", () => {
-                    changelogState[secKey].status = "idle";
-                    changelogState[secKey].promise = null;
-                    lazyLoadChangelog(secKey);
-                });
-            }
-
-            // Wire Demo Profile Card launch / action buttons inside Demo container
-            const demoCard = container.querySelector(".gh-profile-card");
-            if (demoCard) {
-                wireProfileCard(demoCard);
-            }
+            renderInfoSectionCards(container, secKey, section);
         }
     }
 
-    infoNavBtns.forEach(btn => {
-        btn.addEventListener('click', () => {
-            const id = btn.getAttribute('data-info-id');
-            infoNavBtns.forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            renderInfoSection(id);
-            if (typeof btn.scrollIntoView === 'function') {
-                btn.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+    /**
+     * Maps Info section aliases to their section keys.
+     * @param {string} secKey Requested section key.
+     * @returns {string} Resolved section key.
+     */
+    function resolveInfoSectionKey(secKey) {
+        if (secKey === "workspace" && infoData.workspaces) return "workspaces";
+        if (secKey === "faq" && infoData.gofaq) return "gofaq";
+        return secKey;
+    }
+
+    /**
+     * Tests whether a section is a changelog that has not loaded yet.
+     * @param {string} secKey Info section key.
+     * @returns {boolean} True for an unloaded changelog section.
+     */
+    function isUnloadedChangelog(secKey) {
+        return (secKey === "changelog" || secKey === "gochange") && changelogState[secKey].status !== "loaded";
+    }
+
+    /**
+     * Shows an Info section's title and description.
+     * @param {{title: string, desc: string}|undefined} section Info section data.
+     */
+    function showInfoSectionHeading(section) {
+        if (!section) return;
+        setTextById("ghInfoSectionTitle", section.title);
+        setTextById("ghInfoSectionDesc", section.desc);
+    }
+
+    /**
+     * Renders an Info section's demo, source banner and cards, then wires them.
+     * @param {HTMLElement} container Info cards container.
+     * @param {string} secKey Info section key.
+     * @param {{cards: Array}} section Info section data.
+     */
+    function renderInfoSectionCards(container, secKey, section) {
+        const demoHtml = renderDemoContainer(secKey);
+        const sourceBanner = changelogBanners.get(secKey) || "";
+        const cardsHtml = (section.cards || []).map(renderInfoCard).join("");
+
+        container.innerHTML = demoHtml + sourceBanner + cardsHtml;
+
+        container.querySelectorAll(".gh-info-expand-btn").forEach(wireInfoCardExpander);
+        wireChangelogReloadButton(container, secKey);
+
+        // Wire Demo Profile Card launch / action buttons inside Demo container
+        const demoCard = container.querySelector(".gh-profile-card");
+        if (demoCard) {
+            wireProfileCard(demoCard);
+        }
+    }
+
+    /**
+     * Renders one Info card.
+     * @param {{title: string, type: string, content: string, detailed: string}} card Info card data.
+     * @returns {string} Card HTML.
+     */
+    function renderInfoCard(card) {
+        return `
+                <div class="gh-info-card">
+                    <div class="gh-info-card-header">
+                        <h4>${card.title}</h4>
+                        <span class="gh-chip">${card.type || "Concept"}</span>
+                    </div>
+                    <p style="font-size: 13.5px; color: #cbd5e1; line-height: 1.5; margin: 8px 0;">${card.content}</p>
+                    ${card.detailed ? `<button class="gh-info-expand-btn">Show Details \u25be</button>
+                    <div class="gh-info-detailed-content" style="font-size: 13px; color: #94a3b8; line-height: 1.6; padding-top: 10px;">
+                        ${formatMarkdown(card.detailed)}
+                    </div>` : ""}
+                </div>
+            `;
+    }
+
+    /**
+     * Wires an Info card's show and hide details button.
+     * @param {HTMLElement} expandBtn Expand button.
+     */
+    function wireInfoCardExpander(expandBtn) {
+        expandBtn.addEventListener("click", () => {
+            const content = expandBtn.nextElementSibling;
+            if (content) {
+                const isShown = content.classList.toggle("active");
+                expandBtn.textContent = isShown ? "Hide Details \u25b4" : "Show Details \u25be";
             }
         });
-    });
+    }
 
-    // Module Selector Dropdown (GenHub Guides, Zero Hour FAQ, Changelogs)
-    const infoModuleSelect = document.getElementById('ghInfoModuleSelect');
-    if (infoModuleSelect) {
-        infoModuleSelect.addEventListener('change', (e) => {
-            const val = e.target.value;
-            const navList = document.getElementById('ghInfoNavList');
+    /**
+     * Wires the changelog refresh button if the section rendered one.
+     * @param {HTMLElement} container Info cards container.
+     * @param {string} secKey Info section key.
+     */
+    function wireChangelogReloadButton(container, secKey) {
+        const reloadBtn = container.querySelector("#ghReloadChangelogBtn");
+        if (reloadBtn) {
+            reloadBtn.addEventListener("click", () => {
+                changelogState[secKey].status = "idle";
+                changelogState[secKey].promise = null;
+                lazyLoadChangelog(secKey);
+            });
+        }
+    }
 
-            if (val === 'guide') {
-                if (navList) {
-                    navList.innerHTML = `
+    /**
+     * Activates an Info navigation button and renders its section.
+     * @param {HTMLElement} btn Clicked navigation button.
+     * @param {NodeListOf<HTMLElement>} navButtons Buttons whose active state is cleared.
+     */
+    function selectInfoNavButton(btn, navButtons) {
+        navButtons.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        renderInfoSection(btn.getAttribute('data-info-id'));
+        if (typeof btn.scrollIntoView === 'function') {
+            btn.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+        }
+    }
+
+    const GUIDE_NAV_HTML = `
                         <button class="gh-info-nav-btn active" data-info-id="quickstart">Quickstart Guide</button>
                         <button class="gh-info-nav-btn" data-info-id="profiles">Game Profiles</button>
                         <button class="gh-info-nav-btn" data-info-id="settings">Game Settings</button>
@@ -2751,58 +3607,85 @@
                         <button class="gh-info-nav-btn" data-info-id="appupdates">App Updates</button>
                         <button class="gh-info-nav-btn" data-info-id="changelog">Changelog</button>
                     `;
-                    navList.querySelectorAll('.gh-info-nav-btn').forEach(b => {
-                        b.addEventListener('click', () => {
-                            navList.querySelectorAll('.gh-info-nav-btn').forEach(x => x.classList.remove('active'));
-                            b.classList.add('active');
-                            renderInfoSection(b.getAttribute('data-info-id'));
-                            if (typeof b.scrollIntoView === 'function') {
-                                b.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
-                            }
-                        });
-                    });
-                }
-                renderInfoSection('quickstart');
-            } else if (val === 'faq') {
-                if (navList) {
-                    navList.innerHTML = `
+    const FAQ_NAV_HTML = `
                         <button class="gh-info-nav-btn active" data-info-id="zh_problems_game">Problems with the Game</button>
                         <button class="gh-info-nav-btn" data-info-id="zh_problems_multiplayer">Problems with Multiplayer</button>
                         <button class="gh-info-nav-btn" data-info-id="zh_general_faq">Frequently Asked Questions</button>
                     `;
-                    navList.querySelectorAll('.gh-info-nav-btn').forEach(b => {
-                        b.addEventListener('click', () => {
-                            navList.querySelectorAll('.gh-info-nav-btn').forEach(x => x.classList.remove('active'));
-                            b.classList.add('active');
-                            renderInfoSection(b.getAttribute('data-info-id'));
-                            if (typeof b.scrollIntoView === 'function') {
-                                b.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
-                            }
-                        });
-                    });
-                }
-                renderInfoSection('zh_problems_game');
-            } else if (val === 'changelogs') {
-                if (navList) {
-                    navList.innerHTML = `
+    const CHANGELOGS_NAV_HTML = `
                         <button class="gh-info-nav-btn active" data-info-id="changelog">GenHub Changelog</button>
                         <button class="gh-info-nav-btn" data-info-id="gochange">Generals Online Changelog</button>
                     `;
-                    navList.querySelectorAll('.gh-info-nav-btn').forEach(b => {
-                        b.addEventListener('click', () => {
-                            navList.querySelectorAll('.gh-info-nav-btn').forEach(x => x.classList.remove('active'));
-                            b.classList.add('active');
-                            renderInfoSection(b.getAttribute('data-info-id'));
-                            if (typeof b.scrollIntoView === 'function') {
-                                b.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
-                            }
-                        });
-                    });
-                }
-                renderInfoSection('changelog');
-            }
+    const infoModules = new Map([
+        ['guide', { navHtml: GUIDE_NAV_HTML, firstSection: 'quickstart' }],
+        ['faq', { navHtml: FAQ_NAV_HTML, firstSection: 'zh_problems_game' }],
+        ['changelogs', { navHtml: CHANGELOGS_NAV_HTML, firstSection: 'changelog' }]
+    ]);
+
+    /**
+     * Switches the Info navigation list to the selected module and renders its first section.
+     * @param {Event} e Change event from the module selector.
+     */
+    function switchInfoModule(e) {
+        const infoModule = infoModules.get(e.target.value);
+        const navList = document.getElementById('ghInfoNavList');
+        if (!infoModule) return;
+
+        if (navList) {
+            populateInfoNavList(navList, infoModule.navHtml);
+        }
+        renderInfoSection(infoModule.firstSection);
+    }
+
+    /**
+     * Replaces the Info navigation buttons and wires them.
+     * @param {HTMLElement} navList Info navigation list.
+     * @param {string} navHtml Navigation button markup.
+     */
+    function populateInfoNavList(navList, navHtml) {
+        navList.innerHTML = navHtml;
+        navList.querySelectorAll('.gh-info-nav-btn').forEach(b => {
+            b.addEventListener('click', () => {
+                selectInfoNavButton(b, navList.querySelectorAll('.gh-info-nav-btn'));
+            });
         });
     }
+
+    /**
+     * Toggles the Steam demo button between active and paused.
+     * @param {HTMLElement} steamBtn Steam demo button.
+     */
+    function toggleDemoSteamButton(steamBtn) {
+        const isSteamActive = steamBtn.classList.toggle('steam-off');
+        const span = steamBtn.querySelector('span');
+        if (span) {
+            span.textContent = isSteamActive
+                ? 'Steam Integration Paused (Standby)'
+                : 'Steam Overlay Active (AppID: 24860)';
+        }
+        window.showGenHubToast(
+            isSteamActive ? 'Warning' : 'Success',
+            'Steam Status',
+            isSteamActive ? 'Steam overlay disconnected.' : 'Steam overlay re-synchronized.'
+        );
+    }
+
+    /**
+     * Wires the Info navigation, module selector and the delegated Steam demo button.
+     */
+    function initInfoTab() {
+        infoNavBtns.forEach(btn => {
+            btn.addEventListener('click', () => selectInfoNavButton(btn, infoNavBtns));
+        });
+
+        // Module Selector Dropdown (GenHub Guides, Zero Hour FAQ, Changelogs)
+        const infoModuleSelect = document.getElementById('ghInfoModuleSelect');
+        if (infoModuleSelect) {
+            infoModuleSelect.addEventListener('change', switchInfoModule);
+        }
+    }
+
+    initInfoTab();
 
     // Initial render of Quickstart Guide
     renderInfoSection('quickstart');
@@ -2811,18 +3694,7 @@
     document.addEventListener('click', (e) => {
         const steamBtn = e.target.closest('#ghDemoSteamToggleBtn');
         if (steamBtn) {
-            const isSteamActive = steamBtn.classList.toggle('steam-off');
-            const span = steamBtn.querySelector('span');
-            if (span) {
-                span.textContent = isSteamActive 
-                    ? 'Steam Integration Paused (Standby)' 
-                    : 'Steam Overlay Active (AppID: 24860)';
-            }
-            window.showGenHubToast(
-                isSteamActive ? 'Warning' : 'Success',
-                'Steam Status',
-                isSteamActive ? 'Steam overlay disconnected.' : 'Steam overlay re-synchronized.'
-            );
+            toggleDemoSteamButton(steamBtn);
         }
     });
 

@@ -97,8 +97,10 @@ public sealed class DownloadedContentFilterViewModelTests
     [Fact]
     public void ApplyFilters_GameSelected_SetsQueryTargetGame()
     {
-        var viewModel = new DownloadedContentFilterViewModel();
-        viewModel.IsZeroHourSelected = true;
+        var viewModel = new DownloadedContentFilterViewModel()
+        {
+            IsZeroHourSelected = true,
+        };
 
         var query = viewModel.ApplyFilters(new ContentSearchQuery());
 

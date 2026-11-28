@@ -315,7 +315,6 @@ public sealed class ProfileLauncherFacadeWorkspaceNotificationTests
         _gameLauncherMock
             .Setup(g => g.LaunchProfileAsync(It.IsAny<GameProfile>(), It.IsAny<IProgress<LaunchProgress>>(), It.IsAny<bool>(), It.IsAny<IReadOnlyDictionary<string, string>?>(), It.IsAny<CancellationToken>()))
             .Callback<GameProfile, IProgress<LaunchProgress>?, bool, IReadOnlyDictionary<string, string>?, CancellationToken>((_, progress, _, _, _) =>
-            {
                 progress?.Report(new LaunchProgress
                 {
                     Phase = LaunchPhase.PreparingWorkspace,
@@ -323,8 +322,7 @@ public sealed class ProfileLauncherFacadeWorkspaceNotificationTests
                     IsInitializingWorkspace = true,
                     TotalFiles = 10,
                     FilesProcessed = 4,
-                });
-            })
+                }))
             .ReturnsAsync(LaunchOperationResult<GameLaunchInfo>.CreateFailure("Game executable not found"));
 
         var facade = CreateFacade();
@@ -372,14 +370,12 @@ public sealed class ProfileLauncherFacadeWorkspaceNotificationTests
         _gameLauncherMock
             .Setup(g => g.LaunchProfileAsync(It.IsAny<GameProfile>(), It.IsAny<IProgress<LaunchProgress>>(), It.IsAny<bool>(), It.IsAny<IReadOnlyDictionary<string, string>?>(), It.IsAny<CancellationToken>()))
             .Callback<GameProfile, IProgress<LaunchProgress>?, bool, IReadOnlyDictionary<string, string>?, CancellationToken>((_, progress, _, _, _) =>
-            {
                 progress?.Report(new LaunchProgress
                 {
                     Phase = LaunchPhase.PreparingWorkspace,
                     PercentComplete = 40,
                     IsInitializingWorkspace = true,
-                });
-            })
+                }))
             .ReturnsAsync(LaunchOperationResult<GameLaunchInfo>.CreateSuccess(launchInfo));
 
         var facade = CreateFacade(localizationServiceMock.Object);

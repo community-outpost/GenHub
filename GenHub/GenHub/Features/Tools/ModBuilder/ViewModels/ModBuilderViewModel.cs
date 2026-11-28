@@ -1347,16 +1347,7 @@ public partial class ModBuilderViewModel(
                 notificationService.Update(importNotificationId, msg, importTitle);
             });
 
-            OperationResult<string> importResult;
-            try
-            {
-                importResult = await gitHubImportService.ImportRepositoryAsync(reference, targetDir, progress, cts.Token).ConfigureAwait(false);
-            }
-            finally
-            {
-                notificationService.Dismiss(importNotificationId);
-            }
-
+            var importResult = await ImportGitHubRepositoryAsync(gitHubImportService, reference, targetDir, progress, importNotificationId, cts.Token).ConfigureAwait(false);
             if (!importResult.Success || string.IsNullOrEmpty(importResult.Data))
             {
                 notificationService.ShowError(
@@ -1389,6 +1380,24 @@ public partial class ModBuilderViewModel(
 
             cts.Dispose();
             await InvokeOnUIThreadAsync(() => IsBuildRunning = false);
+        }
+    }
+
+    private async Task<OperationResult<string>> ImportGitHubRepositoryAsync(
+        IGitHubProjectImportService importService,
+        GitHubRepositoryReference reference,
+        string targetDir,
+        IProgress<string> progress,
+        Guid notificationId,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await importService.ImportRepositoryAsync(reference, targetDir, progress, cancellationToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            notificationService.Dismiss(notificationId);
         }
     }
 
@@ -3987,10 +3996,8 @@ public partial class ModBuilderViewModel(
         {
             return function();
         }
-        else
-        {
-            return await Dispatcher.UIThread.InvokeAsync(function);
-        }
+
+        return await Dispatcher.UIThread.InvokeAsync(function);
     }
 
     private static async Task InvokeOnUIThreadAsync(Func<Task> action)
@@ -4011,10 +4018,8 @@ public partial class ModBuilderViewModel(
         {
             return await function().ConfigureAwait(false);
         }
-        else
-        {
-            return await Dispatcher.UIThread.InvokeAsync(function).ConfigureAwait(false);
-        }
+
+        return await Dispatcher.UIThread.InvokeAsync(function).ConfigureAwait(false);
     }
 
     private static void PostToUIThread(Action action)

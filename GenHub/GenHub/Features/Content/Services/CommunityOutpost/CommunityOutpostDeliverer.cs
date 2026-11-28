@@ -265,6 +265,35 @@ public class CommunityOutpostDeliverer(
             ?? bigDirectories[0];
     }
 
+    private static bool IsDeliverableArchiveUrl(string? downloadUrl) =>
+        !string.IsNullOrEmpty(downloadUrl) &&
+        (downloadUrl.EndsWith(".zip", StringComparison.OrdinalIgnoreCase) ||
+         downloadUrl.EndsWith(".dat", StringComparison.OrdinalIgnoreCase) ||
+         downloadUrl.EndsWith(".7z", StringComparison.OrdinalIgnoreCase));
+
+    private static Progress<DownloadProgress>? CreateDownloadProgress(IProgress<ContentAcquisitionProgress>? progress, string currentFile)
+    {
+        if (progress == null)
+        {
+            return null;
+        }
+
+        return new Progress<DownloadProgress>(dp =>
+        {
+            var percentage = Math.Clamp(dp.Percentage * 0.5, 0, 50);
+            var status = $"Downloading Community Outpost: {dp.FormattedProgress} ({dp.FormattedSpeed})";
+            progress.Report(new ContentAcquisitionProgress
+            {
+                Phase = ContentAcquisitionPhase.Downloading,
+                ProgressPercentage = percentage,
+                CurrentOperation = status,
+                CurrentFile = currentFile,
+                BytesProcessed = dp.BytesReceived,
+                TotalBytes = dp.TotalBytes,
+            });
+        });
+    }
+
     private static bool ShouldSkipControlBarDependency(
         GenPatcherContentMetadata packageMetadata,
         GenPatcherContentMetadata depMetadata,
@@ -296,11 +325,7 @@ public class CommunityOutpostDeliverer(
         return manifest.Publisher?.PublisherType?.Equals(
                    CommunityOutpostConstants.PublisherType,
                    StringComparison.OrdinalIgnoreCase) == true &&
-               ManifestVariantResolver.ResolveFiles(manifest).Any(f =>
-                   !string.IsNullOrEmpty(f.DownloadUrl) &&
-                   (f.DownloadUrl.EndsWith(".zip", StringComparison.OrdinalIgnoreCase) ||
-                    f.DownloadUrl.EndsWith(".dat", StringComparison.OrdinalIgnoreCase) ||
-                    f.DownloadUrl.EndsWith(".7z", StringComparison.OrdinalIgnoreCase)));
+               ManifestVariantResolver.ResolveFiles(manifest).Any(f => IsDeliverableArchiveUrl(f.DownloadUrl));
     }
 
     /// <inheritdoc />
@@ -322,11 +347,7 @@ public class CommunityOutpostDeliverer(
                 packageManifest.Version);
 
             // Step 1: Download archive file
-            var archiveFile = ManifestVariantResolver.ResolveFiles(packageManifest).FirstOrDefault(f =>
-                !string.IsNullOrEmpty(f.DownloadUrl) &&
-                (f.DownloadUrl.EndsWith(".zip", StringComparison.OrdinalIgnoreCase) ||
-                 f.DownloadUrl.EndsWith(".dat", StringComparison.OrdinalIgnoreCase) ||
-                 f.DownloadUrl.EndsWith(".7z", StringComparison.OrdinalIgnoreCase)));
+            var archiveFile = ManifestVariantResolver.ResolveFiles(packageManifest).FirstOrDefault(f => IsDeliverableArchiveUrl(f.DownloadUrl));
 
             if (archiveFile == null)
             {
@@ -349,22 +370,7 @@ public class CommunityOutpostDeliverer(
                 CurrentFile = archiveFile.RelativePath,
             });
 
-            var downloadProgress = progress != null
-                ? new Progress<DownloadProgress>(dp =>
-                {
-                    var percentage = Math.Clamp(dp.Percentage * 0.5, 0, 50);
-                    var status = $"Downloading Community Outpost: {dp.FormattedProgress} ({dp.FormattedSpeed})";
-                    progress.Report(new ContentAcquisitionProgress
-                    {
-                        Phase = ContentAcquisitionPhase.Downloading,
-                        ProgressPercentage = percentage,
-                        CurrentOperation = status,
-                        CurrentFile = archiveFile.RelativePath,
-                        BytesProcessed = dp.BytesReceived,
-                        TotalBytes = dp.TotalBytes,
-                    });
-                })
-                : null;
+            var downloadProgress = CreateDownloadProgress(progress, archiveFile.RelativePath);
 
             // Try downloading with mirror fallback
             var downloadConfig = new DownloadConfiguration
@@ -479,41 +485,10 @@ public class CommunityOutpostDeliverer(
                 }
             }
 
-            foreach (var manifest in manifests)
+            var registrationFailure = await RegisterManifestsAsync(manifests, archivePath, extractPath, registeredManifestIds, cancellationToken);
+            if (registrationFailure != null)
             {
-                var addResult = await manifestPool.AddManifestAsync(
-                    manifest,
-                    extractPath,
-                    null,
-                    cancellationToken);
-
-                if (!addResult.Success)
-                {
-                    logger.LogError(
-                        "Failed to register manifest {ManifestId}: {Error}",
-                        manifest.Id,
-                        addResult.FirstError);
-
-                    var rollbackErrors = await RollbackManifestsAsync(registeredManifestIds);
-                    await CleanupTemporaryFilesAsync(archivePath, extractPath);
-                    var failureMessage = rollbackErrors.Count > 0
-                        ? $"Failed to register manifest {manifest.Id}: {addResult.FirstError} (Rollback errors: {string.Join("; ", rollbackErrors)})"
-                        : $"Failed to register manifest {manifest.Id}: {addResult.FirstError}";
-                    return OperationResult<ContentManifest>.CreateFailure(failureMessage);
-                }
-
-                registeredManifestIds.Add(manifest.Id);
-
-                // Ensure registered manifest entries reflect clean CAS state
-                foreach (var file in ManifestVariantResolver.ResolveFiles(manifest))
-                {
-                    file.SourceType = ContentSourceType.ContentAddressable;
-                    file.SourcePath = null;
-                }
-
-                logger.LogInformation(
-                    "Successfully registered manifest: {ManifestId}",
-                    manifest.Id);
+                return OperationResult<ContentManifest>.CreateFailure(registrationFailure);
             }
 
             // Step 5: Cleanup temporary files
@@ -570,11 +545,7 @@ public class CommunityOutpostDeliverer(
     {
         try
         {
-            var hasArchiveFile = ManifestVariantResolver.ResolveFiles(manifest).Any(f =>
-                !string.IsNullOrEmpty(f.DownloadUrl) &&
-                (f.DownloadUrl.EndsWith(".zip", StringComparison.OrdinalIgnoreCase) ||
-                 f.DownloadUrl.EndsWith(".dat", StringComparison.OrdinalIgnoreCase) ||
-                 f.DownloadUrl.EndsWith(".7z", StringComparison.OrdinalIgnoreCase)));
+            var hasArchiveFile = ManifestVariantResolver.ResolveFiles(manifest).Any(f => IsDeliverableArchiveUrl(f.DownloadUrl));
 
             return Task.FromResult(OperationResult<bool>.CreateSuccess(hasArchiveFile));
         }
@@ -623,6 +594,56 @@ public class CommunityOutpostDeliverer(
         // to the original metadata here. In a future enhancement, we could
         // store mirror URLs in the manifest or pass them through.
         return OperationResult<bool>.CreateFailure($"Download failed: {result.FirstError}");
+    }
+
+    /// <summary>
+    /// Registers each manifest and rolls back on the first failure.
+    /// </summary>
+    /// <returns>The failure message, or null when every manifest registered.</returns>
+    private async Task<string?> RegisterManifestsAsync(
+        List<ContentManifest> manifests,
+        string archivePath,
+        string extractPath,
+        List<ManifestId> registeredManifestIds,
+        CancellationToken cancellationToken)
+    {
+        foreach (var manifest in manifests)
+        {
+            var addResult = await manifestPool.AddManifestAsync(
+                manifest,
+                extractPath,
+                null,
+                cancellationToken);
+
+            if (!addResult.Success)
+            {
+                logger.LogError(
+                    "Failed to register manifest {ManifestId}: {Error}",
+                    manifest.Id,
+                    addResult.FirstError);
+
+                var rollbackErrors = await RollbackManifestsAsync(registeredManifestIds);
+                await CleanupTemporaryFilesAsync(archivePath, extractPath);
+                return rollbackErrors.Count > 0
+                    ? $"Failed to register manifest {manifest.Id}: {addResult.FirstError} (Rollback errors: {string.Join("; ", rollbackErrors)})"
+                    : $"Failed to register manifest {manifest.Id}: {addResult.FirstError}";
+            }
+
+            registeredManifestIds.Add(manifest.Id);
+
+            // Ensure registered manifest entries reflect clean CAS state
+            foreach (var file in ManifestVariantResolver.ResolveFiles(manifest))
+            {
+                file.SourceType = ContentSourceType.ContentAddressable;
+                file.SourcePath = null;
+            }
+
+            logger.LogInformation(
+                "Successfully registered manifest: {ManifestId}",
+                manifest.Id);
+        }
+
+        return null;
     }
 
     /// <summary>

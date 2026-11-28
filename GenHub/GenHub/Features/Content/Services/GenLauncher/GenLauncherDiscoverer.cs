@@ -180,7 +180,7 @@ public class GenLauncherDiscoverer(
                 string.Equals(item.Id, term, StringComparison.OrdinalIgnoreCase) ||
                 item.Id.Contains(term, StringComparison.OrdinalIgnoreCase) ||
                 item.Name.Contains(term, StringComparison.OrdinalIgnoreCase) ||
-                (item.Description?.Contains(term, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                item.Description?.Contains(term, StringComparison.OrdinalIgnoreCase) == true ||
                 item.Tags.Any(t => t.Contains(term, StringComparison.OrdinalIgnoreCase)));
         }
 
@@ -530,6 +530,40 @@ public class GenLauncherDiscoverer(
         result.Description = BuildDescription(manifest);
     }
 
+    private bool TryParseRootCatalog(
+        string rootYaml,
+        GameType game,
+        [NotNullWhen(true)] out GenLauncherRootManifest? rootManifest,
+        [NotNullWhen(false)] out string? error)
+    {
+        try
+        {
+            rootManifest = catalogParser.ParseRootCatalog(rootYaml);
+            error = null;
+            return true;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to parse root catalog YAML for {Game}", game);
+            rootManifest = null;
+            error = $"Failed to parse root catalog YAML for {game}: {ex.Message}";
+            return false;
+        }
+    }
+
+    private GenLauncherVersionManifest? TryParseChildVersionManifest(string yaml, string manifestUrl)
+    {
+        try
+        {
+            return catalogParser.ParseVersionManifest(yaml);
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to parse child version manifest from {Url}", manifestUrl);
+            return null;
+        }
+    }
+
     private async Task<OperationResult<List<ContentSearchResult>>> DiscoverGameCatalogAsync(
         HttpClient client,
         ProviderDefinition? provider,
@@ -555,15 +589,9 @@ public class GenLauncherDiscoverer(
             return OperationResult<List<ContentSearchResult>>.CreateFailure($"Could not fetch root catalog from {catalogUrl}");
         }
 
-        GenLauncherRootManifest rootManifest;
-        try
+        if (!TryParseRootCatalog(rootYaml, game, out var rootManifest, out var parseError))
         {
-            rootManifest = catalogParser.ParseRootCatalog(rootYaml);
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Failed to parse root catalog YAML for {Game}", game);
-            return OperationResult<List<ContentSearchResult>>.CreateFailure($"Failed to parse root catalog YAML for {game}: {ex.Message}");
+            return OperationResult<List<ContentSearchResult>>.CreateFailure(parseError);
         }
 
         if (rootManifest.ModDatas != null)
@@ -927,14 +955,9 @@ public class GenLauncherDiscoverer(
             return null;
         }
 
-        GenLauncherVersionManifest versionManifest;
-        try
+        var versionManifest = TryParseChildVersionManifest(yaml, manifestUrl);
+        if (versionManifest == null)
         {
-            versionManifest = catalogParser.ParseVersionManifest(yaml);
-        }
-        catch (Exception ex)
-        {
-            logger.LogWarning(ex, "Failed to parse child version manifest from {Url}", manifestUrl);
             return null;
         }
 

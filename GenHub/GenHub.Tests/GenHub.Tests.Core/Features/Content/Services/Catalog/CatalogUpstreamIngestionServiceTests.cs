@@ -48,7 +48,7 @@ public sealed class CatalogUpstreamIngestionServiceTests
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task IngestCatalogAsync_GitHubReleases_SynthesizesReleasesUsingAssetRules()
+    public async Task IngestCatalogAsync_GitHubReleases_SynthesizesReleasesUsingAssetRulesAsync()
     {
         var release = new GitHubRelease
         {
@@ -124,7 +124,7 @@ public sealed class CatalogUpstreamIngestionServiceTests
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task IngestCatalogAsync_ContentBundleWithZeroReleases_SynthesizesDependencyRelease()
+    public async Task IngestCatalogAsync_ContentBundleWithZeroReleases_SynthesizesDependencyReleaseAsync()
     {
         var bundle = new CatalogContentItem
         {
@@ -162,7 +162,7 @@ public sealed class CatalogUpstreamIngestionServiceTests
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task IngestCatalogAsync_GitHubPrerelease_SetsPrereleaseFlagsCorrectly()
+    public async Task IngestCatalogAsync_GitHubPrerelease_SetsPrereleaseFlagsCorrectlyAsync()
     {
         var release = new GitHubRelease
         {
@@ -235,7 +235,7 @@ public sealed class CatalogUpstreamIngestionServiceTests
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task IngestCatalogAsync_InvalidRegexPattern_DoesNotThrowAndPreservesSafety()
+    public async Task IngestCatalogAsync_InvalidRegexPattern_DoesNotThrowAndPreservesSafetyAsync()
     {
         var release = new GitHubRelease
         {

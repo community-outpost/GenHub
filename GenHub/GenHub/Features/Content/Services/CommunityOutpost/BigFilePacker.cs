@@ -267,11 +267,7 @@ public static class BigFilePacker
             }
 
             var (reader, entryCount) = headerResult.Data;
-            List<BigArchiveEntryInfo> entries;
-            using (reader)
-            {
-                entries = ReadBigArchiveEntries(fs, reader, entryCount, validateOffsets: true, cancellationToken);
-            }
+            var entries = ReadValidatedEntriesAndDisposeReader(fs, reader, entryCount, cancellationToken);
 
             var count = await ExtractEntriesAsync(fs, entries, destFullPath, destFullPathWithSep, overwrite, progress, cancellationToken).ConfigureAwait(false);
             return OperationResult<int>.CreateSuccess(count);
@@ -376,6 +372,18 @@ public static class BigFilePacker
         _ = BinaryPrimitives.ReadUInt32BigEndian(uintBuffer);
 
         return OperationResult<(BinaryReader Reader, uint EntryCount)>.CreateSuccess((reader, entryCount));
+    }
+
+    private static List<BigArchiveEntryInfo> ReadValidatedEntriesAndDisposeReader(
+        FileStream fs,
+        BinaryReader reader,
+        uint entryCount,
+        CancellationToken cancellationToken)
+    {
+        using (reader)
+        {
+            return ReadBigArchiveEntries(fs, reader, entryCount, validateOffsets: true, cancellationToken);
+        }
     }
 
     private static List<BigArchiveEntryInfo> ReadBigArchiveEntries(

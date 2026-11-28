@@ -185,7 +185,7 @@ public sealed class CommunityGameClientIdentifierTests : IDisposable
         var directory = Directory.CreateDirectory(Path.Combine(_scratch, "Command & Conquer Generals Zero Hour")).FullName;
         var path = Path.Combine(directory, "generals");
         var payload = new byte[64];
-        Buffer.BlockCopy(MachOHeader, 0, payload, 0, MachOHeader.Length);
+        MachOHeader.CopyTo(payload, 0);
         File.WriteAllBytes(path, payload);
 
         var result = _identifier.Identify(path);
@@ -228,7 +228,7 @@ public sealed class CommunityGameClientIdentifierTests : IDisposable
     {
         var path = Path.Combine(_scratch, fileName);
         var payload = new byte[64];
-        Buffer.BlockCopy(header, 0, payload, 0, header.Length);
+        header.CopyTo(payload, 0);
         File.WriteAllBytes(path, payload);
         return path;
     }

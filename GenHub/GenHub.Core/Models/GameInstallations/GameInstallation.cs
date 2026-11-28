@@ -139,7 +139,19 @@ public class GameInstallation(
         {
             normalizedPath = Path.TrimEndingDirectorySeparator(Path.GetFullPath(installationPath));
         }
-        catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException or SecurityException)
+        catch (ArgumentException)
+        {
+            normalizedPath = installationPath;
+        }
+        catch (NotSupportedException)
+        {
+            normalizedPath = installationPath;
+        }
+        catch (PathTooLongException)
+        {
+            normalizedPath = installationPath;
+        }
+        catch (SecurityException)
         {
             normalizedPath = installationPath;
         }

@@ -758,7 +758,11 @@ public class LaunchReceiptServiceTests : IDisposable
         {
             Directory.Delete(_root, recursive: true);
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        catch (IOException)
+        {
+            // Best effort; a leftover temp directory is not worth failing the run over.
+        }
+        catch (UnauthorizedAccessException)
         {
             // Best effort; a leftover temp directory is not worth failing the run over.
         }

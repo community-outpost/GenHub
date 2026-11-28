@@ -404,7 +404,7 @@ public static class WndPreviewPlanner
 
         if (IsControlBarParent(name))
         {
-            if (overrides != null && overrides.TryGetValue(WndConstants.ControlBarScheme.BackgroundMarkerKey, out var schemeBg) && !string.IsNullOrWhiteSpace(schemeBg))
+            if (overrides?.TryGetValue(WndConstants.ControlBarScheme.BackgroundMarkerKey, out var schemeBg) == true && !string.IsNullOrWhiteSpace(schemeBg))
             {
                 return schemeBg;
             }
@@ -526,7 +526,7 @@ public static class WndPreviewPlanner
 
     private static string ResolveOverrideOrFallback(IReadOnlyDictionary<string, string>? overrides, string key, string fallback)
     {
-        if (overrides != null && overrides.TryGetValue(key, out var val) && !string.IsNullOrWhiteSpace(val))
+        if (overrides?.TryGetValue(key, out var val) == true && !string.IsNullOrWhiteSpace(val))
         {
             return val;
         }

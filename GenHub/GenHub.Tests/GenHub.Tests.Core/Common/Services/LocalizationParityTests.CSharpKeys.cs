@@ -67,10 +67,10 @@ public partial class LocalizationParityTests
     private static bool IsProductionSourceFile(string file)
     {
         var segments = file.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-        return !segments.Any(s =>
-            s.Equals("bin", StringComparison.OrdinalIgnoreCase) ||
-            s.Equals("obj", StringComparison.OrdinalIgnoreCase) ||
-            s.Contains("Tests", StringComparison.Ordinal));
+        return segments.All(s =>
+            !s.Equals("bin", StringComparison.OrdinalIgnoreCase) &&
+            !s.Equals("obj", StringComparison.OrdinalIgnoreCase) &&
+            !s.Contains("Tests", StringComparison.Ordinal));
     }
 
     private static bool IsLocalizationCall(string method, string receiver)

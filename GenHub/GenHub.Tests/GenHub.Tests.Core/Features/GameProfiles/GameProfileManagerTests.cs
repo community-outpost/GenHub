@@ -829,7 +829,7 @@ public class GameProfileManagerTests
         Assert.True(result.Success);
         Assert.NotNull(request.GameClient);
         Assert.Equal(fallbackClientId, request.GameClient.Id);
-        _profileRepositoryMock.Verify(x => x.SaveProfileAsync(It.Is<GameProfile>(p => p.GameClient != null && p.GameClient.Id == fallbackClientId), default), Times.Once);
+        _profileRepositoryMock.Verify(x => x.SaveProfileAsync(It.Is<GameProfile>(p => p.GameClient != null && p.GameClient.Id == fallbackClientId), default), Times.Once); // skipcq: CS-R1136
     }
 
     /// <summary>

@@ -219,7 +219,7 @@ public partial class BundleItemEditorViewModel(ILocalizationService localization
             SourcePatternsList.Clear();
         }
 
-        if (!SourcePatternsList.Any(p => p.Pattern.Equals(normalized, StringComparison.OrdinalIgnoreCase)))
+        if (SourcePatternsList.All(p => !p.Pattern.Equals(normalized, StringComparison.OrdinalIgnoreCase)))
         {
             SourcePatternsList.Add(new SourcePathItemViewModel(normalized));
             SyncTextFromList();

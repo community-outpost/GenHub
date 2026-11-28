@@ -58,7 +58,11 @@ public sealed class ReplayCheckpointServiceTests : IDisposable
             {
                 Directory.Delete(_tempSaveDir, recursive: true);
             }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            catch (IOException)
+            {
+                // Best effort test cleanup
+            }
+            catch (UnauthorizedAccessException)
             {
                 // Best effort test cleanup
             }

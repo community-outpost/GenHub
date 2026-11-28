@@ -169,7 +169,11 @@ public class WineRunner(
                 directoryNames.Add(Path.GetFileName(dir));
             }
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        catch (IOException)
+        {
+            // Ignore directory enumeration errors
+        }
+        catch (UnauthorizedAccessException)
         {
             // Ignore directory enumeration errors
         }
@@ -188,7 +192,11 @@ public class WineRunner(
 
                 bridgedAny |= BridgeDirectory(nativeSubDir, prefixSubDir, logger);
             }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            catch (IOException)
+            {
+                // Continue to next directory if bridging fails for one
+            }
+            catch (UnauthorizedAccessException)
             {
                 // Continue to next directory if bridging fails for one
             }
@@ -261,7 +269,15 @@ public class WineRunner(
             Directory.CreateSymbolicLink(linkPath, targetPath);
             return true;
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or PlatformNotSupportedException)
+        catch (IOException)
+        {
+            return false;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return false;
+        }
+        catch (PlatformNotSupportedException)
         {
             return false;
         }
@@ -278,7 +294,15 @@ public class WineRunner(
                 Directory.CreateSymbolicLink(probeSymlink, targetPath);
                 Directory.Delete(probeSymlink, recursive: false);
             }
-            catch (Exception probeEx) when (probeEx is IOException or UnauthorizedAccessException or PlatformNotSupportedException)
+            catch (IOException)
+            {
+                return false;
+            }
+            catch (UnauthorizedAccessException)
+            {
+                return false;
+            }
+            catch (PlatformNotSupportedException)
             {
                 return false;
             }
@@ -333,7 +357,15 @@ public class WineRunner(
                 throw;
             }
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or PlatformNotSupportedException)
+        catch (IOException)
+        {
+            return false;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return false;
+        }
+        catch (PlatformNotSupportedException)
         {
             return false;
         }
@@ -357,7 +389,17 @@ public class WineRunner(
             Directory.CreateSymbolicLink(prefixSubDir, nativeSubDir);
             return true;
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or PlatformNotSupportedException)
+        catch (IOException)
+        {
+            SyncDirectoryFiles(nativeSubDir, prefixSubDir, logger);
+            return true;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            SyncDirectoryFiles(nativeSubDir, prefixSubDir, logger);
+            return true;
+        }
+        catch (PlatformNotSupportedException)
         {
             SyncDirectoryFiles(nativeSubDir, prefixSubDir, logger);
             return true;
@@ -594,7 +636,11 @@ public class WineRunner(
                 }
             }
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        catch (IOException)
+        {
+            // Ignore directory cleanup failure
+        }
+        catch (UnauthorizedAccessException)
         {
             // Ignore directory cleanup failure
         }

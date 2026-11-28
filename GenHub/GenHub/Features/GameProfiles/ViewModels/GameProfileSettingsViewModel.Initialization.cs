@@ -381,33 +381,43 @@ public partial class GameProfileSettingsViewModel
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Helper for profile customization state")]
     private bool IsGeneratedCommunityName(string name)
     {
-        return name.Equals("Community Patch", StringComparison.OrdinalIgnoreCase) ||
-               name.Equals("Community Patch - Zero Hour", StringComparison.OrdinalIgnoreCase) ||
-               name.Equals("Community Patch - Generals", StringComparison.OrdinalIgnoreCase) ||
-               name.Equals("Community Patch - Weekly Build", StringComparison.OrdinalIgnoreCase) ||
-               name.StartsWith("Community Patch v", StringComparison.OrdinalIgnoreCase) ||
-               name.StartsWith("Community Patch 1.", StringComparison.OrdinalIgnoreCase) ||
-               name.StartsWith("Community Patch (", StringComparison.OrdinalIgnoreCase) ||
-               name.Equals("CommunityPatch", StringComparison.OrdinalIgnoreCase) ||
-               name.Equals("CommunityPatch - Zero Hour", StringComparison.OrdinalIgnoreCase) ||
-               name.Equals("CommunityPatch - Generals", StringComparison.OrdinalIgnoreCase) ||
-               name.StartsWith("CommunityPatch v", StringComparison.OrdinalIgnoreCase) ||
-               name.StartsWith("CommunityPatch 1.", StringComparison.OrdinalIgnoreCase) ||
-               name.StartsWith("CommunityPatch (", StringComparison.OrdinalIgnoreCase) ||
-               name.Equals("Community Outpost", StringComparison.OrdinalIgnoreCase) ||
-               name.Equals("Community Outpost - Zero Hour", StringComparison.OrdinalIgnoreCase) ||
-               name.Equals("Community Outpost - Generals", StringComparison.OrdinalIgnoreCase) ||
-               name.Equals("Community Outpost - Weekly Build", StringComparison.OrdinalIgnoreCase) ||
-               name.StartsWith("Community Outpost v", StringComparison.OrdinalIgnoreCase) ||
-               name.StartsWith("Community Outpost 1.", StringComparison.OrdinalIgnoreCase) ||
-               name.StartsWith("Community Outpost (", StringComparison.OrdinalIgnoreCase) ||
-               name.Equals("CommunityOutpost", StringComparison.OrdinalIgnoreCase) ||
-               name.Equals("CommunityOutpost - Zero Hour", StringComparison.OrdinalIgnoreCase) ||
-               name.Equals("CommunityOutpost - Generals", StringComparison.OrdinalIgnoreCase) ||
-               name.Equals("CommunityOutpost - Weekly Build", StringComparison.OrdinalIgnoreCase) ||
-               name.StartsWith("CommunityOutpost 1.", StringComparison.OrdinalIgnoreCase) ||
-               name.StartsWith("CommunityOutpost v", StringComparison.OrdinalIgnoreCase) ||
-               name.StartsWith("CommunityOutpost (", StringComparison.OrdinalIgnoreCase);
+        string[] generatedNames =
+        [
+            "Community Patch",
+            "Community Patch - Zero Hour",
+            "Community Patch - Generals",
+            "Community Patch - Weekly Build",
+            "CommunityPatch",
+            "CommunityPatch - Zero Hour",
+            "CommunityPatch - Generals",
+            "Community Outpost",
+            "Community Outpost - Zero Hour",
+            "Community Outpost - Generals",
+            "Community Outpost - Weekly Build",
+            "CommunityOutpost",
+            "CommunityOutpost - Zero Hour",
+            "CommunityOutpost - Generals",
+            "CommunityOutpost - Weekly Build",
+        ];
+
+        string[] generatedNamePrefixes =
+        [
+            "Community Patch v",
+            "Community Patch 1.",
+            "Community Patch (",
+            "CommunityPatch v",
+            "CommunityPatch 1.",
+            "CommunityPatch (",
+            "Community Outpost v",
+            "Community Outpost 1.",
+            "Community Outpost (",
+            "CommunityOutpost 1.",
+            "CommunityOutpost v",
+            "CommunityOutpost (",
+        ];
+
+        return generatedNames.Any(n => name.Equals(n, StringComparison.OrdinalIgnoreCase)) ||
+               generatedNamePrefixes.Any(prefix => name.StartsWith(prefix, StringComparison.OrdinalIgnoreCase));
     }
 
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Helper for profile customization state")]
@@ -433,7 +443,7 @@ public partial class GameProfileSettingsViewModel
             "#2E7D32",
         ];
 
-        return !standardColors.Any(c => string.Equals(c, profile.ThemeColor, StringComparison.OrdinalIgnoreCase));
+        return standardColors.All(c => !string.Equals(c, profile.ThemeColor, StringComparison.OrdinalIgnoreCase));
     }
 
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Helper for profile customization state")]
@@ -457,7 +467,7 @@ public partial class GameProfileSettingsViewModel
             "origin-icon",
         ];
 
-        return !standardIconMarkers.Any(m => profile.IconPath.Contains(m, StringComparison.OrdinalIgnoreCase));
+        return standardIconMarkers.All(m => !profile.IconPath.Contains(m, StringComparison.OrdinalIgnoreCase));
     }
 
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Helper for profile customization state")]
@@ -480,7 +490,7 @@ public partial class GameProfileSettingsViewModel
             "gla-poster",
         ];
 
-        return !standardCoverMarkers.Any(m => profile.CoverPath.Contains(m, StringComparison.OrdinalIgnoreCase));
+        return standardCoverMarkers.All(m => !profile.CoverPath.Contains(m, StringComparison.OrdinalIgnoreCase));
     }
 
     private async Task SaveDefaultGameSettingsAsync(string profileId)

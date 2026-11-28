@@ -143,7 +143,19 @@ public static class GameClientEntryDetector
                 }
             }
         }
-        catch (Exception ex) when (ex is IOException or InvalidDataException or UnauthorizedAccessException or NotSupportedException)
+        catch (IOException)
+        {
+            // Expected archive read failure
+        }
+        catch (InvalidDataException)
+        {
+            // Expected archive read failure
+        }
+        catch (UnauthorizedAccessException)
+        {
+            // Expected archive read failure
+        }
+        catch (NotSupportedException)
         {
             // Expected archive read failure
         }
@@ -393,9 +405,9 @@ public static class GameClientEntryDetector
         if (roots.Count > 1)
         {
             roots = roots
-                .Where(candidate => !roots.Any(other =>
-                    !ReferenceEquals(other, candidate)
-                    && candidate.StartsWith(other + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)))
+                .Where(candidate => roots.All(other =>
+                    ReferenceEquals(other, candidate)
+                    || !candidate.StartsWith(other + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)))
                 .ToList();
         }
 
@@ -426,11 +438,23 @@ public static class GameClientEntryDetector
 
         try
         {
-            var document = new XmlDocument();
+            var document = new XmlDocument { XmlResolver = null };
             document.Load(plistPath);
             return ParseBundleExecutable(document);
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or XmlException or ArgumentException)
+        catch (IOException)
+        {
+            return null;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return null;
+        }
+        catch (XmlException)
+        {
+            return null;
+        }
+        catch (ArgumentException)
         {
             return null;
         }
@@ -459,7 +483,15 @@ public static class GameClientEntryDetector
                 .OrderBy(p => p.Length)
                 .FirstOrDefault();
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
+        catch (IOException)
+        {
+            return null;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return null;
+        }
+        catch (ArgumentException)
         {
             return null;
         }
@@ -571,7 +603,15 @@ public static class GameClientEntryDetector
                 .ThenBy(f => f, StringComparer.Ordinal)
                 .FirstOrDefault();
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
+        catch (IOException)
+        {
+            return null;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return null;
+        }
+        catch (ArgumentException)
         {
             return null;
         }
@@ -597,7 +637,15 @@ public static class GameClientEntryDetector
             return Directory.EnumerateDirectories(parent, name, RecursiveOptions)
                 .FirstOrDefault();
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
+        catch (IOException)
+        {
+            return null;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return null;
+        }
+        catch (ArgumentException)
         {
             return null;
         }
@@ -617,7 +665,15 @@ public static class GameClientEntryDetector
                 }
             }
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
+        catch (IOException)
+        {
+            return [];
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return [];
+        }
+        catch (ArgumentException)
         {
             return [];
         }
@@ -639,7 +695,15 @@ public static class GameClientEntryDetector
                 }
             }
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
+        catch (IOException)
+        {
+            return [];
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return [];
+        }
+        catch (ArgumentException)
         {
             return [];
         }
@@ -664,7 +728,15 @@ public static class GameClientEntryDetector
                 }
             }
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
+        catch (IOException)
+        {
+            return [];
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return [];
+        }
+        catch (ArgumentException)
         {
             return [];
         }
@@ -687,7 +759,15 @@ public static class GameClientEntryDetector
         {
             return Directory.GetFiles(directory);
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
+        catch (IOException)
+        {
+            return [];
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return [];
+        }
+        catch (ArgumentException)
         {
             return [];
         }
@@ -707,7 +787,15 @@ public static class GameClientEntryDetector
             collected.Add(root);
             return collected;
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
+        catch (IOException)
+        {
+            return [root];
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return [root];
+        }
+        catch (ArgumentException)
         {
             return [root];
         }

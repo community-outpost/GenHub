@@ -317,7 +317,7 @@ public class ManifestProviderTests
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
-    public async Task GetManifestAsync_WithCombinedInstallationAndExplicitGenerals_UsesGeneralsId()
+    public async Task GetManifestAsync_WithCombinedInstallationAndExplicitGenerals_UsesGeneralsIdAsync()
     {
         var combinedPath = Directory.CreateTempSubdirectory("GenHub.CombinedManifest.").FullName;
         File.WriteAllText(Path.Combine(combinedPath, "INI.big"), "archive");

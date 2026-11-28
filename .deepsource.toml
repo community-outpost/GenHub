@@ -23,6 +23,10 @@ enabled = true
 name = "javascript"
 enabled = true
 
+  [analyzers.meta]
+  module_system = "es-modules"
+  environment = ["browser"]
+
 [[analyzers]]
 name = "shell"
 enabled = true

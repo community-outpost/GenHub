@@ -379,7 +379,7 @@ public class GenericCatalogDiscoverer(
             return urls;
         }
 
-        if (definition.Catalogs != null && definition.Catalogs.Count > 0)
+        if (definition.Catalogs?.Count > 0)
         {
             var selected = !string.IsNullOrWhiteSpace(selectedCatalogId)
                 ? definition.Catalogs.FirstOrDefault(e =>
@@ -393,7 +393,7 @@ public class GenericCatalogDiscoverer(
                 selected = definition.Catalogs.FirstOrDefault(e =>
                     e != null && (
                         string.Equals(e.Url, subscriptionCatalogUrl, StringComparison.OrdinalIgnoreCase) ||
-                        (e.Mirrors != null && e.Mirrors.Any(m => string.Equals(m, subscriptionCatalogUrl, StringComparison.OrdinalIgnoreCase)))));
+                        e.Mirrors?.Any(m => string.Equals(m, subscriptionCatalogUrl, StringComparison.OrdinalIgnoreCase)) == true));
             }
 
             if (selected != null)
@@ -468,7 +468,7 @@ public class GenericCatalogDiscoverer(
             other != null &&
             !string.Equals(other.Id, subscription.SelectedCatalogId, StringComparison.OrdinalIgnoreCase) &&
             (string.Equals(other.Url, subscription.CatalogUrl, StringComparison.OrdinalIgnoreCase) ||
-             (other.Mirrors != null && other.Mirrors.Any(mirror => string.Equals(mirror, subscription.CatalogUrl, StringComparison.OrdinalIgnoreCase)))));
+             other.Mirrors?.Any(mirror => string.Equals(mirror, subscription.CatalogUrl, StringComparison.OrdinalIgnoreCase)) == true));
     }
 
     private static IReadOnlyList<string> ResolveIncludedContentNames(
@@ -739,7 +739,7 @@ public class GenericCatalogDiscoverer(
             ContentCardBadgeHelper.ApplyPlayerCount(searchResult, playerCount);
         }
 
-        searchResult.IsFeatured = contentItem.IsFeatured || (contentItem.Metadata?.IsFeatured ?? false);
+        searchResult.IsFeatured = contentItem.IsFeatured || contentItem.Metadata?.IsFeatured == true;
         searchResult.FeaturedBadge = !string.IsNullOrWhiteSpace(contentItem.FeaturedBadge)
             ? contentItem.FeaturedBadge
             : contentItem.Metadata?.FeaturedBadge;
@@ -755,136 +755,67 @@ public class GenericCatalogDiscoverer(
         }
     }
 
-    private async Task HydrateDynamicReleasesAsync(
-        PublisherCatalog catalog,
-        CancellationToken cancellationToken)
+    private static List<ReleaseArtifact> BuildDynamicArtifacts(GameType targetGame, GitHubReleaseAsset? zhAsset, GitHubReleaseAsset? genAsset)
     {
-        if (catalog.Content == null || catalog.Content.Count == 0)
-        {
-            return;
-        }
+        var artifacts = new List<ReleaseArtifact>();
 
-        var dynamicItems = catalog.Content
-            .Where(item => item.PublisherType?.Equals(PublisherTypeConstants.TheSuperHackers, StringComparison.OrdinalIgnoreCase) == true)
-            .ToList();
-
-        if (dynamicItems.Count == 0)
+        if (zhAsset != null)
         {
-            return;
-        }
-
-        GitHubRelease? latestRelease = null;
-        try
-        {
-            var cacheKey = CatalogConstants.UpstreamProviders.DefaultSuperHackersRepository;
-            if (ReleaseCache.TryGetValue(cacheKey, out var cached) && DateTime.UtcNow - cached.CachedAt < CacheTtl)
+            artifacts.Add(new ReleaseArtifact
             {
-                latestRelease = cached.Release;
-            }
-            else
-            {
-                var fetchTask = PendingReleaseFetches.GetOrAdd(cacheKey, key => FetchReleaseWithTimeoutAsync(
-                    SuperHackersConstants.GeneralsGameCodeOwner,
-                    SuperHackersConstants.GeneralsGameCodeRepo,
-                    key));
-
-                latestRelease = await fetchTask.WaitAsync(cancellationToken);
-            }
-        }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-        {
-            throw;
-        }
-        catch (Exception ex)
-        {
-            logger.LogWarning(ex, "Failed to fetch latest release from GitHub for SuperHackers dynamic catalog hydration");
+                Filename = zhAsset.Name,
+                DownloadUrl = zhAsset.BrowserDownloadUrl,
+                Size = zhAsset.Size,
+                ContentType = "application/zip",
+                VariantAxis = CatalogConstants.GameTypeVariantAxis,
+                Variant = CatalogConstants.ZeroHourVariantLabel,
+                IsDefaultVariant = targetGame == GameType.ZeroHour,
+                IsPrimary = targetGame == GameType.ZeroHour,
+            });
         }
 
-        if (latestRelease == null)
+        if (genAsset != null)
         {
-            logger.LogWarning("Latest release could not be resolved from GitHub; skipping dynamic hydration for SuperHackers");
-            return;
+            artifacts.Add(new ReleaseArtifact
+            {
+                Filename = genAsset.Name,
+                DownloadUrl = genAsset.BrowserDownloadUrl,
+                Size = genAsset.Size,
+                ContentType = "application/zip",
+                VariantAxis = CatalogConstants.GameTypeVariantAxis,
+                Variant = CatalogConstants.GeneralsVariantLabel,
+                IsDefaultVariant = targetGame == GameType.Generals,
+                IsPrimary = targetGame == GameType.Generals,
+            });
         }
 
-        var cleanTag = latestRelease.TagName.TrimStart('v', 'V');
-        var zhAsset = SuperHackersAssetMatcher.FindAsset(latestRelease.Assets, GameType.ZeroHour);
-        var genAsset = SuperHackersAssetMatcher.FindAsset(latestRelease.Assets, GameType.Generals);
+        return artifacts;
+    }
 
-        var hydratedItemIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-
-        foreach (var item in dynamicItems)
+    private static ContentRelease BuildDynamicRelease(GameType targetGame, string cleanTag, GitHubRelease latestRelease, List<ReleaseArtifact> artifacts) =>
+        new()
         {
-            var artifacts = new List<ReleaseArtifact>();
-
-            if (zhAsset != null)
-            {
-                artifacts.Add(new ReleaseArtifact
-                {
-                    Filename = zhAsset.Name,
-                    DownloadUrl = zhAsset.BrowserDownloadUrl,
-                    Size = zhAsset.Size,
-                    ContentType = "application/zip",
-                    VariantAxis = CatalogConstants.GameTypeVariantAxis,
-                    Variant = CatalogConstants.ZeroHourVariantLabel,
-                    IsDefaultVariant = item.TargetGame == GameType.ZeroHour,
-                    IsPrimary = item.TargetGame == GameType.ZeroHour,
-                });
-            }
-
-            if (genAsset != null)
-            {
-                artifacts.Add(new ReleaseArtifact
-                {
-                    Filename = genAsset.Name,
-                    DownloadUrl = genAsset.BrowserDownloadUrl,
-                    Size = genAsset.Size,
-                    ContentType = "application/zip",
-                    VariantAxis = CatalogConstants.GameTypeVariantAxis,
-                    Variant = CatalogConstants.GeneralsVariantLabel,
-                    IsDefaultVariant = item.TargetGame == GameType.Generals,
-                    IsPrimary = item.TargetGame == GameType.Generals,
-                });
-            }
-
-            // Overwrite item.Releases only when at least one mapped asset exists
-            if (artifacts.Count == 0)
-            {
-                continue;
-            }
-
-            hydratedItemIds.Add(item.Id);
-
-            item.Releases =
+            Version = cleanTag,
+            ReleaseDate = latestRelease.PublishedAt?.UtcDateTime ?? DateTime.UtcNow,
+            IsLatest = true,
+            IsPrerelease = false,
+            Changelog = latestRelease.Body ?? string.Empty,
+            Artifacts = artifacts,
+            Dependencies =
             [
-                new ContentRelease
+                new CatalogDependency
                 {
-                    Version = cleanTag,
-                    ReleaseDate = latestRelease.PublishedAt?.UtcDateTime ?? DateTime.UtcNow,
-                    IsLatest = true,
-                    IsPrerelease = false,
-                    Changelog = latestRelease.Body ?? string.Empty,
-                    Artifacts = artifacts,
-                    Dependencies =
-                    [
-                        new CatalogDependency
-                        {
-                            PublisherId = CatalogConstants.EaPublisherId,
-                            ContentId = item.TargetGame == GameType.Generals ? CatalogConstants.GeneralsContentId : CatalogConstants.ZeroHourContentId,
-                            VersionConstraint = item.TargetGame == GameType.Generals ? ManifestConstants.GeneralsManifestVersion : ManifestConstants.ZeroHourManifestVersion,
-                            ContentType = ContentType.GameInstallation.ToString(),
-                            IsOptional = false,
-                        },
-                    ],
+                    PublisherId = CatalogConstants.EaPublisherId,
+                    ContentId = targetGame == GameType.Generals ? CatalogConstants.GeneralsContentId : CatalogConstants.ZeroHourContentId,
+                    VersionConstraint = targetGame == GameType.Generals ? ManifestConstants.GeneralsManifestVersion : ManifestConstants.ZeroHourManifestVersion,
+                    ContentType = ContentType.GameInstallation.ToString(),
+                    IsOptional = false,
                 },
-            ];
-        }
+            ],
+        };
 
-        if (hydratedItemIds.Count == 0)
-        {
-            logger.LogWarning("No release assets mapped to SuperHackers dynamic items; retaining catalog baseline releases");
-            return;
-        }
-
+    private static void SyncBundleDependencyConstraints(PublisherCatalog catalog, HashSet<string> hydratedItemIds, string cleanTag)
+    {
         // Also synchronize any ContentBundle dependencies targeting the hydrated sibling items
         var bundleDependencies = catalog.Content
             .Where(c => c.ContentType == ContentType.ContentBundle && c.Releases != null)
@@ -925,6 +856,89 @@ public class GenericCatalogDiscoverer(
                     }
                 }
             }
+        }
+    }
+
+    private async Task HydrateDynamicReleasesAsync(
+        PublisherCatalog catalog,
+        CancellationToken cancellationToken)
+    {
+        if (catalog.Content == null || catalog.Content.Count == 0)
+        {
+            return;
+        }
+
+        var dynamicItems = catalog.Content
+            .Where(item => item.PublisherType?.Equals(PublisherTypeConstants.TheSuperHackers, StringComparison.OrdinalIgnoreCase) == true)
+            .ToList();
+
+        if (dynamicItems.Count == 0)
+        {
+            return;
+        }
+
+        var latestRelease = await GetLatestSuperHackersReleaseAsync(cancellationToken);
+        if (latestRelease == null)
+        {
+            logger.LogWarning("Latest release could not be resolved from GitHub; skipping dynamic hydration for SuperHackers");
+            return;
+        }
+
+        var cleanTag = latestRelease.TagName.TrimStart('v', 'V');
+        var zhAsset = SuperHackersAssetMatcher.FindAsset(latestRelease.Assets, GameType.ZeroHour);
+        var genAsset = SuperHackersAssetMatcher.FindAsset(latestRelease.Assets, GameType.Generals);
+
+        var hydratedItemIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var item in dynamicItems)
+        {
+            var artifacts = BuildDynamicArtifacts(item.TargetGame, zhAsset, genAsset);
+
+            // Overwrite item.Releases only when at least one mapped asset exists
+            if (artifacts.Count == 0)
+            {
+                continue;
+            }
+
+            hydratedItemIds.Add(item.Id);
+
+            item.Releases = [BuildDynamicRelease(item.TargetGame, cleanTag, latestRelease, artifacts)];
+        }
+
+        if (hydratedItemIds.Count == 0)
+        {
+            logger.LogWarning("No release assets mapped to SuperHackers dynamic items; retaining catalog baseline releases");
+            return;
+        }
+
+        SyncBundleDependencyConstraints(catalog, hydratedItemIds, cleanTag);
+    }
+
+    private async Task<GitHubRelease?> GetLatestSuperHackersReleaseAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            var cacheKey = CatalogConstants.UpstreamProviders.DefaultSuperHackersRepository;
+            if (ReleaseCache.TryGetValue(cacheKey, out var cached) && DateTime.UtcNow - cached.CachedAt < CacheTtl)
+            {
+                return cached.Release;
+            }
+
+            var fetchTask = PendingReleaseFetches.GetOrAdd(cacheKey, key => FetchReleaseWithTimeoutAsync(
+                SuperHackersConstants.GeneralsGameCodeOwner,
+                SuperHackersConstants.GeneralsGameCodeRepo,
+                key));
+
+            return await fetchTask.WaitAsync(cancellationToken);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to fetch latest release from GitHub for SuperHackers dynamic catalog hydration");
+            return null;
         }
     }
 
@@ -1479,8 +1493,8 @@ public class GenericCatalogDiscoverer(
             : null;
 
         if (itemIcon == null &&
-            ((contentItem.Id != null && contentItem.Id.Contains("dominator", StringComparison.OrdinalIgnoreCase)) ||
-             (contentItem.Name != null && contentItem.Name.Contains("dominator", StringComparison.OrdinalIgnoreCase))))
+            (contentItem.Id?.Contains("dominator", StringComparison.OrdinalIgnoreCase) == true ||
+             contentItem.Name?.Contains("dominator", StringComparison.OrdinalIgnoreCase) == true))
         {
             itemIcon = PublisherInfoConstants.Dominator.LogoSource;
         }

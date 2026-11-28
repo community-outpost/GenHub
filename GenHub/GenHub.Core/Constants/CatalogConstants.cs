@@ -546,7 +546,7 @@ public static class CatalogConstants
                 return false;
             }
 
-            return parts.All(part => part.Length != 0 && !part.Any(char.IsWhiteSpace));
+            return parts.All(part => part.Length != 0 && part.All(c => !char.IsWhiteSpace(c)));
         }
     }
 

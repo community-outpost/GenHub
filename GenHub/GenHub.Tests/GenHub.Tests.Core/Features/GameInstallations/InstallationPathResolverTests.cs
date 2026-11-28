@@ -43,7 +43,11 @@ public sealed class InstallationPathResolverTests : IDisposable
                 Directory.Delete(_tempDirectory, true);
             }
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        catch (IOException)
+        {
+            // Best effort cleanup
+        }
+        catch (UnauthorizedAccessException)
         {
             // Best effort cleanup
         }
@@ -240,11 +244,11 @@ public sealed class InstallationPathResolverTests : IDisposable
             Id = "test-installation-id",
             DisplayName = "Test Custom Display Name",
             DetectedAt = originalTimestamp,
-        };
 
-        // Model an installation detected while its path was still valid: the Has flags
-        // persist on the stale record even though the directories are gone.
-        originalInstallation.HasGenerals = true;
+            // Model an installation detected while its path was still valid: the Has flags
+            // persist on the stale record even though the directories are gone.
+            HasGenerals = true,
+        };
 
         var result = await resolver.ResolveInstallationPathAsync(originalInstallation);
 

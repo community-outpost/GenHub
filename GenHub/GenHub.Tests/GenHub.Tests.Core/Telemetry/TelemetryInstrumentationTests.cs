@@ -49,7 +49,7 @@ public class TelemetryInstrumentationTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous test.</returns>
     [Fact]
-    public async Task ActionSetOrchestrator_WhenFixSucceeds_TracksGenPatcherFixAppliedSuccess()
+    public async Task ActionSetOrchestrator_WhenFixSucceeds_TracksGenPatcherFixAppliedSuccessAsync()
     {
         var fix = new Mock<IActionSet>();
         fix.SetupGet(f => f.Id).Returns("GenPatcher.CameraFix");
@@ -88,7 +88,7 @@ public class TelemetryInstrumentationTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous test.</returns>
     [Fact]
-    public async Task ActionSetOrchestrator_WhenFixFails_TracksGenPatcherFixAppliedFailure()
+    public async Task ActionSetOrchestrator_WhenFixFails_TracksGenPatcherFixAppliedFailureAsync()
     {
         var fix = new Mock<IActionSet>();
         fix.SetupGet(f => f.Id).Returns("GenPatcher.DirectX8Fix");
@@ -128,7 +128,7 @@ public class TelemetryInstrumentationTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous test.</returns>
     [Fact]
-    public async Task ActionSetOrchestrator_WhenFixThrows_TracksGenPatcherFixAppliedFailure()
+    public async Task ActionSetOrchestrator_WhenFixThrows_TracksGenPatcherFixAppliedFailureAsync()
     {
         var fix = new Mock<IActionSet>();
         fix.SetupGet(f => f.Id).Returns("GenPatcher.CrashFix");
@@ -368,7 +368,7 @@ public class TelemetryInstrumentationTests
                 t => t.TrackEvent(
                     TelemetryConstants.Events.ContentDownloadCompleted,
                     It.Is<IReadOnlyDictionary<string, object?>?>(p =>
-                        p != null &&
+                        p != null && // skipcq: CS-R1136
                         p.ContainsKey(TelemetryConstants.Properties.SizeMb) &&
                         p.ContainsKey(TelemetryConstants.Properties.DurationSeconds)),
                     It.IsAny<TelemetryLevel>()),
@@ -421,7 +421,7 @@ public class TelemetryInstrumentationTests
                 t => t.TrackEvent(
                     TelemetryConstants.Events.ContentDownloadFailed,
                     It.Is<IReadOnlyDictionary<string, object?>?>(p =>
-                        p != null &&
+                        p != null && // skipcq: CS-R1136
                         p.ContainsKey(TelemetryConstants.Properties.ErrorMessage)),
                     It.IsAny<TelemetryLevel>()),
                 Times.Once);
@@ -477,7 +477,7 @@ public class TelemetryInstrumentationTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task WndEditorViewModel_ValidateDocument_WithDocument_TracksWndDocumentValidated()
+    public async Task WndEditorViewModel_ValidateDocument_WithDocument_TracksWndDocumentValidatedAsync()
     {
         var docServiceMock = new Mock<IWndDocumentService>();
         var window = new WndWindow();
@@ -516,7 +516,7 @@ public class TelemetryInstrumentationTests
             t => t.TrackEvent(
                 TelemetryConstants.Events.WndDocumentValidated,
                 It.Is<IReadOnlyDictionary<string, object?>?>(props =>
-                    props != null &&
+                    props != null && // skipcq: CS-R1136
                     props.ContainsKey(TelemetryConstants.Properties.IsValid) &&
                     props.ContainsKey(TelemetryConstants.Properties.WindowCount)),
                 It.IsAny<TelemetryLevel>()),

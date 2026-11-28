@@ -83,14 +83,7 @@ public sealed class InstallationRestartRebindTests : IDisposable
     [Fact]
     public async Task CustomInstallProfile_AfterRestart_ResolvesStoredInstallationIdAsync()
     {
-        string installationId;
-        using (var firstRun = CreateInstallationService())
-        {
-            var registerResult = await firstRun.RegisterCustomInstallationAsync(_installDir);
-            Assert.True(registerResult.Success, string.Join("; ", registerResult.Errors));
-            installationId = registerResult.Data!.Id;
-            await SaveProfileAsync(installationId, CreateLocalClient(GameType.ZeroHour, installationId));
-        }
+        var installationId = await RegisterCustomInstallationAndSaveProfileAsync();
 
         using var secondRun = CreateInstallationService();
         var repository = CreateRepository();
@@ -166,7 +159,7 @@ public sealed class InstallationRestartRebindTests : IDisposable
         profileManager.Verify(
             m => m.UpdateProfileAsync(
                 ProfileId,
-                It.Is<UpdateProfileRequest>(r => r.GameClient != null && r.GameClient.Id == LocalClientId),
+                It.Is<UpdateProfileRequest>(r => r.GameClient != null && r.GameClient.Id == LocalClientId), // skipcq: CS-R1136
                 It.IsAny<CancellationToken>()),
             Times.Once);
     }
@@ -248,6 +241,16 @@ public sealed class InstallationRestartRebindTests : IDisposable
 
     private GameProfileRepository CreateRepository() =>
         new(_profilesDir, NullLogger<GameProfileRepository>.Instance);
+
+    private async Task<string> RegisterCustomInstallationAndSaveProfileAsync()
+    {
+        using var firstRun = CreateInstallationService();
+        var registerResult = await firstRun.RegisterCustomInstallationAsync(_installDir);
+        Assert.True(registerResult.Success, string.Join("; ", registerResult.Errors));
+        var installationId = registerResult.Data!.Id;
+        await SaveProfileAsync(installationId, CreateLocalClient(GameType.ZeroHour, installationId));
+        return installationId;
+    }
 
     private async Task SaveProfileAsync(string installationId, GameClient client)
     {

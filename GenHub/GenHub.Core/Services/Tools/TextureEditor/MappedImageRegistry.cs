@@ -33,7 +33,7 @@ public sealed class MappedImageRegistry(ISageMappedImageParser parser, ILogger<M
     [SuppressMessage("Major Code Smell", "S2365:Properties should not copy collections", Justification = "Interface contract specifies property returning a snapshot list.")]
     public IReadOnlyList<MappedImageDefinition> All
     {
-        get
+        get // skipcq: CS-P1026
         {
             lock (_syncLock)
             {
@@ -390,20 +390,43 @@ public sealed class MappedImageRegistry(ISageMappedImageParser parser, ILogger<M
         return foundInArchive;
     }
 
+    private byte[]? TryReadEntryData(string bigFile, BigArchiveEntry entry)
+    {
+        try
+        {
+            return BigArchiveReader.ReadEntryData(entry);
+        }
+        catch (IOException ex)
+        {
+            logger.LogWarning(ex, "Failed to read entry {Entry} from {Archive}", entry.Path, bigFile);
+            return null;
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            logger.LogWarning(ex, "Failed to read entry {Entry} from {Archive}", entry.Path, bigFile);
+            return null;
+        }
+        catch (InvalidDataException ex)
+        {
+            logger.LogWarning(ex, "Failed to read entry {Entry} from {Archive}", entry.Path, bigFile);
+            return null;
+        }
+        catch (NotSupportedException ex)
+        {
+            logger.LogWarning(ex, "Failed to read entry {Entry} from {Archive}", entry.Path, bigFile);
+            return null;
+        }
+    }
+
     private bool TryProcessArchiveEntry(
         string bigFile,
         BigArchiveEntry entry,
         Dictionary<string, MappedImageDefinition> staged,
         List<string> errors)
     {
-        byte[] bytes;
-        try
+        var bytes = TryReadEntryData(bigFile, entry);
+        if (bytes is null)
         {
-            bytes = BigArchiveReader.ReadEntryData(entry);
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or NotSupportedException)
-        {
-            logger.LogWarning(ex, "Failed to read entry {Entry} from {Archive}", entry.Path, bigFile);
             return false;
         }
 

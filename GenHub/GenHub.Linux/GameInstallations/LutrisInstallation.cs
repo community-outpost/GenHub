@@ -7,6 +7,7 @@ using GenHub.Linux.Model;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -188,7 +189,19 @@ public partial class LutrisInstallation(ILogger<LutrisInstallation>? logger = nu
                 process.Kill(entireProcessTree: true);
             }
         }
-        catch (Exception)
+        catch (InvalidOperationException)
+        {
+            // Ignore failure to terminate already exited process
+        }
+        catch (Win32Exception)
+        {
+            // Ignore failure to terminate already exited process
+        }
+        catch (NotSupportedException)
+        {
+            // Ignore failure to terminate already exited process
+        }
+        catch (AggregateException)
         {
             // Ignore failure to terminate already exited process
         }

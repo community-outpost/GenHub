@@ -35,7 +35,7 @@ public static class ApiConstants
     /// <summary>
     /// Gets the active base URL for GitHub branch archive downloads, checking environment variable overrides first.
     /// </summary>
-    public static string GitHubCodeloadBaseUrl =>
+    public static string GitHubCodeloadBaseUrl => // skipcq: CS-A1000
         Environment.GetEnvironmentVariable(GitHubCodeloadBaseUrlEnvVar) is { Length: > 0 } customUrl
             ? customUrl.TrimEnd('/')
             : DefaultGitHubCodeloadBaseUrl;
@@ -49,7 +49,7 @@ public static class ApiConstants
     /// <param name="repo">The repository name.</param>
     /// <param name="branch">The branch name.</param>
     /// <returns>The branch archive download URL.</returns>
-    public static string GetGitHubBranchZipUrl(string owner, string repo, string branch)
+    public static string GetGitHubBranchZipUrl(string owner, string repo, string branch) // skipcq: CS-A1000
     {
         var segments = branch.Split('/', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
         var escapedRef = string.Join('/', segments.Select(Uri.EscapeDataString));
@@ -310,7 +310,7 @@ public static class ApiConstants
     /// <param name="packageId">The package id (for example, microsoft.playwright).</param>
     /// <param name="version">The exact package version (for example, 1.55.0).</param>
     /// <returns>The download URL for the .nupkg archive.</returns>
-    public static string GetNuGetPackageDownloadUrl(string packageId, string version)
+    public static string GetNuGetPackageDownloadUrl(string packageId, string version) // skipcq: CS-A1000
     {
         var normalizedId = packageId.ToLowerInvariant();
         var normalizedVersion = version.ToLowerInvariant();

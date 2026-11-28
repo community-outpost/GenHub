@@ -676,7 +676,7 @@ public sealed partial class WndEditorViewModel(
 
         // 2. Check for copied raw image bytes (PNG, JPEG, BMP, DIB, Bitmap)
         var imageBytes = await ExtractClipboardImageBytesAsync(clipboard).ConfigureAwait(false);
-        if (imageBytes != null && imageBytes.Length > 0)
+        if (imageBytes?.Length > 0)
         {
             return await ApplyClipboardImageBytesAsync(imageBytes, targetWindow, cancellationToken).ConfigureAwait(false);
         }
@@ -870,7 +870,17 @@ public sealed partial class WndEditorViewModel(
                 ?? TryMapBuildPath(filePath, normalized)
                 ?? filePath;
         }
-        catch (Exception ex) when (ex is ArgumentException or IOException or NotSupportedException)
+        catch (ArgumentException)
+        {
+            // Ignore path inspection errors and return original path
+            return filePath;
+        }
+        catch (IOException)
+        {
+            // Ignore path inspection errors and return original path
+            return filePath;
+        }
+        catch (NotSupportedException)
         {
             // Ignore path inspection errors and return original path
             return filePath;
@@ -2383,22 +2393,7 @@ public sealed partial class WndEditorViewModel(
         }
 
         var selected = SelectedNode;
-        List<WndWindow> siblings;
-        int insertIndex = 0;
-        if (!_isCutOperation && selected is not null && (ReferenceEquals(selected.Window, _copySourceWindow) || ReferenceEquals(selected.Window, _lastPastedClone)))
-        {
-            // Pasting onto the copied window itself (or the clone from the last
-            // paste) duplicates beside it like OnDuplicate instead of nesting
-            // the copy inside its own source.
-            siblings = selected.Parent is null ? _document.Windows : selected.Parent.Window.Children;
-            insertIndex = siblings.IndexOf(selected.Window) + 1;
-        }
-        else
-        {
-            siblings = selected is null ? _document.Windows : selected.Window.Children;
-            insertIndex = siblings.Count;
-        }
-
+        var (siblings, insertIndex) = GetPasteTarget(_document, selected);
         var parent = selected;
         var clone = CloneWindow(_copiedWindow);
         if (!_isCutOperation)
@@ -2438,6 +2433,21 @@ public sealed partial class WndEditorViewModel(
         RefreshEditorCommands();
     }
 
+    private (List<WndWindow> Siblings, int InsertIndex) GetPasteTarget(WndDocument document, WndTreeNodeViewModel? selected)
+    {
+        if (!_isCutOperation && selected is not null && (ReferenceEquals(selected.Window, _copySourceWindow) || ReferenceEquals(selected.Window, _lastPastedClone)))
+        {
+            // Pasting onto the copied window itself (or the clone from the last
+            // paste) duplicates beside it like OnDuplicate instead of nesting
+            // the copy inside its own source.
+            var besideSiblings = selected.Parent is null ? document.Windows : selected.Parent.Window.Children;
+            return (besideSiblings, besideSiblings.IndexOf(selected.Window) + 1);
+        }
+
+        var siblings = selected is null ? document.Windows : selected.Window.Children;
+        return (siblings, siblings.Count);
+    }
+
     /// <summary>
     /// Opens a file chosen in the explorer.
     /// </summary>
@@ -2456,13 +2466,15 @@ public sealed partial class WndEditorViewModel(
 
     private FileExplorerViewModel CreateFileExplorer()
     {
-        var explorer = new FileExplorerViewModel(logger);
-        explorer.FilePatterns = [ModBuilderConstants.FileNames.WndSearchPattern];
-        explorer.ShowFileExtensions = false;
-        explorer.ExcludedDirectoryNames = [ModBuilderConstants.DefaultBuildDir, ModBuilderConstants.DefaultReleaseDir];
-        explorer.NodeFactory = (name, fullPath, isDirectory, isCurrent, parent) => new WndFileTreeNodeViewModel(name, fullPath, isDirectory, isCurrent, parent);
-        explorer.BrowseFolderAsync = PickFolderAsync;
-        explorer.DirectoryAdoptedAsync = (f, ct) => AdoptExplorerDirectoryAsync(f, ct);
+        var explorer = new FileExplorerViewModel(logger)
+        {
+            FilePatterns = [ModBuilderConstants.FileNames.WndSearchPattern],
+            ShowFileExtensions = false,
+            ExcludedDirectoryNames = [ModBuilderConstants.DefaultBuildDir, ModBuilderConstants.DefaultReleaseDir],
+            NodeFactory = (name, fullPath, isDirectory, isCurrent, parent) => new WndFileTreeNodeViewModel(name, fullPath, isDirectory, isCurrent, parent),
+            BrowseFolderAsync = PickFolderAsync,
+            DirectoryAdoptedAsync = (f, ct) => AdoptExplorerDirectoryAsync(f, ct),
+        };
         explorer.FileActivated += OnExplorerFileActivated;
         return explorer;
     }
@@ -2531,7 +2543,19 @@ public sealed partial class WndEditorViewModel(
             return normalizedPath.StartsWith(normalizedBase + Path.DirectorySeparatorChar, comparison)
                 || string.Equals(normalizedPath, normalizedBase, comparison);
         }
-        catch (Exception ex) when (ex is ArgumentException or IOException or NotSupportedException or SecurityException)
+        catch (ArgumentException)
+        {
+            return false;
+        }
+        catch (IOException)
+        {
+            return false;
+        }
+        catch (NotSupportedException)
+        {
+            return false;
+        }
+        catch (SecurityException)
         {
             return false;
         }
@@ -3427,7 +3451,11 @@ public sealed partial class WndEditorViewModel(
         {
             return new FontFamily(fontName.Trim());
         }
-        catch (Exception ex) when (ex is ArgumentException or NotSupportedException)
+        catch (ArgumentException)
+        {
+            return null;
+        }
+        catch (NotSupportedException)
         {
             return null;
         }
@@ -3491,8 +3519,7 @@ public sealed partial class WndEditorViewModel(
         }
 
         var drawCallback = window.GetProperty(WndConstants.PropertyKeys.DrawCallback);
-        return drawCallback != null
-            && drawCallback.Contains(WndConstants.DrawCallbacks.MapPreview, StringComparison.OrdinalIgnoreCase);
+        return drawCallback?.Contains(WndConstants.DrawCallbacks.MapPreview, StringComparison.OrdinalIgnoreCase) == true;
     }
 
     private Bitmap? ResolvePlanImage(WndPreviewPlan plan, WndCanvasItemViewModel item)
@@ -3664,7 +3691,7 @@ public sealed partial class WndEditorViewModel(
         }
 
         CancelAndDisposeCts(toCancel);
-        _ = LoadAssetPreviewsAsync(cts.Token, generation, linkedModFolderSnapshot, linkedBigFilesSnapshot);
+        _ = LoadAssetPreviewsAsync(generation, linkedModFolderSnapshot, linkedBigFilesSnapshot, cts.Token);
     }
 
     private static void CancelAndDisposeCts(CancellationTokenSource? cts)
@@ -3689,10 +3716,10 @@ public sealed partial class WndEditorViewModel(
     }
 
     private async Task LoadAssetPreviewsAsync(
-        CancellationToken cancellationToken,
         int generation,
         string? linkedModFolderSnapshot,
-        IReadOnlyCollection<string>? linkedBigFilesSnapshot)
+        IReadOnlyCollection<string>? linkedBigFilesSnapshot,
+        CancellationToken cancellationToken)
     {
         try
         {
@@ -4263,7 +4290,7 @@ public sealed partial class WndEditorViewModel(
         {
             var fs = WndGameFileSystem.Open(roots.BaseRoot, null, projectDirectory, logger, additionalBigFiles, roots.IsZeroHour, cancellationToken);
             var iniBytes = fs.Read(WndConstants.ControlBarScheme.DataIniPath) ?? fs.Read(WndConstants.ControlBarScheme.IniPath);
-            if (iniBytes != null && iniBytes.Length > 0)
+            if (iniBytes?.Length > 0)
             {
                 var text = Encoding.UTF8.GetString(iniBytes);
                 ParseControlBarSchemeIni(text, result);

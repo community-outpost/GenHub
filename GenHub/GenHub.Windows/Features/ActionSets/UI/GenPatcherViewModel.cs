@@ -588,39 +588,13 @@ public partial class GenPatcherViewModel(
             return;
         }
 
-        if (SelectedInstallation == null)
+        var targetInstallation = GetBatchTargetInstallation();
+        if (targetInstallation == null)
         {
-            logger.LogError("[GENPATCHER_APPLY_004] Cannot apply fixes - no installation selected");
-            var noSelTitle = localizationService?.GetString("Tools.GenPatcher.Notify.NoInstallSelectedTitle") ?? "No Installation Selected";
-            var noSelDesc = localizationService?.GetString("Tools.GenPatcher.Notify.NoInstallSelectedDesc") ?? "Please select a game installation before applying fixes.";
-            notificationService.ShowError(noSelTitle, noSelDesc);
             return;
         }
 
-        var targetInstallation = SelectedInstallation;
-
-        if (!registryService.IsRunningAsAdministrator())
-        {
-            logger.LogWarning("[GENPATCHER_APPLY_005] Apply batch rejected - not running as administrator");
-            notificationService.ShowError(
-                localizationService.GetLocalizedString("Tools.GenPatcher.Notification.AdminRightsRequired.Title", "Administrator Rights Required"),
-                localizationService.GetLocalizedString("Tools.GenPatcher.Notification.AdminRightsRequired.Message", "Administrator privileges required for 'Apply Recommended'. Please restart GenHub as Administrator."));
-            return;
-        }
-
-        var dialogTitle = localizationService?.GetString("Tools.GenPatcher.Dialog.ApplyAllTitle") ?? ActionSetConstants.Dialogs.ApplyAllConfirmationTitle;
-        var dialogMessage = localizationService != null
-            ? string.Format(localizationService.GetString("Tools.GenPatcher.Dialog.ApplyAllMessage") ?? "Are you sure you want to apply all recommended fixes for {0}?\n\nThis will modify game files and configuration settings at:\n{1}", targetInstallation.InstallationType, targetInstallation.InstallationPath)
-            : $"Are you sure you want to apply all recommended fixes for {targetInstallation.InstallationType}?\n\nThis will modify game files and configuration settings at:\n{targetInstallation.InstallationPath}";
-        var confirmText = localizationService?.GetString("Tools.GenPatcher.Dialog.ApplyAllConfirm") ?? ActionSetConstants.Dialogs.ApplyAllConfirmButtonText;
-        var cancelText = localizationService?.GetString("Tools.GenPatcher.Dialog.ApplyAllCancel") ?? ActionSetConstants.Dialogs.ApplyAllCancelButtonText;
-
-        var confirmed = await dialogService.ShowConfirmationAsync(
-            dialogTitle,
-            dialogMessage,
-            confirmText: confirmText,
-            cancelText: cancelText);
-
+        var confirmed = await ConfirmApplyAllAsync(targetInstallation);
         if (!confirmed)
         {
             logger.LogInformation("Batch fix application cancelled by user at confirmation prompt");
@@ -643,15 +617,7 @@ public partial class GenPatcherViewModel(
             var applicableFixes = await GetApplicableCoreFixesAsync(targetInstallation, ct);
             if (applicableFixes.Count == 0)
             {
-                var alreadyApplied = ActionSets.Count(x => x.IsApplied);
-                var totalSets = ActionSets.Count;
-
-                logger.LogInformation("No fixes to apply - {Applied}/{Total} already applied", alreadyApplied, totalSets);
-                var noFixesTitle = localizationService?.GetString("Tools.GenPatcher.Notify.NoFixesToApplyTitle") ?? "No Fixes to Apply";
-                var noFixesDesc = localizationService != null
-                    ? string.Format(localizationService.GetString("Tools.GenPatcher.Notify.NoFixesToApplyDesc") ?? "All {0}/{1} applicable fixes are already applied for {2}.", alreadyApplied, totalSets, targetInstallation.InstallationType)
-                    : $"All {alreadyApplied}/{totalSets} applicable fixes are already applied for {targetInstallation.InstallationType}.";
-                notificationService.ShowInfo(noFixesTitle, noFixesDesc);
+                NotifyNoFixesToApply(targetInstallation);
                 return;
             }
 
@@ -662,11 +628,7 @@ public partial class GenPatcherViewModel(
                 targetInstallation.InstallationPath,
                 string.Join(", ", applicableFixes.Select(f => f.Id)));
 
-            var applyingTitle = localizationService?.GetString("Tools.GenPatcher.Notify.ApplyingFixesTitle") ?? "Applying Fixes";
-            var applyingDesc = localizationService != null
-                ? string.Format(localizationService.GetString("Tools.GenPatcher.Notify.ApplyingFixesDesc") ?? "Applying {0} recommended fix(es) to {1} ({2})...", applicableFixes.Count, targetInstallation.InstallationType, targetInstallation.InstallationPath)
-                : $"Applying {applicableFixes.Count} recommended fix(es) to {targetInstallation.InstallationType} ({targetInstallation.InstallationPath})...";
-            notificationService.ShowInfo(applyingTitle, applyingDesc);
+            NotifyApplyingFixes(targetInstallation, applicableFixes.Count);
 
             var startTime = DateTime.UtcNow;
             var batchResult = await orchestrator.ApplyActionSetsAsync(targetInstallation, applicableFixes, ct);
@@ -697,6 +659,69 @@ public partial class GenPatcherViewModel(
             _batchCts?.Dispose();
             _batchCts = null;
         }
+    }
+
+    private GameInstallation? GetBatchTargetInstallation()
+    {
+        if (SelectedInstallation == null)
+        {
+            logger.LogError("[GENPATCHER_APPLY_004] Cannot apply fixes - no installation selected");
+            var noSelTitle = localizationService?.GetString("Tools.GenPatcher.Notify.NoInstallSelectedTitle") ?? "No Installation Selected";
+            var noSelDesc = localizationService?.GetString("Tools.GenPatcher.Notify.NoInstallSelectedDesc") ?? "Please select a game installation before applying fixes.";
+            notificationService.ShowError(noSelTitle, noSelDesc);
+            return null;
+        }
+
+        var targetInstallation = SelectedInstallation;
+
+        if (!registryService.IsRunningAsAdministrator())
+        {
+            logger.LogWarning("[GENPATCHER_APPLY_005] Apply batch rejected - not running as administrator");
+            notificationService.ShowError(
+                localizationService.GetLocalizedString("Tools.GenPatcher.Notification.AdminRightsRequired.Title", "Administrator Rights Required"),
+                localizationService.GetLocalizedString("Tools.GenPatcher.Notification.AdminRightsRequired.Message", "Administrator privileges required for 'Apply Recommended'. Please restart GenHub as Administrator."));
+            return null;
+        }
+
+        return targetInstallation;
+    }
+
+    private Task<bool> ConfirmApplyAllAsync(GameInstallation targetInstallation)
+    {
+        var dialogTitle = localizationService?.GetString("Tools.GenPatcher.Dialog.ApplyAllTitle") ?? ActionSetConstants.Dialogs.ApplyAllConfirmationTitle;
+        var dialogMessage = localizationService != null
+            ? string.Format(localizationService.GetString("Tools.GenPatcher.Dialog.ApplyAllMessage") ?? "Are you sure you want to apply all recommended fixes for {0}?\n\nThis will modify game files and configuration settings at:\n{1}", targetInstallation.InstallationType, targetInstallation.InstallationPath)
+            : $"Are you sure you want to apply all recommended fixes for {targetInstallation.InstallationType}?\n\nThis will modify game files and configuration settings at:\n{targetInstallation.InstallationPath}";
+        var confirmText = localizationService?.GetString("Tools.GenPatcher.Dialog.ApplyAllConfirm") ?? ActionSetConstants.Dialogs.ApplyAllConfirmButtonText;
+        var cancelText = localizationService?.GetString("Tools.GenPatcher.Dialog.ApplyAllCancel") ?? ActionSetConstants.Dialogs.ApplyAllCancelButtonText;
+
+        return dialogService.ShowConfirmationAsync(
+            dialogTitle,
+            dialogMessage,
+            confirmText: confirmText,
+            cancelText: cancelText);
+    }
+
+    private void NotifyNoFixesToApply(GameInstallation targetInstallation)
+    {
+        var alreadyApplied = ActionSets.Count(x => x.IsApplied);
+        var totalSets = ActionSets.Count;
+
+        logger.LogInformation("No fixes to apply - {Applied}/{Total} already applied", alreadyApplied, totalSets);
+        var noFixesTitle = localizationService?.GetString("Tools.GenPatcher.Notify.NoFixesToApplyTitle") ?? "No Fixes to Apply";
+        var noFixesDesc = localizationService != null
+            ? string.Format(localizationService.GetString("Tools.GenPatcher.Notify.NoFixesToApplyDesc") ?? "All {0}/{1} applicable fixes are already applied for {2}.", alreadyApplied, totalSets, targetInstallation.InstallationType)
+            : $"All {alreadyApplied}/{totalSets} applicable fixes are already applied for {targetInstallation.InstallationType}.";
+        notificationService.ShowInfo(noFixesTitle, noFixesDesc);
+    }
+
+    private void NotifyApplyingFixes(GameInstallation targetInstallation, int fixCount)
+    {
+        var applyingTitle = localizationService?.GetString("Tools.GenPatcher.Notify.ApplyingFixesTitle") ?? "Applying Fixes";
+        var applyingDesc = localizationService != null
+            ? string.Format(localizationService.GetString("Tools.GenPatcher.Notify.ApplyingFixesDesc") ?? "Applying {0} recommended fix(es) to {1} ({2})...", fixCount, targetInstallation.InstallationType, targetInstallation.InstallationPath)
+            : $"Applying {fixCount} recommended fix(es) to {targetInstallation.InstallationType} ({targetInstallation.InstallationPath})...";
+        notificationService.ShowInfo(applyingTitle, applyingDesc);
     }
 
     private async Task<List<IActionSet>> GetApplicableCoreFixesAsync(GameInstallation targetInstallation, CancellationToken ct)

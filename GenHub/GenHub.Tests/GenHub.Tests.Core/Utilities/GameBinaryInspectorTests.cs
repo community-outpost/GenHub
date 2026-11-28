@@ -106,7 +106,7 @@ public sealed class GameBinaryInspectorTests : IDisposable
     {
         var payload = MarkerPayload(includeTitle: true, includeChallenge: true);
         var withRuntime = new byte[payload.Length + 16];
-        Buffer.BlockCopy(payload, 0, withRuntime, 0, payload.Length);
+        payload.CopyTo(withRuntime, 0);
         Encoding.ASCII.GetBytes("mscorlib").CopyTo(withRuntime, payload.Length);
         var bytes = CraftPe(is64Bit: false, TextPayload(), withRuntime);
 
@@ -335,7 +335,7 @@ public sealed class GameBinaryInspectorTests : IDisposable
         bytes[1] = (byte)'E';
         bytes[2] = (byte)'L';
         bytes[3] = (byte)'F';
-        Buffer.BlockCopy(payload, 0, bytes, 4, payload.Length);
+        payload.CopyTo(bytes, 4);
         await File.WriteAllBytesAsync(path, bytes);
 
         var result = await GameBinaryInspector.InspectAsync(path, CancellationToken.None);
@@ -433,8 +433,8 @@ public sealed class GameBinaryInspectorTests : IDisposable
         BitConverter.GetBytes((uint)text.Length).CopyTo(file, section2Offset + 16);
         BitConverter.GetBytes((uint)rawPointer).CopyTo(file, section2Offset + 20);
 
-        Buffer.BlockCopy(text, 0, file, rawPointer, text.Length);
-        Buffer.BlockCopy(markers, 0, file, rawPointer + text.Length, markers.Length);
+        text.CopyTo(file, rawPointer);
+        markers.CopyTo(file, rawPointer + text.Length);
 
         var verdict = GameBinaryInspector.InspectBytes("GeneralsXZH.exe", file);
         Assert.Equal(GameBinaryRole.Engine, verdict.Role);
@@ -491,7 +491,7 @@ public sealed class GameBinaryInspectorTests : IDisposable
         var offset = 0;
         foreach (var part in parts)
         {
-            Buffer.BlockCopy(part, 0, merged, offset, part.Length);
+            part.CopyTo(merged, offset);
             offset += part.Length;
         }
 
@@ -519,8 +519,8 @@ public sealed class GameBinaryInspectorTests : IDisposable
         Encoding.ASCII.GetBytes(".text").CopyTo(file, tableOffset);
         BitConverter.GetBytes((uint)text.Length).CopyTo(file, tableOffset + 16);
         BitConverter.GetBytes((uint)rawPointer).CopyTo(file, tableOffset + 20);
-        Buffer.BlockCopy(text, 0, file, rawPointer, text.Length);
-        Buffer.BlockCopy(markers, 0, file, rawPointer + text.Length, markers.Length);
+        text.CopyTo(file, rawPointer);
+        markers.CopyTo(file, rawPointer + text.Length);
         return file;
     }
 }

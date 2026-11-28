@@ -671,7 +671,7 @@ public sealed class ProjectConfigServiceTests : IDisposable
     public async Task CreateProjectAsync_WithImprovedMenusTemplate_WritesLanguageVariantManifests(bool forceFallback)
     {
         // Arrange
-        using var isolation = TemplateIsolation.Create(forceFallback, _tempDirectory);
+        using var isolation = TemplateIsolation.Create(forceFallback, _tempDirectory); // skipcq: CS-W1100
         var projectDir = Path.Combine(_tempDirectory, "ImprovedMenus");
         Directory.CreateDirectory(projectDir);
         var projectPath = Path.Combine(projectDir, "ImprovedMenus.mbproj");
@@ -709,7 +709,7 @@ public sealed class ProjectConfigServiceTests : IDisposable
     public async Task CreateProjectAsync_WithLemonControlBarTemplate_WritesResolutionVariantManifests(bool forceFallback)
     {
         // Arrange
-        using var isolation = TemplateIsolation.Create(forceFallback, _tempDirectory);
+        using var isolation = TemplateIsolation.Create(forceFallback, _tempDirectory); // skipcq: CS-W1100
         var projectDir = Path.Combine(_tempDirectory, "LemonControlBar");
         Directory.CreateDirectory(projectDir);
         var projectPath = Path.Combine(projectDir, "LemonControlBar.mbproj");
@@ -733,7 +733,7 @@ public sealed class ProjectConfigServiceTests : IDisposable
     public async Task CreateProjectAsync_WithLeikezeHotkeysTemplate_WritesLanguageVariantManifests(bool forceFallback)
     {
         // Arrange
-        using var isolation = TemplateIsolation.Create(forceFallback, _tempDirectory);
+        using var isolation = TemplateIsolation.Create(forceFallback, _tempDirectory); // skipcq: CS-W1100
         var projectDir = Path.Combine(_tempDirectory, "LeikezeHotkeys");
         Directory.CreateDirectory(projectDir);
         var projectPath = Path.Combine(projectDir, "LeikezeHotkeys.mbproj");

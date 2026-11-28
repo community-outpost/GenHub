@@ -170,7 +170,7 @@ public sealed partial class DownloadedContentFilterViewModel(ILocalizationServic
 
     private string ResolveContentTypeName(ContentType contentType)
     {
-        if (localizationService != null && localizationService.TryGetString($"ContentType.{contentType}", out var localized))
+        if (localizationService?.TryGetString($"ContentType.{contentType}", out var localized) == true)
         {
             return localized;
         }

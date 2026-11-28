@@ -114,7 +114,7 @@ public sealed class GenericCatalogProfileReconcilerTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task CheckAndReconcileIfNeededAsync_ProfileNotFound_ReturnsNone()
+    public async Task CheckAndReconcileIfNeededAsync_ProfileNotFound_ReturnsNoneAsync()
     {
         _profileManagerMock
             .Setup(m => m.GetProfileAsync("non-existent", It.IsAny<CancellationToken>()))
@@ -131,7 +131,7 @@ public sealed class GenericCatalogProfileReconcilerTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task CheckAndReconcileIfNeededAsync_NoSubscriptions_ReturnsNone()
+    public async Task CheckAndReconcileIfNeededAsync_NoSubscriptions_ReturnsNoneAsync()
     {
         var profile = new GameProfile { Id = "prof1", Name = "Test Profile" };
         _profileManagerMock
@@ -153,7 +153,7 @@ public sealed class GenericCatalogProfileReconcilerTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task CheckAndReconcileIfNeededAsync_NoDiscoveryItems_ReturnsNone()
+    public async Task CheckAndReconcileIfNeededAsync_NoDiscoveryItems_ReturnsNoneAsync()
     {
         var profile = new GameProfile { Id = "prof1", Name = "Test Profile" };
         _profileManagerMock
@@ -180,7 +180,7 @@ public sealed class GenericCatalogProfileReconcilerTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task CheckAndReconcileIfNeededAsync_ItemNotUpdateAvailable_SkipsAndReturnsNone()
+    public async Task CheckAndReconcileIfNeededAsync_ItemNotUpdateAvailable_SkipsAndReturnsNoneAsync()
     {
         var profile = new GameProfile { Id = "prof1", Name = "Test Profile" };
         _profileManagerMock
@@ -214,7 +214,7 @@ public sealed class GenericCatalogProfileReconcilerTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task CheckAndReconcileIfNeededAsync_VersionSkipped_SkipsPromptAndReturnsNone()
+    public async Task CheckAndReconcileIfNeededAsync_VersionSkipped_SkipsPromptAndReturnsNoneAsync()
     {
         var profile = new GameProfile
         {
@@ -259,7 +259,7 @@ public sealed class GenericCatalogProfileReconcilerTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task CheckAndReconcileIfNeededAsync_UserSkipsUpdatePrompt_ReturnsNone()
+    public async Task CheckAndReconcileIfNeededAsync_UserSkipsUpdatePrompt_ReturnsNoneAsync()
     {
         var profile = new GameProfile
         {

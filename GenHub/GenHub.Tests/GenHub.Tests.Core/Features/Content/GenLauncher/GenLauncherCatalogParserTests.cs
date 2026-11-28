@@ -87,7 +87,7 @@ S3FolderName: Shockwave_1.2/
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task ParseAsync_MapsPropertiesCorrectly()
+    public async Task ParseAsync_MapsPropertiesCorrectlyAsync()
     {
         var parser = new GenLauncherCatalogParser(Mock.Of<ILogger<GenLauncherCatalogParser>>());
         var provider = new ProviderDefinition
@@ -118,7 +118,7 @@ S3FolderName: Shockwave_1.2/
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task ParseAsync_RootCatalog_MapsPropertiesCorrectly()
+    public async Task ParseAsync_RootCatalog_MapsPropertiesCorrectlyAsync()
     {
         var parser = new GenLauncherCatalogParser(Mock.Of<ILogger<GenLauncherCatalogParser>>());
         var provider = new ProviderDefinition
@@ -162,7 +162,7 @@ S3FolderName: Shockwave_1.2/
     [InlineData("")]
     [InlineData("   ")]
     [InlineData("\t\r\n")]
-    public async Task ParseAsync_EmptyOrWhitespaceInput_ReturnsSuccessWithEmptyList(string input)
+    public async Task ParseAsync_EmptyOrWhitespaceInput_ReturnsSuccessWithEmptyListAsync(string input)
     {
         var parser = new GenLauncherCatalogParser(Mock.Of<ILogger<GenLauncherCatalogParser>>());
         var provider = new ProviderDefinition
@@ -184,7 +184,7 @@ S3FolderName: Shockwave_1.2/
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task ParseAsync_MalformedYaml_ReturnsFailure()
+    public async Task ParseAsync_MalformedYaml_ReturnsFailureAsync()
     {
         var parser = new GenLauncherCatalogParser(Mock.Of<ILogger<GenLauncherCatalogParser>>());
         var provider = new ProviderDefinition

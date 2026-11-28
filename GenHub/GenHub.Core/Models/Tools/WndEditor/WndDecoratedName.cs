@@ -43,8 +43,8 @@ public sealed record WndDecoratedName
             return new WndDecoratedName(null, unquoted);
         }
 
-        var fileName = unquoted.Substring(0, separatorIndex);
-        var shortName = unquoted.Substring(separatorIndex + 1);
+        var fileName = unquoted[..separatorIndex];
+        var shortName = unquoted[(separatorIndex + 1)..];
         return new WndDecoratedName(fileName, shortName);
     }
 

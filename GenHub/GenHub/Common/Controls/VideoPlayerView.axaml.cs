@@ -967,7 +967,15 @@ public partial class VideoPlayerView : UserControl
             {
                 await oldCts.CancelAsync().ConfigureAwait(false);
             }
-            catch (Exception ex) when (ex is ObjectDisposedException or AggregateException or OperationCanceledException)
+            catch (ObjectDisposedException)
+            {
+                // Ignore CTS cancellation, disposal race, or aggregate faults from registered callbacks
+            }
+            catch (AggregateException)
+            {
+                // Ignore CTS cancellation, disposal race, or aggregate faults from registered callbacks
+            }
+            catch (OperationCanceledException)
             {
                 // Ignore CTS cancellation, disposal race, or aggregate faults from registered callbacks
             }

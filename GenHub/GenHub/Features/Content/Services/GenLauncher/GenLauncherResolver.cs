@@ -224,7 +224,7 @@ public class GenLauncherResolver(
         return GenLauncherConstants.IsYamlDescriptorPath(path);
     }
 
-    private static string GetFileNameFromUrl(string url, string defaultName, string? fallbackName = null)
+    private static string GetFileNameFromUrl(string url, string defaultName, string? fallbackName = null) // skipcq: CS-A1000
     {
         try
         {
@@ -267,7 +267,7 @@ public class GenLauncherResolver(
 
     private static string? GetMetadata(IDictionary<string, string>? dict, string key)
     {
-        if (dict != null && dict.TryGetValue(key, out var value))
+        if (dict?.TryGetValue(key, out var value) == true)
         {
             return value;
         }
@@ -660,7 +660,7 @@ public class GenLauncherResolver(
         try
         {
             var files = await PaginateAllS3FilesAsync(client, query, discoveredItem.Name, cancellationToken);
-            if (files != null && files.Count > 0)
+            if (files?.Count > 0)
             {
                 manifest.Files.AddRange(files);
                 return true;

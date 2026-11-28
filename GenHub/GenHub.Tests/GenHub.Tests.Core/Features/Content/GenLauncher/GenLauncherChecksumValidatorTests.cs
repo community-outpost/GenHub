@@ -147,7 +147,7 @@ public sealed class GenLauncherChecksumValidatorTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task ValidateFileAsync_MatchingMd5_ReturnsTrue()
+    public async Task ValidateFileAsync_MatchingMd5_ReturnsTrueAsync()
     {
         var tempFile = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N") + ".big");
         try

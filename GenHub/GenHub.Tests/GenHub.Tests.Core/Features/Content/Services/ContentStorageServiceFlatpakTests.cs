@@ -121,7 +121,11 @@ public sealed class ContentStorageServiceFlatpakTests : IDisposable
             {
                 Directory.Delete(_tempRoot, recursive: true);
             }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            catch (IOException)
+            {
+                // Ignored during cleanup
+            }
+            catch (UnauthorizedAccessException)
             {
                 // Ignored during cleanup
             }

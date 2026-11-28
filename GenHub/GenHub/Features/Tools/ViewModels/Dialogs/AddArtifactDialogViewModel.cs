@@ -580,13 +580,14 @@ public partial class AddArtifactDialogViewModel(Action<ReleaseArtifact> onArtifa
             var fileInfo = new FileInfo(path);
             FileSize = fileInfo.Length;
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        catch (IOException)
         {
-            ValidationError = string.Format(
-                GetLocalizedString(
-                    "Tools.PublisherStudio.Artifact.DropFileUnreadableFormat",
-                    "Could not read the dropped file: {0}"),
-                path);
+            SetDropFileUnreadableError(path);
+            return;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            SetDropFileUnreadableError(path);
             return;
         }
 
@@ -602,6 +603,26 @@ public partial class AddArtifactDialogViewModel(Action<ReleaseArtifact> onArtifa
         }
 
         await ComputeHashForLocalFileAsync(path);
+    }
+
+    private void SetDropFileUnreadableError(string path)
+    {
+        ValidationError = string.Format(
+            GetLocalizedString(
+                "Tools.PublisherStudio.Artifact.DropFileUnreadableFormat",
+                "Could not read the dropped file: {0}"),
+            path);
+    }
+
+    private void MarkFolderSizeUnavailable(string path)
+    {
+        if (string.Equals(LocalFilePath, path, StringComparison.OrdinalIgnoreCase))
+        {
+            FileSize = 0;
+            FileSizeDisplay = GetLocalizedString(
+                "Tools.PublisherStudio.Artifact.FolderSizeUnavailable",
+                "Folder (size unavailable)");
+        }
     }
 
     private async Task PopulateFromLocalFolderAsync(string path)
@@ -626,15 +647,13 @@ public partial class AddArtifactDialogViewModel(Action<ReleaseArtifact> onArtifa
                 FileSizeDisplay = FormatFileSize(totalBytes);
             }
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        catch (IOException)
         {
-            if (string.Equals(LocalFilePath, path, StringComparison.OrdinalIgnoreCase))
-            {
-                FileSize = 0;
-                FileSizeDisplay = GetLocalizedString(
-                    "Tools.PublisherStudio.Artifact.FolderSizeUnavailable",
-                    "Folder (size unavailable)");
-            }
+            MarkFolderSizeUnavailable(path);
+        }
+        catch (UnauthorizedAccessException)
+        {
+            MarkFolderSizeUnavailable(path);
         }
 
         long ComputeFolderSize()

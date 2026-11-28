@@ -1986,10 +1986,7 @@ public sealed class GenericCatalogResolverBundleTests
                 It.IsAny<bool>(),
                 It.IsAny<string?>()))
             .Callback<ManifestId, string, ContentType, DependencyInstallBehavior, string, string, List<string>?, bool, List<ManifestId>?, List<GameType>?, bool, bool, bool, string?>(
-                (id, name, type, behavior, min, max, comp, excl, conf, games, minInc, maxInc, strictPub, pubType) =>
-                {
-                    capturedBehavior = behavior;
-                })
+                (id, name, type, behavior, min, max, comp, excl, conf, games, minInc, maxInc, strictPub, pubType) => capturedBehavior = behavior)
             .Returns(builderMock.Object);
 
         var resolver = new GenericCatalogResolver(

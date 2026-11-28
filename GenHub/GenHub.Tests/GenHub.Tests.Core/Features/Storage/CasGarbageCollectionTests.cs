@@ -53,7 +53,7 @@ public class CasGarbageCollectionTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous test.</returns>
     [Fact]
-    public async Task RunGarbageCollectionAsync_WhenBlobLinkedByManifestFiles_NeverDeletesEvenWhenForced()
+    public async Task RunGarbageCollectionAsync_WhenBlobLinkedByManifestFiles_NeverDeletesEvenWhenForcedAsync()
     {
         // Arrange
         const string manifestHash = "a1b2c3d4e5f60123456789abcdef0123456789abcdef0123456789abcdef0123";
@@ -95,7 +95,7 @@ public class CasGarbageCollectionTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous test.</returns>
     [Fact]
-    public async Task RunGarbageCollectionAsync_WhenBlobLinkedByManifestVariants_NeverDeletesEvenWhenForced()
+    public async Task RunGarbageCollectionAsync_WhenBlobLinkedByManifestVariants_NeverDeletesEvenWhenForcedAsync()
     {
         // Arrange
         const string variantHash = "b2c3d4e5f60123456789abcdef0123456789abcdef0123456789abcdef0123a1";
@@ -145,7 +145,7 @@ public class CasGarbageCollectionTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous test.</returns>
     [Fact]
-    public async Task RunGarbageCollectionAsync_WithUppercaseManifestHashAndLowercaseStorageHash_ProtectsBlob()
+    public async Task RunGarbageCollectionAsync_WithUppercaseManifestHashAndLowercaseStorageHash_ProtectsBlobAsync()
     {
         // Arrange
         const string uppercaseHash = "C3D4E5F60123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123A1B2";
@@ -189,7 +189,7 @@ public class CasGarbageCollectionTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous test.</returns>
     [Fact]
-    public async Task RunGarbageCollectionAsync_WhenUnreferencedAndPastGracePeriod_DeletesBlob()
+    public async Task RunGarbageCollectionAsync_WhenUnreferencedAndPastGracePeriod_DeletesBlobAsync()
     {
         // Arrange
         const string unreferencedHash = "deadbeef0123456789abcdef0123456789abcdef0123456789abcdef01234567";
@@ -222,7 +222,7 @@ public class CasGarbageCollectionTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous test.</returns>
     [Fact]
-    public async Task RunGarbageCollectionAsync_WhenUnreferencedWithinGracePeriod_DoesNotDeleteUnlessForced()
+    public async Task RunGarbageCollectionAsync_WhenUnreferencedWithinGracePeriod_DoesNotDeleteUnlessForcedAsync()
     {
         // Arrange
         const string youngHash = "feedface0123456789abcdef0123456789abcdef0123456789abcdef01234567";
@@ -266,7 +266,7 @@ public class CasGarbageCollectionTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous test.</returns>
     [Fact]
-    public async Task RunGarbageCollectionAsync_WhenManifestPoolFails_FailsClosedAndDeletesNothing()
+    public async Task RunGarbageCollectionAsync_WhenManifestPoolFails_FailsClosedAndDeletesNothingAsync()
     {
         // Arrange
         const string hash = "11223344556677889900aabbccddeeff11223344556677889900aabbccddeeff";
@@ -295,7 +295,7 @@ public class CasGarbageCollectionTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous test.</returns>
     [Fact]
-    public async Task RunGarbageCollectionAsync_WhenReferenceTrackerThrows_FailsClosedAndDeletesNothing()
+    public async Task RunGarbageCollectionAsync_WhenReferenceTrackerThrows_FailsClosedAndDeletesNothingAsync()
     {
         // Arrange
         const string hash = "11223344556677889900aabbccddeeff11223344556677889900aabbccddeeff";
@@ -324,7 +324,7 @@ public class CasGarbageCollectionTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous test.</returns>
     [Fact]
-    public async Task RunGarbageCollectionAsync_SpansMultipleCasPools()
+    public async Task RunGarbageCollectionAsync_SpansMultipleCasPoolsAsync()
     {
         // Arrange
         const string primaryUnreferenced = "1111111111111111111111111111111111111111111111111111111111111111";
@@ -376,11 +376,11 @@ public class CasGarbageCollectionTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous test.</returns>
     [Fact]
-    public async Task RunGarbageCollectionAsync_WhenForcedDuringActiveImport_ReturnsFailure()
+    public async Task RunGarbageCollectionAsync_WhenForcedDuringActiveImport_ReturnsFailureAsync()
     {
         // Arrange
         using var manager = CreateLifecycleManager();
-        using var lease = await _writeFence.TrackWriteAsync();
+        using var lease = await _writeFence.TrackWriteAsync(); // skipcq: CS-W1100
 
         // Act
         var result = await manager.RunGarbageCollectionAsync(force: true);
@@ -396,11 +396,11 @@ public class CasGarbageCollectionTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous test.</returns>
     [Fact]
-    public async Task RunGarbageCollectionAsync_WhenNotForcedDuringActiveImport_StillRuns()
+    public async Task RunGarbageCollectionAsync_WhenNotForcedDuringActiveImport_StillRunsAsync()
     {
         // Arrange
         using var manager = CreateLifecycleManager();
-        using var lease = await _writeFence.TrackWriteAsync();
+        using var lease = await _writeFence.TrackWriteAsync(); // skipcq: CS-W1100
         _primaryStorageMock
             .Setup(s => s.GetAllObjectHashesAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync([]);
@@ -417,7 +417,7 @@ public class CasGarbageCollectionTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous test.</returns>
     [Fact]
-    public async Task RunGarbageCollectionAsync_WhenForced_HoldsCollectionLeaseThroughSweep()
+    public async Task RunGarbageCollectionAsync_WhenForced_HoldsCollectionLeaseThroughSweepAsync()
     {
         // Arrange
         using var manager = CreateLifecycleManager();
@@ -455,7 +455,7 @@ public class CasGarbageCollectionTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous test.</returns>
     [Fact]
-    public async Task RunGarbageCollectionAsync_WhenAlreadyInProgress_ReturnsSkippedResult()
+    public async Task RunGarbageCollectionAsync_WhenAlreadyInProgress_ReturnsSkippedResultAsync()
     {
         // Arrange
         using var manager = CreateLifecycleManager();

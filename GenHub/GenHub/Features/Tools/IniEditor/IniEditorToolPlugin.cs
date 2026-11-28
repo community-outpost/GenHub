@@ -99,7 +99,7 @@ public sealed class IniEditorToolPlugin : IToolPlugin, IFileOpenTarget
     {
         const string fallback = "Error loading INI Editor";
         var localization = _serviceProvider?.GetService<ILocalizationService>();
-        if (localization != null && localization.TryGetString("Tools.IniEditor.Plugin.LoadError", out var text))
+        if (localization?.TryGetString("Tools.IniEditor.Plugin.LoadError", out var text) == true)
         {
             return text;
         }

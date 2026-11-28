@@ -65,7 +65,7 @@ public sealed class PublisherCatalogUpdateServiceTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task CheckForUpdatesAsync_NoSubscriptions_ReturnsNoUpdate()
+    public async Task CheckForUpdatesAsync_NoSubscriptions_ReturnsNoUpdateAsync()
     {
         _subscriptionStoreMock
             .Setup(s => s.GetSubscriptionsAsync(It.IsAny<CancellationToken>()))
@@ -88,7 +88,7 @@ public sealed class PublisherCatalogUpdateServiceTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task CheckForUpdatesAsync_WhenUpdateAvailable_ShowsPersistentNotification()
+    public async Task CheckForUpdatesAsync_WhenUpdateAvailable_ShowsPersistentNotificationAsync()
     {
         var subscription = new PublisherSubscription
         {
@@ -145,7 +145,7 @@ public sealed class PublisherCatalogUpdateServiceTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task CheckForUpdatesAsync_WhenUpdateDismissed_DoesNotShowNotificationAgain()
+    public async Task CheckForUpdatesAsync_WhenUpdateDismissed_DoesNotShowNotificationAgainAsync()
     {
         var subscription = new PublisherSubscription
         {

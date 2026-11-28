@@ -1734,10 +1734,8 @@ public sealed class ProjectConfigService(
             await CreateBundlePacksFileAsync(packsPath, packsToAdd, cancellationToken).ConfigureAwait(false);
             return OperationResult<bool>.CreateSuccess(true);
         }
-        else
-        {
-            return await AppendPacksToExistingBundleFileAsync(packsPath, packsToAdd, cancellationToken).ConfigureAwait(false);
-        }
+
+        return await AppendPacksToExistingBundleFileAsync(packsPath, packsToAdd, cancellationToken).ConfigureAwait(false);
     }
 
     private async Task<List<string>> ReadExistingBundlePackNamesAsync(string packsPath, CancellationToken cancellationToken)
@@ -2950,7 +2948,7 @@ public sealed class ProjectConfigService(
     /// <returns>The localized or fallback error message.</returns>
     private string GetProjectError(string key, string fallback, params object?[] args)
     {
-        if (localizationService != null && localizationService.TryGetString(key, out var localized, args) && !string.IsNullOrEmpty(localized))
+        if (localizationService?.TryGetString(key, out var localized, args) == true && !string.IsNullOrEmpty(localized))
         {
             return localized;
         }
@@ -2997,7 +2995,15 @@ public sealed class ProjectConfigService(
                 return true;
             }
         }
-        catch (Exception ex) when (ex is ArgumentException or IOException or UnauthorizedAccessException)
+        catch (ArgumentException)
+        {
+            return true;
+        }
+        catch (IOException)
+        {
+            return true;
+        }
+        catch (UnauthorizedAccessException)
         {
             return true;
         }

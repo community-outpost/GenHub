@@ -210,13 +210,6 @@ public sealed class ContentDetailBundleUpdateTests
     [Fact]
     public async Task ApplyBundleComponentUpdateStrategy_StrategyThrows_LogsAndRaisesWarningToastAsync()
     {
-        var profile = new GameProfile
-        {
-            Id = "profile-1",
-            Name = "Profile",
-            EnabledContentIds = [OldManifestId],
-            ActiveWorkspaceId = "workspace-1",
-        };
         var profileManagerMock = new Mock<IGameProfileManager>();
         profileManagerMock
             .Setup(m => m.GetAllProfilesAsync(It.IsAny<CancellationToken>()))

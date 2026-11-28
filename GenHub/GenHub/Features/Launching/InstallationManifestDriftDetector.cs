@@ -58,12 +58,8 @@ internal static class InstallationManifestDriftDetector
         }
 
         var manifestMap = BuildManifestMap(manifestFiles);
-        Dictionary<string, long> diskFiles;
-        try
-        {
-            diskFiles = ScanDiskFiles(installationPath, manifestMap, targetGame, cancellationToken);
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SecurityException)
+        var diskFiles = TryScanDiskFiles(installationPath, manifestMap, targetGame, cancellationToken);
+        if (diskFiles == null)
         {
             return empty;
         }
@@ -105,7 +101,7 @@ internal static class InstallationManifestDriftDetector
         foreach (var relativePath in diskFiles.Keys)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            if (ignoredPaths != null && ignoredPaths.Contains(relativePath))
+            if (ignoredPaths?.Contains(relativePath) == true)
             {
                 continue;
             }
@@ -117,6 +113,30 @@ internal static class InstallationManifestDriftDetector
         }
 
         return added;
+    }
+
+    private static Dictionary<string, long>? TryScanDiskFiles(
+        string installationPath,
+        Dictionary<string, long> manifestMap,
+        GameType targetGame,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            return ScanDiskFiles(installationPath, manifestMap, targetGame, cancellationToken);
+        }
+        catch (IOException)
+        {
+            return null;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return null;
+        }
+        catch (SecurityException)
+        {
+            return null;
+        }
     }
 
     private static Dictionary<string, long> ScanDiskFiles(
@@ -157,7 +177,11 @@ internal static class InstallationManifestDriftDetector
         {
             relativePath = Path.GetRelativePath(installationPath, file).Replace('\\', '/');
         }
-        catch (Exception ex) when (ex is ArgumentException or NotSupportedException)
+        catch (ArgumentException)
+        {
+            return null;
+        }
+        catch (NotSupportedException)
         {
             return null;
         }

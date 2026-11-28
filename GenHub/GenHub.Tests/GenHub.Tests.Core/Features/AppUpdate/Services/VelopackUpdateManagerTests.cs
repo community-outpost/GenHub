@@ -147,8 +147,10 @@ public class VelopackUpdateManagerTests
             _mockUserSettingsService.Object,
             fileDownloader: null,
             currentAppVersion: "0.0.1-dev",
-            isLocalDevelopmentBuild: true);
-        manager.SubscribedPrNumber = 541;
+            isLocalDevelopmentBuild: true)
+        {
+            SubscribedPrNumber = 541,
+        };
 
         // Act
         var result = await manager.CheckForArtifactUpdatesAsync();

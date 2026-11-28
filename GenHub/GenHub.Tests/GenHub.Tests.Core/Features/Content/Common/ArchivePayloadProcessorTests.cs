@@ -1012,7 +1012,17 @@ public sealed class ArchivePayloadProcessorTests : IDisposable
             File.CreateSymbolicLink(link, target);
             File.CreateSymbolicLink(dangling, Path.Combine(_stagingDirectory, "absent.bin"));
         }
-        catch (Exception ex) when (ex is UnauthorizedAccessException or PlatformNotSupportedException or IOException)
+        catch (UnauthorizedAccessException)
+        {
+            // Environments without symlink rights cannot exercise this path.
+            return;
+        }
+        catch (PlatformNotSupportedException)
+        {
+            // Environments without symlink rights cannot exercise this path.
+            return;
+        }
+        catch (IOException)
         {
             // Environments without symlink rights cannot exercise this path.
             return;
@@ -1044,7 +1054,17 @@ public sealed class ArchivePayloadProcessorTests : IDisposable
         {
             File.CreateSymbolicLink(link, target);
         }
-        catch (Exception ex) when (ex is UnauthorizedAccessException or PlatformNotSupportedException or IOException)
+        catch (UnauthorizedAccessException)
+        {
+            // Environments without symlink rights cannot exercise this path.
+            return;
+        }
+        catch (PlatformNotSupportedException)
+        {
+            // Environments without symlink rights cannot exercise this path.
+            return;
+        }
+        catch (IOException)
         {
             // Environments without symlink rights cannot exercise this path.
             return;
@@ -1075,7 +1095,17 @@ public sealed class ArchivePayloadProcessorTests : IDisposable
         {
             Directory.CreateSymbolicLink(loop, ".");
         }
-        catch (Exception ex) when (ex is UnauthorizedAccessException or PlatformNotSupportedException or IOException)
+        catch (UnauthorizedAccessException)
+        {
+            // Environments without symlink rights cannot exercise this path.
+            return;
+        }
+        catch (PlatformNotSupportedException)
+        {
+            // Environments without symlink rights cannot exercise this path.
+            return;
+        }
+        catch (IOException)
         {
             // Environments without symlink rights cannot exercise this path.
             return;
@@ -1107,7 +1137,17 @@ public sealed class ArchivePayloadProcessorTests : IDisposable
         {
             Directory.CreateSymbolicLink(link, "A");
         }
-        catch (Exception ex) when (ex is UnauthorizedAccessException or PlatformNotSupportedException or IOException)
+        catch (UnauthorizedAccessException)
+        {
+            // Environments without symlink rights cannot exercise this path.
+            return;
+        }
+        catch (PlatformNotSupportedException)
+        {
+            // Environments without symlink rights cannot exercise this path.
+            return;
+        }
+        catch (IOException)
         {
             // Environments without symlink rights cannot exercise this path.
             return;
@@ -1143,7 +1183,17 @@ public sealed class ArchivePayloadProcessorTests : IDisposable
                 Directory.CreateSymbolicLink(hop, outside);
                 File.CreateSymbolicLink(link, Path.Combine("sub", "hop", "secret.bin"));
             }
-            catch (Exception ex) when (ex is UnauthorizedAccessException or PlatformNotSupportedException or IOException)
+            catch (UnauthorizedAccessException)
+            {
+                // Environments without symlink rights cannot exercise this path.
+                return;
+            }
+            catch (PlatformNotSupportedException)
+            {
+                // Environments without symlink rights cannot exercise this path.
+                return;
+            }
+            catch (IOException)
             {
                 // Environments without symlink rights cannot exercise this path.
                 return;
@@ -1185,7 +1235,17 @@ public sealed class ArchivePayloadProcessorTests : IDisposable
             Directory.CreateSymbolicLink(linkInA, dirB);
             Directory.CreateSymbolicLink(linkInB, dirA);
         }
-        catch (Exception ex) when (ex is UnauthorizedAccessException or PlatformNotSupportedException or IOException)
+        catch (UnauthorizedAccessException)
+        {
+            // Environments without symlink rights cannot exercise this path.
+            return;
+        }
+        catch (PlatformNotSupportedException)
+        {
+            // Environments without symlink rights cannot exercise this path.
+            return;
+        }
+        catch (IOException)
         {
             // Environments without symlink rights cannot exercise this path.
             return;
@@ -1215,7 +1275,15 @@ public sealed class ArchivePayloadProcessorTests : IDisposable
         {
             File.CreateSymbolicLink(link, nonExistent);
         }
-        catch (Exception ex) when (ex is UnauthorizedAccessException or PlatformNotSupportedException or IOException)
+        catch (UnauthorizedAccessException)
+        {
+            return;
+        }
+        catch (PlatformNotSupportedException)
+        {
+            return;
+        }
+        catch (IOException)
         {
             return;
         }
@@ -1250,7 +1318,15 @@ public sealed class ArchivePayloadProcessorTests : IDisposable
                 Directory.CreateSymbolicLink(Path.Combine(staging, "loop"), ".");
                 Directory.CreateSymbolicLink(rootLink, staging);
             }
-            catch (Exception ex) when (ex is UnauthorizedAccessException or PlatformNotSupportedException or IOException)
+            catch (UnauthorizedAccessException)
+            {
+                return;
+            }
+            catch (PlatformNotSupportedException)
+            {
+                return;
+            }
+            catch (IOException)
             {
                 return;
             }

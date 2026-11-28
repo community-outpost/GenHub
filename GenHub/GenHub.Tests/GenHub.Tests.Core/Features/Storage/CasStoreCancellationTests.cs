@@ -226,7 +226,7 @@ public class CasStoreCancellationTests : IDisposable
         foreach (var file in files)
         {
             Assert.Equal(".lock", Path.GetExtension(file));
-            using var releasedLock = new FileStream(file, System.IO.FileMode.Open, FileAccess.ReadWrite, FileShare.None);
+            using var releasedLock = new FileStream(file, System.IO.FileMode.Open, FileAccess.ReadWrite, FileShare.None); // skipcq: CS-W1100
         }
     }
 

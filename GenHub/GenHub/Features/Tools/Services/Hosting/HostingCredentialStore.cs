@@ -117,14 +117,9 @@ public class HostingCredentialStore(
             byte[]? plainBytes = null;
             try
             {
-                if (OperatingSystem.IsWindows())
-                {
-                    plainBytes = ProtectedData.Unprotect(encryptedBytes, Entropy, DataProtectionScope.CurrentUser);
-                }
-                else
-                {
-                    plainBytes = DecryptNonWindows(encryptedBytes);
-                }
+                plainBytes = OperatingSystem.IsWindows()
+                    ? ProtectedData.Unprotect(encryptedBytes, Entropy, DataProtectionScope.CurrentUser)
+                    : DecryptNonWindows(encryptedBytes);
 
                 return Encoding.UTF8.GetString(plainBytes);
             }
@@ -187,7 +182,7 @@ public class HostingCredentialStore(
             var result = new byte[12 + 16 + ciphertext.Length];
             Buffer.BlockCopy(nonce, 0, result, 0, 12);
             Buffer.BlockCopy(tag, 0, result, 12, 16);
-            Buffer.BlockCopy(ciphertext, 0, result, 28, ciphertext.Length);
+            ciphertext.CopyTo(result, 28);
             return result;
         }
         finally
@@ -212,7 +207,7 @@ public class HostingCredentialStore(
 
             Buffer.BlockCopy(encryptedBytes, 0, nonce, 0, 12);
             Buffer.BlockCopy(encryptedBytes, 12, tag, 0, 16);
-            Buffer.BlockCopy(encryptedBytes, 28, ciphertext, 0, ciphertext.Length);
+            encryptedBytes.AsSpan(28).CopyTo(ciphertext);
 
             var plainBytes = new byte[ciphertext.Length];
             using var aesGcm = new AesGcm(key, 16);

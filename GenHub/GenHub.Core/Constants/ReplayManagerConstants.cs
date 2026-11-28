@@ -204,7 +204,7 @@ public static class ReplayManagerConstants
     /// <summary>
     /// Sanity floor Unix epoch timestamp (2000-01-01 00:00:00 UTC) below which header timestamps are treated as invalid.
     /// </summary>
-    public const uint MinSanityTimestampEpoch = 946684800u;
+    public const uint MinSanityTimestampEpoch = 946_684_800u;
 
     /// <summary>
     /// Environment variable name to override the default community CRC mapping catalog endpoint.

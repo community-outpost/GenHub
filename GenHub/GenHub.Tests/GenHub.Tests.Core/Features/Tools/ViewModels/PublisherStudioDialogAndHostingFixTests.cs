@@ -17,13 +17,14 @@ public class PublisherStudioDialogAndHostingFixTests
     [Fact]
     public void AddArtifactDialogViewModel_WhenToggledToUrlMode_ClearsStaleFileMetadata()
     {
-        var vm = new AddArtifactDialogViewModel(artifact => { });
-
-        vm.UseLocalFile = true;
-        vm.LocalFilePath = "/path/to/artifact.zip";
-        vm.FileSize = 2048;
-        vm.FileSizeDisplay = "2 KB";
-        vm.Sha256Hash = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
+        var vm = new AddArtifactDialogViewModel(artifact => { })
+        {
+            UseLocalFile = true,
+            LocalFilePath = "/path/to/artifact.zip",
+            FileSize = 2048,
+            FileSizeDisplay = "2 KB",
+            Sha256Hash = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        };
 
         // Toggle to URL mode
         vm.UseLocalFile = false;
@@ -40,13 +41,14 @@ public class PublisherStudioDialogAndHostingFixTests
     [Fact]
     public void AddContentDialogViewModel_WhenToggledToDirectUrl_ClearsStaleFileMetadata()
     {
-        var vm = new AddContentDialogViewModel(_ => { });
-
-        vm.UseDirectUrl = false;
-        vm.LocalFilePath = "/path/to/content.zip";
-        vm.FileSize = 4096;
-        vm.FileSizeDisplay = "4 KB";
-        vm.Sha256Hash = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
+        var vm = new AddContentDialogViewModel(_ => { })
+        {
+            UseDirectUrl = false,
+            LocalFilePath = "/path/to/content.zip",
+            FileSize = 4096,
+            FileSizeDisplay = "4 KB",
+            Sha256Hash = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        };
 
         // Switch to Direct URL mode
         vm.UseDirectUrl = true;

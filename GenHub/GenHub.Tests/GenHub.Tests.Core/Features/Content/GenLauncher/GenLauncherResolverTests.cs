@@ -38,7 +38,7 @@ public sealed class GenLauncherResolverTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task ResolveAsync_WithS3Payload_ParsesFilesAndDependencies()
+    public async Task ResolveAsync_WithS3Payload_ParsesFilesAndDependenciesAsync()
     {
         var (resolver, _) = CreateResolverWithHandler(new HttpResponseMessage
         {
@@ -100,7 +100,7 @@ public sealed class GenLauncherResolverTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task ResolveAsync_WithSimpleDownloadLink_ResolvesDirectDownload()
+    public async Task ResolveAsync_WithSimpleDownloadLink_ResolvesDirectDownloadAsync()
     {
         var resolver = CreateResolver();
 
@@ -131,7 +131,7 @@ public sealed class GenLauncherResolverTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task ResolveAsync_WithOneDriveEmbedLink_FallsBackToSlugArchiveName()
+    public async Task ResolveAsync_WithOneDriveEmbedLink_FallsBackToSlugArchiveNameAsync()
     {
         var resolver = CreateResolver();
 
@@ -160,7 +160,7 @@ public sealed class GenLauncherResolverTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task ResolveAsync_WithNonArchiveExtensionInUrl_AppendsZipFallback()
+    public async Task ResolveAsync_WithNonArchiveExtensionInUrl_AppendsZipFallbackAsync()
     {
         var resolver = CreateResolver();
 
@@ -189,7 +189,7 @@ public sealed class GenLauncherResolverTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task ResolveAsync_NullDiscoveredItem_ThrowsArgumentNullException()
+    public async Task ResolveAsync_NullDiscoveredItem_ThrowsArgumentNullExceptionAsync()
     {
         var resolver = CreateResolver();
 
@@ -202,7 +202,7 @@ public sealed class GenLauncherResolverTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task ResolveAsync_WithLoopbackS3Host_RejectsS3Resolution()
+    public async Task ResolveAsync_WithLoopbackS3Host_RejectsS3ResolutionAsync()
     {
         var handlerMock = new Mock<HttpMessageHandler>();
         var httpClient = new HttpClient(handlerMock.Object);
@@ -242,7 +242,7 @@ public sealed class GenLauncherResolverTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task ResolveAsync_WithYamlSourceUrl_DoesNotSetYamlAsDownloadFile()
+    public async Task ResolveAsync_WithYamlSourceUrl_DoesNotSetYamlAsDownloadFileAsync()
     {
         var (resolver, handlerMock) = CreateResolverWithHandler(new HttpResponseMessage(HttpStatusCode.NotFound));
 
@@ -273,7 +273,7 @@ public sealed class GenLauncherResolverTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task ResolveAsync_WithGamePrefixedVariantGroupId_ProducesMatchingParentAndDependencyIds()
+    public async Task ResolveAsync_WithGamePrefixedVariantGroupId_ProducesMatchingParentAndDependencyIdsAsync()
     {
         var resolver = CreateResolver();
 
@@ -328,7 +328,7 @@ public sealed class GenLauncherResolverTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task ResolveAsync_WithChildContentDirectDownload_PrioritizesDirectDownloadAndDoesNotQueryS3()
+    public async Task ResolveAsync_WithChildContentDirectDownload_PrioritizesDirectDownloadAndDoesNotQueryS3Async()
     {
         var handlerMock = new Mock<HttpMessageHandler>();
         var httpClient = new HttpClient(handlerMock.Object);
@@ -376,7 +376,7 @@ public sealed class GenLauncherResolverTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task ResolveAsync_ChildModWithConflictingSimpleDownloadLinkAndSelectedDownloadUrl_PrioritizesSelectedDownloadUrl()
+    public async Task ResolveAsync_ChildModWithConflictingSimpleDownloadLinkAndSelectedDownloadUrl_PrioritizesSelectedDownloadUrlAsync()
     {
         var resolver = CreateResolver();
 
@@ -411,7 +411,7 @@ public sealed class GenLauncherResolverTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task ResolveAsync_ChildModWithInvalidDirectUrl_FallsBackToS3()
+    public async Task ResolveAsync_ChildModWithInvalidDirectUrl_FallsBackToS3Async()
     {
         var (resolver, handlerMock) = CreateResolverWithHandler(new HttpResponseMessage
         {
@@ -459,7 +459,7 @@ public sealed class GenLauncherResolverTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task ResolveAsync_MainModWithS3MetadataAndSimpleDownloadLink_PrioritizesS3Storage()
+    public async Task ResolveAsync_MainModWithS3MetadataAndSimpleDownloadLink_PrioritizesS3StorageAsync()
     {
         var (resolver, handlerMock) = CreateResolverWithHandler(new HttpResponseMessage
         {

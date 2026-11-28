@@ -21,7 +21,7 @@ public sealed class MappedImageRegistryTests
     {
         public OperationResult<IReadOnlyList<MappedImageDefinition>> ParseText(string content, string? sourcePath = null)
         {
-            if (sourcePath != null && sourcePath.StartsWith(gatedDirectory, StringComparison.OrdinalIgnoreCase))
+            if (sourcePath?.StartsWith(gatedDirectory, StringComparison.OrdinalIgnoreCase) == true)
             {
                 entered.TrySetResult();
                 gate.Wait(TimeSpan.FromSeconds(10));
@@ -598,7 +598,11 @@ public sealed class MappedImageRegistryTests
                 Directory.Delete(directory, true);
             }
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        catch (IOException)
+        {
+            // Best effort cleanup in tests
+        }
+        catch (UnauthorizedAccessException)
         {
             // Best effort cleanup in tests
         }

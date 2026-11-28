@@ -268,9 +268,17 @@ public sealed class LaunchRegistry : ILaunchRegistry, IDisposable
         {
             return process.StartTime.ToUniversalTime();
         }
-        catch (Exception ex) when (ex is InvalidOperationException or Win32Exception or NotSupportedException)
+        catch (InvalidOperationException)
         {
             // An unavailable timestamp cannot establish identity; preserve normal polling.
+            return null;
+        }
+        catch (Win32Exception)
+        {
+            return null;
+        }
+        catch (NotSupportedException)
+        {
             return null;
         }
     }

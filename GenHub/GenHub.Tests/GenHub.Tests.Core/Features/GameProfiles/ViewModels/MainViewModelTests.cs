@@ -217,7 +217,7 @@ public class MainViewModelTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task InitializeAsync_WhenAppVersionUpgraded_UpdatesLastSeenAppVersion()
+    public async Task InitializeAsync_WhenAppVersionUpgraded_UpdatesLastSeenAppVersionAsync()
     {
         // Arrange
         var userSettings = new UserSettings { LastSeenAppVersion = "0.0.0" };
@@ -606,7 +606,7 @@ public class MainViewModelTests
         var localizationMock = new Mock<ILocalizationService>();
         localizationMock.Setup(m => m.CurrentCulture).Returns(System.Globalization.CultureInfo.InvariantCulture);
         localizationMock.Setup(m => m.GetString(It.IsAny<string>(), It.IsAny<object?[]>()))
-            .Returns<string, object?[]>((key, args) => args != null && args.Length > 0 ? $"{args[0]}" : key);
+            .Returns<string, object?[]>((key, args) => args?.Length > 0 ? $"{args[0]}" : key);
         return new ProfileResourceService(NullLogger<ProfileResourceService>.Instance, localizationMock.Object);
     }
 
