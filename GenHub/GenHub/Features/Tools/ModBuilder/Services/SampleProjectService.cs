@@ -340,38 +340,9 @@ public class SampleProjectService(
             tracker.ReportPhase(phase);
         });
 
-        OperationResult<bool> result;
         try
         {
-            switch (canonicalName)
-            {
-                case GeneralsGamePatch2Name:
-                    result = await AcquireGeneralsGamePatch2AssetsAsync(gameFilesDir, cacheDir, linkedProgress, cancellationToken, tracker).ConfigureAwait(false);
-                    break;
-
-                case ImprovedMenusName:
-                    result = await AcquireImprovedMenusAssetsAsync(gameFilesDir, cacheDir, linkedProgress, cancellationToken, tracker).ConfigureAwait(false);
-                    break;
-
-                case LemonControlBarName:
-                    result = await AcquireLemonControlBarAssetsAsync(gameFilesDir, cacheDir, linkedProgress, cancellationToken, tracker).ConfigureAwait(false);
-                    break;
-
-                case LeikezeHotkeysName:
-                    result = await AcquireLeikezeHotkeysAssetsAsync(gameFilesDir, cacheDir, linkedProgress, cancellationToken, tracker).ConfigureAwait(false);
-                    break;
-
-                case HotkeysName:
-                case CustomIconsName:
-                    result = await AcquireHotkeysAssetsAsync(gameFilesDir, cacheDir, linkedProgress, cancellationToken, tracker).ConfigureAwait(false);
-                    break;
-
-                default:
-                    logger.LogWarning("Unrecognized sample project name: {ProjectName}", projectName);
-                    result = OperationResult<bool>.CreateFailure($"Unknown sample project: {projectName}");
-                    break;
-            }
-
+            var result = await AcquireSampleAssetsAsync(canonicalName, projectName, gameFilesDir, cacheDir, linkedProgress, tracker, cancellationToken).ConfigureAwait(false);
             if (!result.Success)
             {
                 CleanupNewlyCreatedFiles(gameFilesDir, preExistingFiles);
@@ -395,6 +366,39 @@ public class SampleProjectService(
             var failure = OperationResult<bool>.CreateFailure($"Failed to acquire sample assets for {projectName}: {ex.Message}");
             overallScope?.CompleteFailure(failure.FirstError);
             return failure;
+        }
+    }
+
+    private async Task<OperationResult<bool>> AcquireSampleAssetsAsync(
+        string canonicalName,
+        string projectName,
+        string gameFilesDir,
+        string cacheDir,
+        IProgress<string> progress,
+        SampleAcquisitionTracker tracker,
+        CancellationToken cancellationToken)
+    {
+        switch (canonicalName)
+        {
+            case GeneralsGamePatch2Name:
+                return await AcquireGeneralsGamePatch2AssetsAsync(gameFilesDir, cacheDir, progress, cancellationToken, tracker).ConfigureAwait(false);
+
+            case ImprovedMenusName:
+                return await AcquireImprovedMenusAssetsAsync(gameFilesDir, cacheDir, progress, cancellationToken, tracker).ConfigureAwait(false);
+
+            case LemonControlBarName:
+                return await AcquireLemonControlBarAssetsAsync(gameFilesDir, cacheDir, progress, cancellationToken, tracker).ConfigureAwait(false);
+
+            case LeikezeHotkeysName:
+                return await AcquireLeikezeHotkeysAssetsAsync(gameFilesDir, cacheDir, progress, cancellationToken, tracker).ConfigureAwait(false);
+
+            case HotkeysName:
+            case CustomIconsName:
+                return await AcquireHotkeysAssetsAsync(gameFilesDir, cacheDir, progress, cancellationToken, tracker).ConfigureAwait(false);
+
+            default:
+                logger.LogWarning("Unrecognized sample project name: {ProjectName}", projectName);
+                return OperationResult<bool>.CreateFailure($"Unknown sample project: {projectName}");
         }
     }
 
@@ -1343,8 +1347,6 @@ public class SampleProjectService(
                     Path.Combine(gameFilesDir, GenToolDirectoryName),
                     cancellationToken);
                 break;
-            default:
-                break;
         }
     }
 
@@ -1488,17 +1490,17 @@ public class SampleProjectService(
         var relPath = Path.GetRelativePath(stagingDir, filePath);
         var tokens = relPath.Split(['/', '\\', '_', '.', '-', ' '], StringSplitOptions.RemoveEmptyEntries);
 
-        if (requiredTokens != null && !requiredTokens.Any(t => tokens.Any(tok => tok.Equals(t, StringComparison.OrdinalIgnoreCase))))
+        if (requiredTokens?.All(t => !tokens.Contains(t, StringComparer.OrdinalIgnoreCase)) == true)
         {
             return false;
         }
 
-        if (requiredLanguageTokens != null && !requiredLanguageTokens.Any(t => tokens.Any(tok => tok.Equals(t, StringComparison.OrdinalIgnoreCase))))
+        if (requiredLanguageTokens?.All(t => !tokens.Contains(t, StringComparer.OrdinalIgnoreCase)) == true)
         {
             return false;
         }
 
-        if (excludedTokens != null && excludedTokens.Any(t => tokens.Any(tok => tok.Equals(t, StringComparison.OrdinalIgnoreCase))))
+        if (excludedTokens?.Any(t => tokens.Contains(t, StringComparer.OrdinalIgnoreCase)) == true)
         {
             return false;
         }

@@ -356,7 +356,11 @@ public sealed class WndTextureImportService(ILogger<WndTextureImportService> log
                 return (targetDir, Path.Combine(targetDir, textureFileName));
             }
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        catch (IOException)
+        {
+            // Fall back to default location
+        }
+        catch (UnauthorizedAccessException)
         {
             // Fall back to default location
         }

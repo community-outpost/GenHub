@@ -741,7 +741,7 @@ public sealed class WndDocumentService(ILogger<WndDocumentService> logger) : IWn
     {
         var trimmed = statement.Trim();
         var body = trimmed.EndsWith(WndConstants.Syntax.StatementTerminator)
-            ? trimmed.Substring(0, trimmed.Length - 1)
+            ? trimmed[..^1]
             : trimmed;
         var separatorIndex = body.IndexOf(WndConstants.Syntax.KeyValueSeparator, StringComparison.Ordinal);
         if (separatorIndex < 0)

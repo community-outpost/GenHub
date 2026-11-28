@@ -116,7 +116,11 @@ public sealed class ExternalToolService(ILogger<ExternalToolService> logger) : I
                         await process.WaitForExitAsync(CancellationToken.None).ConfigureAwait(false);
                     }
                 }
-                catch (Exception killEx) when (killEx is InvalidOperationException or System.ComponentModel.Win32Exception)
+                catch (InvalidOperationException)
+                {
+                    // Ignore failure killing already exited process
+                }
+                catch (System.ComponentModel.Win32Exception)
                 {
                     // Ignore failure killing already exited process
                 }

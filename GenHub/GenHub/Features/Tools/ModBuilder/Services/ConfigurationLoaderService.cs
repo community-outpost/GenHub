@@ -1452,7 +1452,7 @@ public class ConfigurationLoaderService(ILogger<ConfigurationLoaderService> logg
                 ItemNames = simpPack.ItemNames ?? simpPack.Items ?? new List<string>(),
                 AllowBuild = simpPack.AllowBuild ?? true,
                 AllowInstall = simpPack.AllowInstall ?? true,
-                Big = simpPack.Big ?? (simpPack.OutputFile?.EndsWith(".big", StringComparison.OrdinalIgnoreCase) ?? false),
+                Big = simpPack.Big ?? simpPack.OutputFile?.EndsWith(".big", StringComparison.OrdinalIgnoreCase) == true,
                 OutputFile = simpPack.OutputFile,
                 ManifestFile = simpPack.ManifestFile,
                 Description = simpPack.Description,

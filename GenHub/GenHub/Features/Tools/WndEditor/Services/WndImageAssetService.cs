@@ -582,7 +582,7 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
             alternates[name] = altList;
         }
 
-        if (altList.Count < 5 && !altList.Any(a => string.Equals(a.Image.Texture, image.Image.Texture, StringComparison.OrdinalIgnoreCase)))
+        if (altList.Count < 5 && altList.All(a => !string.Equals(a.Image.Texture, image.Image.Texture, StringComparison.OrdinalIgnoreCase)))
         {
             altList.Add(image);
         }
@@ -954,7 +954,7 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
             // Pathed references resolve exactly first: the engine opens the texture path
             // through its directory tree where the first-loaded archive wins.
             var exact = fileSystem.ReadInTierBand(trimmed, minTier, maxTier);
-            if (exact != null && exact.Length > 0 && TryDetectFormat(exact, out var exactFormat))
+            if (exact?.Length > 0 && TryDetectFormat(exact, out var exactFormat))
             {
                 return (trimmed, exact, exactFormat);
             }
@@ -1035,7 +1035,7 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
             try
             {
                 var bytes = fileSystem.ReadInTierBand(candidate, minTier, maxTier);
-                if (bytes != null && bytes.Length > 0 && TryDetectFormat(bytes, out var format))
+                if (bytes?.Length > 0 && TryDetectFormat(bytes, out var format))
                 {
                     return (candidate, bytes, format);
                 }
@@ -1083,13 +1083,13 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
         foreach (var candidate in candidates)
         {
             var looseModBytes = fileSystem.TryReadModLooseFileByName(candidate, minTier, maxTier);
-            if (looseModBytes != null && looseModBytes.Length > 0 && TryDetectFormat(looseModBytes, out var modFormat))
+            if (looseModBytes?.Length > 0 && TryDetectFormat(looseModBytes, out var modFormat))
             {
                 return (candidate, looseModBytes, modFormat);
             }
 
             var archiveBytes = fileSystem.TryReadArchiveFileByName(candidate, minTier, maxTier);
-            if (archiveBytes != null && archiveBytes.Length > 0 && TryDetectFormat(archiveBytes, out var archiveFormat))
+            if (archiveBytes?.Length > 0 && TryDetectFormat(archiveBytes, out var archiveFormat))
             {
                 return (candidate, archiveBytes, archiveFormat);
             }

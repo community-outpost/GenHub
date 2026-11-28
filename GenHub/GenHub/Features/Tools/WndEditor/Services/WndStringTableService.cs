@@ -309,21 +309,21 @@ public sealed class WndStringTableService(ILogger<WndStringTableService> logger)
                 language,
                 "generals.str");
             var strBytes = TryRead(fileSystem, strPath);
-            if (strBytes != null && strBytes.Length > 0)
+            if (strBytes?.Length > 0)
             {
                 ParseStrFile(Encoding.UTF8.GetString(strBytes), table);
             }
         }
 
         var rootStrBytes = TryRead(fileSystem, "generals.str") ?? TryRead(fileSystem, "Data\\generals.str");
-        if (rootStrBytes != null && rootStrBytes.Length > 0)
+        if (rootStrBytes?.Length > 0)
         {
             ParseStrFile(Encoding.UTF8.GetString(rootStrBytes), table);
         }
 
         // Also check if any loose .str file exists in the mod
         var modStr = fileSystem.TryReadModLooseFileByName("generals.str");
-        if (modStr != null && modStr.Length > 0)
+        if (modStr?.Length > 0)
         {
             ParseStrFile(Encoding.UTF8.GetString(modStr), table);
         }

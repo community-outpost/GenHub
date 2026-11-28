@@ -189,9 +189,9 @@ public partial class AddReleaseDialogViewModel(
                 PublisherId = dep.PublisherId,
                 VersionConstraint = dep.VersionConstraint,
                 SourceDependency = dep,
+                IsSelected = true,
+                SelectedVariant = dep.DefaultVariant,
             };
-            fallback.IsSelected = true;
-            fallback.SelectedVariant = dep.DefaultVariant;
             if (!string.IsNullOrWhiteSpace(dep.DefaultVariant))
             {
                 fallback.AvailableVariants.Add(dep.DefaultVariant);
@@ -643,7 +643,15 @@ public partial class AddReleaseDialogViewModel(
             var hashBytes = await hasher.ComputeHashAsync(stream, cancellationToken);
             return Convert.ToHexString(hashBytes).ToLowerInvariant();
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or OperationCanceledException)
+        catch (IOException)
+        {
+            return string.Empty;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return string.Empty;
+        }
+        catch (OperationCanceledException)
         {
             return string.Empty;
         }
@@ -786,7 +794,15 @@ public partial class AddReleaseDialogViewModel(
             var hashBytes = await hasher.ComputeHashAsync(stream, cancellationToken);
             sha256 = Convert.ToHexString(hashBytes).ToLowerInvariant();
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or OperationCanceledException)
+        catch (IOException)
+        {
+            sha256 = string.Empty;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            sha256 = string.Empty;
+        }
+        catch (OperationCanceledException)
         {
             sha256 = string.Empty;
         }
@@ -862,7 +878,15 @@ public partial class AddReleaseDialogViewModel(
                 },
                 cancellationToken);
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or OperationCanceledException)
+        catch (IOException)
+        {
+            totalBytes = 0;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            totalBytes = 0;
+        }
+        catch (OperationCanceledException)
         {
             totalBytes = 0;
         }
@@ -1235,7 +1259,7 @@ public partial class AddReleaseDialogViewModel(
 
         if (IsBundleContent)
         {
-            if (!BundleComponentOptions.Any(o => o.IsSelected))
+            if (BundleComponentOptions.All(o => !o.IsSelected))
             {
                 errors.Add(GetLocalizedString(
                     "Tools.PublisherStudio.Validation.BundleComponentRequired",
@@ -1255,7 +1279,7 @@ public partial class AddReleaseDialogViewModel(
 
     private string GetLocalizedString(string key, string fallback)
     {
-        if (localizationService != null && localizationService.TryGetString(key, out var localized) && !string.IsNullOrWhiteSpace(localized))
+        if (localizationService?.TryGetString(key, out var localized) == true && !string.IsNullOrWhiteSpace(localized))
         {
             return localized;
         }

@@ -206,7 +206,7 @@ public partial class AddReferralDialogViewModel(
             var detailsError = error ?? GetLocalizedString(
                 "Tools.PublisherStudio.Referral.NoPublisherDetails",
                 "Could not find publisher details in the response");
-            SetDiscoveryErrorIfCurrentToken(ct, detailsError);
+            SetDiscoveryErrorIfCurrentToken(detailsError, ct);
         }
         catch (OperationCanceledException)
         {
@@ -215,7 +215,7 @@ public partial class AddReferralDialogViewModel(
                 var timeoutError = GetLocalizedString(
                     "Tools.PublisherStudio.Referral.DiscoveryTimeout",
                     "Discovery request timed out. Please try again.");
-                SetDiscoveryErrorIfCurrentToken(ct, timeoutError);
+                SetDiscoveryErrorIfCurrentToken(timeoutError, ct);
             }
         }
         catch (HttpRequestException ex)
@@ -224,14 +224,14 @@ public partial class AddReferralDialogViewModel(
             var fetchError = localizationService?.GetString(
                 "Tools.PublisherStudio.Referral.FetchFailed",
                 statusCode) ?? $"Could not fetch catalog: HTTP {statusCode}";
-            SetDiscoveryErrorIfCurrentToken(ct, fetchError);
+            SetDiscoveryErrorIfCurrentToken(fetchError, ct);
         }
         catch (Exception ex)
         {
             var discoveryError = localizationService?.GetString(
                 "Tools.PublisherStudio.Referral.DiscoveryError",
                 ex.Message) ?? $"Discovery error: {ex.Message}";
-            SetDiscoveryErrorIfCurrentToken(ct, discoveryError);
+            SetDiscoveryErrorIfCurrentToken(discoveryError, ct);
         }
         finally
         {
@@ -325,7 +325,7 @@ public partial class AddReferralDialogViewModel(
         }
     }
 
-    private void SetDiscoveryErrorIfCurrentToken(CancellationToken ct, string message)
+    private void SetDiscoveryErrorIfCurrentToken(string message, CancellationToken ct)
     {
         if (_discoveryCts?.Token == ct)
         {

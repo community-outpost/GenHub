@@ -254,7 +254,7 @@ public partial class ProjectItemPickerViewModel : ObservableObject
         foreach (var pattern in _initialPatterns)
         {
             var matches = _snapshot.MatchFiles([pattern]);
-            if (!matches.Any(m => IsTreeVisible(m, rootRel)))
+            if (matches.All(m => !IsTreeVisible(m, rootRel)))
             {
                 _preservedPatterns.Add(pattern);
             }
@@ -296,7 +296,7 @@ public partial class ProjectItemPickerViewModel : ObservableObject
 
     private static bool IsTreeVisible(string relativePath, string rootRel) =>
         IsUnderTreeRoot(relativePath, rootRel) &&
-        !relativePath.Split('/').Any(ModBuilderConstants.IsIgnoredProjectFile);
+        relativePath.Split('/').All(segment => !ModBuilderConstants.IsIgnoredProjectFile(segment));
 
     private void BuildTreeCore()
     {
@@ -387,7 +387,12 @@ public partial class ProjectItemPickerViewModel : ObservableObject
                 node.Children.Add(fileNode);
             }
         }
-        catch (Exception ex) when (ex is UnauthorizedAccessException or IOException)
+        catch (UnauthorizedAccessException)
+        {
+            // Ignore access or I/O errors on individual directories and flag truncation
+            HasTruncatedNodes = true;
+        }
+        catch (IOException)
         {
             // Ignore access or I/O errors on individual directories and flag truncation
             HasTruncatedNodes = true;

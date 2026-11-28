@@ -166,6 +166,8 @@ public partial class TextureEditorView : UserControl
                 }
 
                 break;
+            default:
+                return;
         }
     }
 

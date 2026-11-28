@@ -102,7 +102,7 @@ public partial class UploadArtifactNodeViewModel : ObservableObject
     }
 
     private string GetBadgeString(string key, string fallback) =>
-        _localizationService != null && _localizationService.TryGetString(key, out var localized)
+        _localizationService?.TryGetString(key, out var localized) == true
             ? localized
             : fallback;
 }

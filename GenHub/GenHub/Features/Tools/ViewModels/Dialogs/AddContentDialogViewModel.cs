@@ -1149,7 +1149,11 @@ public partial class AddContentDialogViewModel(
             var hashBytes = await sha.ComputeHashAsync(stream).ConfigureAwait(false);
             return Convert.ToHexString(hashBytes).ToLowerInvariant();
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        catch (IOException)
+        {
+            return string.Empty;
+        }
+        catch (UnauthorizedAccessException)
         {
             return string.Empty;
         }
@@ -1309,7 +1313,15 @@ public partial class AddContentDialogViewModel(
                 FileSizeDisplay = FormatBytes(length);
             });
         }
-        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or InvalidOperationException)
+        catch (HttpRequestException)
+        {
+            // Remote size detection is best-effort.
+        }
+        catch (TaskCanceledException)
+        {
+            // Remote size detection is best-effort.
+        }
+        catch (InvalidOperationException)
         {
             // Remote size detection is best-effort.
         }
@@ -1504,7 +1516,23 @@ public partial class AddContentDialogViewModel(
                 using var zipArchive = ZipFile.OpenRead(path);
                 return zipArchive.Entries.Count(e => !string.IsNullOrEmpty(e.Name));
             }
-            catch (Exception ex) when (ex is InvalidDataException or IOException or UnauthorizedAccessException or NotSupportedException or ArgumentException)
+            catch (InvalidDataException)
+            {
+                // Fall through to SharpCompress archive reader
+            }
+            catch (IOException)
+            {
+                // Fall through to SharpCompress archive reader
+            }
+            catch (UnauthorizedAccessException)
+            {
+                // Fall through to SharpCompress archive reader
+            }
+            catch (NotSupportedException)
+            {
+                // Fall through to SharpCompress archive reader
+            }
+            catch (ArgumentException)
             {
                 // Fall through to SharpCompress archive reader
             }
@@ -1515,7 +1543,27 @@ public partial class AddContentDialogViewModel(
             using var archive = SharpCompress.Archives.ArchiveFactory.OpenArchive(path);
             return archive.Entries.Count(e => !e.IsDirectory && !string.IsNullOrEmpty(e.Key));
         }
-        catch (Exception ex) when (ex is InvalidDataException or IOException or UnauthorizedAccessException or NotSupportedException or SharpCompress.Common.SharpCompressException or ArgumentException)
+        catch (InvalidDataException)
+        {
+            return -1;
+        }
+        catch (IOException)
+        {
+            return -1;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return -1;
+        }
+        catch (NotSupportedException)
+        {
+            return -1;
+        }
+        catch (SharpCompress.Common.SharpCompressException)
+        {
+            return -1;
+        }
+        catch (ArgumentException)
         {
             return -1;
         }

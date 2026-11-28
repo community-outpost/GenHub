@@ -31,7 +31,7 @@ public partial class ShareLinksViewModel(
     /// <summary>
     /// Gets the GenHub protocol share URI that opens GenHub and imports automatically.
     /// </summary>
-    public string GenHubUrl { get; } = genHubUrl;
+    public string GenHubUrl { get; } = genHubUrl; // skipcq: CS-A1000
 
     /// <summary>
     /// Event raised when the dialog should be closed.

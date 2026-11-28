@@ -143,7 +143,15 @@ public sealed class ProjectFileSnapshot
                 RootPath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar),
                 StringComparison.OrdinalIgnoreCase);
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
+        catch (IOException)
+        {
+            return false;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return false;
+        }
+        catch (ArgumentException)
         {
             return false;
         }
@@ -198,18 +206,13 @@ public sealed class ProjectFileSnapshot
 
     private static void CollectFiles(DirectoryInfo dir, string rootPath, InMemoryDirectory node, List<string> relativePaths)
     {
-        FileInfo[] files;
-        DirectoryInfo[] subDirs;
-        try
-        {
-            files = dir.GetFiles();
-            subDirs = dir.GetDirectories();
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        var entries = TryGetEntries(dir);
+        if (entries is null)
         {
             return;
         }
 
+        var (files, subDirs) = entries.Value;
         foreach (var file in files)
         {
             var rel = Path.GetRelativePath(rootPath, file.FullName).Replace('\\', '/');
@@ -221,6 +224,22 @@ public sealed class ProjectFileSnapshot
         {
             var childNode = node.GetOrCreateDirectory(subDir.Name);
             CollectFiles(subDir, rootPath, childNode, relativePaths);
+        }
+    }
+
+    private static (FileInfo[] Files, DirectoryInfo[] SubDirs)? TryGetEntries(DirectoryInfo dir)
+    {
+        try
+        {
+            return (dir.GetFiles(), dir.GetDirectories());
+        }
+        catch (IOException)
+        {
+            return null;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return null;
         }
     }
 

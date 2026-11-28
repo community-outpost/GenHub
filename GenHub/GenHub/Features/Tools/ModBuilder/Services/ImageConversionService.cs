@@ -176,8 +176,8 @@ public class ImageConversionService(ILogger<ImageConversionService> logger)
 
             using var image = new MagickImage();
             await image.ReadAsync(sourcePath, cancellationToken).ConfigureAwait(false);
-            var resizedImage = ImageProcessingHelper.ApplyResizeParameters(image, parameters);
-            using var resizedScope = ReferenceEquals(resizedImage, image) ? null : resizedImage;
+            using var resizedScope = ImageProcessingHelper.ApplyResizeParametersScoped(image, parameters);
+            var resizedImage = resizedScope.Image;
 
             cancellationToken.ThrowIfCancellationRequested();
 
@@ -220,8 +220,8 @@ public class ImageConversionService(ILogger<ImageConversionService> logger)
                 return false;
             }
 
-            var resizedImage = ImageProcessingHelper.ApplyResizeParameters(image, parameters);
-            using var resizedScope = ReferenceEquals(resizedImage, image) ? null : resizedImage;
+            using var resizedScope = ImageProcessingHelper.ApplyResizeParametersScoped(image, parameters);
+            var resizedImage = resizedScope.Image;
 
             cancellationToken.ThrowIfCancellationRequested();
             await ImageProcessingHelper.SaveImageToTargetAsync(resizedImage, targetPath, targetExt, cancellationToken).ConfigureAwait(false);
@@ -337,8 +337,8 @@ public class ImageConversionService(ILogger<ImageConversionService> logger)
     {
         using var image = new MagickImage();
         await image.ReadAsync(sourcePath, cancellationToken).ConfigureAwait(false);
-        var resizedImage = ImageProcessingHelper.ApplyResizeParameters(image, parameters);
-        using var resizedScope = ReferenceEquals(resizedImage, image) ? null : resizedImage;
+        using var resizedScope = ImageProcessingHelper.ApplyResizeParametersScoped(image, parameters);
+        var resizedImage = resizedScope.Image;
         var hasAlpha = ImageProcessingHelper.DetectAlpha(resizedImage);
         var rawData = RgbaPixels.ToBytes(resizedImage);
         return (rawData, (int)resizedImage.Width, (int)resizedImage.Height, hasAlpha);
@@ -363,8 +363,8 @@ public class ImageConversionService(ILogger<ImageConversionService> logger)
 
             using var image = new MagickImage();
             await image.ReadAsync(sourcePath, cancellationToken).ConfigureAwait(false);
-            var resizedImage = ImageProcessingHelper.ApplyResizeParameters(image, parameters);
-            using var resizedScope = ReferenceEquals(resizedImage, image) ? null : resizedImage;
+            using var resizedScope = ImageProcessingHelper.ApplyResizeParametersScoped(image, parameters);
+            var resizedImage = resizedScope.Image;
 
             cancellationToken.ThrowIfCancellationRequested();
             await ImageProcessingHelper.SaveImageToTargetAsync(resizedImage, targetPath, Path.GetExtension(targetPath).ToLowerInvariant(), cancellationToken).ConfigureAwait(false);

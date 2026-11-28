@@ -1607,7 +1607,11 @@ public partial class ConfigEditorViewModel(
                     File.Delete(file);
                 }
             }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            catch (IOException)
+            {
+                // Ignore cleanup errors
+            }
+            catch (UnauthorizedAccessException)
             {
                 // Ignore cleanup errors
             }

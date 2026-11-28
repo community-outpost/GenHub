@@ -678,8 +678,7 @@ public class GoogleDriveHostingProvider(
                 ? match.Value.TrimEnd('.', ',', ';', ')')
                 : HostingConstants.GoogleDriveApiEnablementUrl;
 
-            if (localizationService != null &&
-                localizationService.TryGetString("Tools.PublisherStudio.Hosting.GoogleDriveApiNotEnabled", out var localized, consoleUrl))
+            if (localizationService?.TryGetString("Tools.PublisherStudio.Hosting.GoogleDriveApiNotEnabled", out var localized, consoleUrl) == true)
             {
                 return localized;
             }
@@ -691,7 +690,7 @@ public class GoogleDriveHostingProvider(
     }
 
     private string GetNotAuthenticatedMessage() =>
-        localizationService != null && localizationService.TryGetString("Tools.PublisherStudio.Hosting.GoogleDriveNotAuthenticated", out var localized)
+        localizationService?.TryGetString("Tools.PublisherStudio.Hosting.GoogleDriveNotAuthenticated", out var localized) == true
             ? localized
             : HostingConstants.GoogleDriveNotAuthenticated;
 
@@ -705,8 +704,7 @@ public class GoogleDriveHostingProvider(
             return folderFailed;
         }
 
-        if (localizationService != null &&
-            localizationService.TryGetString("Tools.PublisherStudio.Hosting.PublisherFolderFailedFormat", out var folderFailedFormat, error))
+        if (localizationService?.TryGetString("Tools.PublisherStudio.Hosting.PublisherFolderFailedFormat", out var folderFailedFormat, error) == true)
         {
             return folderFailedFormat;
         }

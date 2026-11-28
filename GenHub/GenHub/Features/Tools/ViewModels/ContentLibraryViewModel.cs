@@ -1953,7 +1953,7 @@ public partial class ContentLibraryViewModel(
         _suppressUpstreamPreviewReload = true;
         try
         {
-            SelectedContent = null;
+            SelectedContent = null; // skipcq: CS-W1082
             SelectedContent = selected;
         }
         finally
