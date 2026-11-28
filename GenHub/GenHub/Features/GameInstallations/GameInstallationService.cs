@@ -1244,7 +1244,8 @@ IEnumerable<IGameClientIdentifier>? gameClientIdentifiers = null) : IGameInstall
                 clientName,
                 versionForManifest,
                 resolvedExePath,
-                publisherInfo);
+                publisherInfo,
+                cancellationToken);
 
             var manifest = builder.Build();
             manifest.ContentType = ContentType.GameClient;

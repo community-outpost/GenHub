@@ -1275,7 +1275,7 @@ public class GameInstallationServiceTests : IDisposable
             var clientBuilderMock = new Mock<IContentManifestBuilder>();
             clientBuilderMock.Setup(x => x.Build()).Returns(new ContentManifest());
             _manifestServiceMock.Setup(x => x.CreateGameClientManifestAsync(
-                    It.IsAny<string>(), It.IsAny<GameType>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<PublisherInfo?>()))
+                    It.IsAny<string>(), It.IsAny<GameType>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<PublisherInfo?>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(clientBuilderMock.Object);
 
             // Act
@@ -1289,7 +1289,8 @@ public class GameInstallationServiceTests : IDisposable
                     It.IsAny<string>(),
                     It.IsAny<string>(),
                     It.Is<string>(p => p.EndsWith("Game.dat", StringComparison.OrdinalIgnoreCase)),
-                    It.IsAny<PublisherInfo?>()),
+                    It.IsAny<PublisherInfo?>(),
+                    It.IsAny<CancellationToken>()),
                 Times.Once);
         }
         finally

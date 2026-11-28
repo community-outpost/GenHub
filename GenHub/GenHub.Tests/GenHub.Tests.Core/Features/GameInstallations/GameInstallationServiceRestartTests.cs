@@ -178,8 +178,9 @@ public sealed class GameInstallationServiceRestartTests : IDisposable
                 It.IsAny<string>(),
                 It.IsAny<string>(),
                 It.IsAny<string>(),
-                It.IsAny<PublisherInfo?>()))
-            .ReturnsAsync((string _, GameType gameType, string name, string version, string executablePath, PublisherInfo? _) =>
+                It.IsAny<PublisherInfo?>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync((string _, GameType gameType, string name, string version, string executablePath, PublisherInfo? _, CancellationToken _) =>
                 CreateBuilder(() => new ContentManifest
                 {
                     Name = name,

@@ -165,7 +165,7 @@ public partial class App : Application
                     try
                     {
                         using var crashFlushCts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
-                        Task.Run(async () => await (_telemetryService?.FlushAsync(crashFlushCts.Token) ?? Task.CompletedTask).ConfigureAwait(false)).GetAwaiter().GetResult();
+                        Task.Run(async () => await (_telemetryService?.FlushAsync(crashFlushCts.Token) ?? Task.CompletedTask).ConfigureAwait(false), CancellationToken.None).GetAwaiter().GetResult();
                     }
                     catch
                     {
@@ -217,14 +217,14 @@ public partial class App : Application
             var conflictService = _serviceProvider.GetService<IInstallationConflictService>();
             if (conflictService != null)
             {
-                SafeFireAndForget(conflictService.CheckAndResolveConflictsAsync(), nameof(IInstallationConflictService.CheckAndResolveConflictsAsync));
+                SafeFireAndForget(conflictService.CheckAndResolveConflictsAsync(CancellationToken.None), nameof(IInstallationConflictService.CheckAndResolveConflictsAsync));
             }
 
             // Perform storage maintenance to consolidate caches and clean legacy directories
             var storageMaintenance = _serviceProvider.GetService<IStorageMaintenanceService>();
             if (storageMaintenance != null)
             {
-                SafeFireAndForget(storageMaintenance.RunMaintenanceAsync(), nameof(IStorageMaintenanceService.RunMaintenanceAsync));
+                SafeFireAndForget(storageMaintenance.RunMaintenanceAsync(CancellationToken.None), nameof(IStorageMaintenanceService.RunMaintenanceAsync));
             }
         }
 
@@ -327,7 +327,7 @@ public partial class App : Application
         _linkActivationTracker?.RecordLink();
 
         var mainWindow = await _mainWindowReady.Task;
-        await _urlActivationLock.WaitAsync();
+        await _urlActivationLock.WaitAsync(CancellationToken.None);
         try
         {
             WindowActivation.BringToFrontForUserRequest(mainWindow);
@@ -518,7 +518,7 @@ public partial class App : Application
 
                     settings.IsMaximized = desktop.MainWindow.WindowState == Avalonia.Controls.WindowState.Maximized;
                 });
-                await _userSettingsService.SaveAsync();
+                await _userSettingsService.SaveAsync(CancellationToken.None);
             }
         }
         catch (Exception ex)
@@ -632,7 +632,7 @@ public partial class App : Application
         var logger = _serviceProvider.GetService<ILogger<App>>();
         logger?.LogInformation("Startup tool import request received");
 
-        await HandleToolImportUriAsync(shareUri, mainWindow);
+        await HandleToolImportUriAsync(shareUri, mainWindow, CancellationToken.None);
     }
 
     private async Task HandleSubscriptionArgsAsync(string[]? args, MainWindow mainWindow)
@@ -717,7 +717,7 @@ public partial class App : Application
             BringForwardForLink(mainWindow);
 
             // Handle map share import
-            SafeFireAndForget(HandleToolImportUriAsync(shareUri, mainWindow), nameof(HandleToolImportUriAsync));
+            SafeFireAndForget(HandleToolImportUriAsync(shareUri, mainWindow, CancellationToken.None), nameof(HandleToolImportUriAsync));
         }
         else if (command.StartsWith(IpcCommands.ImportReplayPrefix, StringComparison.OrdinalIgnoreCase))
         {
@@ -726,7 +726,7 @@ public partial class App : Application
             BringForwardForLink(mainWindow);
 
             // Handle replay share import
-            SafeFireAndForget(HandleToolImportUriAsync(shareUri, mainWindow), nameof(HandleToolImportUriAsync));
+            SafeFireAndForget(HandleToolImportUriAsync(shareUri, mainWindow, CancellationToken.None), nameof(HandleToolImportUriAsync));
         }
         else if (string.Equals(command, IpcCommands.ActivateCommand, StringComparison.OrdinalIgnoreCase))
         {
@@ -766,7 +766,7 @@ public partial class App : Application
         var launcherViewModel = _serviceProvider.GetService<GameProfileLauncherViewModel>();
         if (launcherViewModel != null)
         {
-            await launcherViewModel.ImportProfileFromFileOrUriAsync(trimmed);
+            await launcherViewModel.ImportProfileFromFileOrUriAsync(trimmed, CancellationToken.None);
         }
         else
         {
@@ -836,7 +836,7 @@ public partial class App : Application
             GameProfile? profile = null;
             if (profileManager != null)
             {
-                var profileResult = await profileManager.GetProfileAsync(profileId);
+                var profileResult = await profileManager.GetProfileAsync(profileId, CancellationToken.None);
                 if (profileResult.Success)
                 {
                     profile = profileResult.Data;
@@ -847,7 +847,7 @@ public partial class App : Application
 
             logger?.LogInformation("Launching profile {ProfileId}...", profileId);
 
-            var launchResult = await _profileLauncherFacade.LaunchProfileAsync(profileId);
+            var launchResult = await _profileLauncherFacade.LaunchProfileAsync(profileId, cancellationToken: CancellationToken.None);
             sw.Stop();
             var timeToLaunchMs = sw.ElapsedMilliseconds;
 
@@ -961,7 +961,7 @@ public partial class App : Application
             return;
         }
 
-        await Task.Run(ExecuteRepairShortcutsAsync);
+        await Task.Run(ExecuteRepairShortcutsAsync, CancellationToken.None);
     }
 
     private async Task ExecuteRepairShortcutsAsync()
