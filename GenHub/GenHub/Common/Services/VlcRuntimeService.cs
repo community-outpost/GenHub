@@ -244,7 +244,11 @@ public class VlcRuntimeService(
             {
                 File.Delete(tempFile);
             }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            catch (IOException)
+            {
+                // Ignore temp cleanup failure
+            }
+            catch (UnauthorizedAccessException)
             {
                 // Ignore temp cleanup failure
             }
@@ -261,7 +265,11 @@ public class VlcRuntimeService(
             {
                 Directory.Delete(path, recursive: true);
             }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            catch (IOException)
+            {
+                // Ignore cleanup failure
+            }
+            catch (UnauthorizedAccessException)
             {
                 // Ignore cleanup failure
             }
@@ -281,7 +289,11 @@ public class VlcRuntimeService(
             CleanupDirectoriesOlderThan(targetParent, ".staging-*", cutoff);
             CleanupDirectoriesOlderThan(targetParent, targetDirName + ".old.*", cutoff);
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        catch (IOException)
+        {
+            // Ignore directory enumeration failures
+        }
+        catch (UnauthorizedAccessException)
         {
             // Ignore directory enumeration failures
         }
@@ -298,7 +310,11 @@ public class VlcRuntimeService(
                     CleanupDirectorySilently(dir);
                 }
             }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            catch (IOException)
+            {
+                // Ignore per-directory inspection/deletion failure
+            }
+            catch (UnauthorizedAccessException)
             {
                 // Ignore per-directory inspection/deletion failure
             }
@@ -559,12 +575,11 @@ public class VlcRuntimeService(
 
             var buffer = new byte[BufferSize];
             long totalRead = 0;
-            int bytesRead;
 
             while (true)
             {
                 timeoutCts.CancelAfter(DownloadInactivityTimeout);
-                bytesRead = await contentStream.ReadAsync(buffer.AsMemory(0, buffer.Length), linkedCts.Token).ConfigureAwait(false);
+                var bytesRead = await contentStream.ReadAsync(buffer.AsMemory(0, buffer.Length), linkedCts.Token).ConfigureAwait(false);
                 if (bytesRead == 0)
                 {
                     break;

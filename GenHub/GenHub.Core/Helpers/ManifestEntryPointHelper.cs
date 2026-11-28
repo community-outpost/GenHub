@@ -48,7 +48,7 @@ public static class ManifestEntryPointHelper
 
         if (manifest.ContentType == ContentType.GameClient && manifest.Variants.Count > 0)
         {
-            return BakeVariantEntries(manifest, extractedDirectory, cancellationToken, localizationService);
+            return BakeVariantEntries(manifest, extractedDirectory, localizationService, cancellationToken);
         }
 
         if (!string.IsNullOrWhiteSpace(manifest.EntryPoint))
@@ -89,8 +89,8 @@ public static class ManifestEntryPointHelper
     private static OperationResult<string?> BakeVariantEntries(
         ContentManifest manifest,
         string extractedDirectory,
-        CancellationToken cancellationToken,
-        ILocalizationService? localizationService)
+        ILocalizationService? localizationService,
+        CancellationToken cancellationToken)
     {
         // The payload holds only this platform's build, so only the host variant can be
         // validated or detected against it. Other variants keep their declared entries.

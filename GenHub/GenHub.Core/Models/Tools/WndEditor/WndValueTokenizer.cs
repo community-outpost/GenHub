@@ -100,7 +100,7 @@ public static class WndValueTokenizer
             && trimmed[0] == WndConstants.Syntax.Quote
             && trimmed[^1] == WndConstants.Syntax.Quote)
         {
-            return trimmed.Substring(1, trimmed.Length - 2);
+            return trimmed[1..^1];
         }
 
         return trimmed;

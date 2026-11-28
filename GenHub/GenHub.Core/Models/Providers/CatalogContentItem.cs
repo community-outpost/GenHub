@@ -213,7 +213,7 @@ public class CatalogContentItem : ObservableObject
     [JsonPropertyName("isFeatured")]
     public bool IsFeatured
     {
-        get => _isFeatured || (Metadata?.IsFeatured ?? false);
+        get => _isFeatured || Metadata?.IsFeatured == true;
         set
         {
             if (SetProperty(ref _isFeatured, value))
@@ -317,8 +317,8 @@ public class CatalogContentItem : ObservableObject
                 return Metadata.IconUrl;
             }
 
-            if ((Id != null && Id.Contains("dominator", StringComparison.OrdinalIgnoreCase)) ||
-                (Name != null && Name.Contains("dominator", StringComparison.OrdinalIgnoreCase)))
+            if (Id?.Contains("dominator", StringComparison.OrdinalIgnoreCase) == true ||
+                Name?.Contains("dominator", StringComparison.OrdinalIgnoreCase) == true)
             {
                 return PublisherInfoConstants.Dominator.LogoSource;
             }

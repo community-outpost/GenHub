@@ -35,14 +35,9 @@ public partial class MainWindow : GenHubWindow
 
     private void OnDragOver(object? sender, DragEventArgs e)
     {
-        if (DataContext is MainViewModel { SelectedTab: NavigationTab.GameProfiles } && e.Data.Contains(DataFormats.Files))
-        {
-            e.DragEffects = DragDropEffects.Copy;
-        }
-        else
-        {
-            e.DragEffects = DragDropEffects.None;
-        }
+        e.DragEffects = DataContext is MainViewModel { SelectedTab: NavigationTab.GameProfiles } && e.Data.Contains(DataFormats.Files)
+            ? DragDropEffects.Copy
+            : DragDropEffects.None;
     }
 
     [SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "Suppress unhandled drag/drop exceptions to protect the UI event loop")]

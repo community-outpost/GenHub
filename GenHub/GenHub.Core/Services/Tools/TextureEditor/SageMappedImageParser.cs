@@ -179,7 +179,7 @@ public sealed class SageMappedImageParser(ILogger<SageMappedImageParser> logger)
     private static string StripComment(string line)
     {
         int index = line.IndexOf(';');
-        return index < 0 ? line : line.Substring(0, index);
+        return index < 0 ? line : line[..index];
     }
 
     private static string FormatError(string? sourcePath, int lineNumber, string message) =>
@@ -272,14 +272,22 @@ public sealed class SageMappedImageParser(ILogger<SageMappedImageParser> logger)
         private static int ParseInt(string value) =>
             int.TryParse(value, out int parsed) ? parsed : 0;
 
-        private void ApplyCoords(string value)
+        private static MatchCollection? TryMatchCoords(string value)
         {
-            MatchCollection matches;
             try
             {
-                matches = CoordsPattern.Matches(value);
+                return CoordsPattern.Matches(value);
             }
             catch (RegexMatchTimeoutException)
+            {
+                return null;
+            }
+        }
+
+        private void ApplyCoords(string value)
+        {
+            var matches = TryMatchCoords(value);
+            if (matches is null)
             {
                 return;
             }
@@ -308,8 +316,6 @@ public sealed class SageMappedImageParser(ILogger<SageMappedImageParser> logger)
                         break;
                     case "BOTTOM":
                         bottom = number;
-                        break;
-                    default:
                         break;
                 }
             }

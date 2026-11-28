@@ -93,7 +93,7 @@ public static class WndGameFileSystem
             }
         }
 
-        if (additionalBigFiles != null && additionalBigFiles.Count > 0)
+        if (additionalBigFiles?.Count > 0)
         {
             var ordered = additionalBigFiles
                 .Where(f => !string.IsNullOrWhiteSpace(f))
@@ -286,7 +286,15 @@ public static class WndGameFileSystem
                 sb.Append(":DIR:").Append(Math.Max(dirInfo.LastWriteTimeUtc.Ticks, latestTicks));
             }
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException)
+        catch (IOException)
+        {
+            // Fall back to path alone if file inspection fails
+        }
+        catch (UnauthorizedAccessException)
+        {
+            // Fall back to path alone if file inspection fails
+        }
+        catch (NotSupportedException)
         {
             // Fall back to path alone if file inspection fails
         }

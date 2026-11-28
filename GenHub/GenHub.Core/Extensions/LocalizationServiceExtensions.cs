@@ -20,7 +20,7 @@ public static class LocalizationServiceExtensions
     /// <returns>The localized value or the fallback text.</returns>
     public static string GetLocalizedString(this ILocalizationService? localizationService, string key, string fallback)
     {
-        if (localizationService != null && localizationService.TryGetString(key, out var result))
+        if (localizationService?.TryGetString(key, out var result) == true)
         {
             return result;
         }
@@ -40,7 +40,7 @@ public static class LocalizationServiceExtensions
     /// <returns>The localized and formatted value or the formatted fallback text.</returns>
     public static string GetLocalizedString(this ILocalizationService? localizationService, string key, string fallback, params object?[] args)
     {
-        if (localizationService != null && localizationService.TryGetString(key, out var result, args))
+        if (localizationService?.TryGetString(key, out var result, args) == true)
         {
             return result;
         }

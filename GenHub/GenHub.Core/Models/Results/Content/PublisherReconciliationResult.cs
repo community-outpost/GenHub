@@ -55,7 +55,7 @@ public sealed class PublisherReconciliationResult : IEquatable<PublisherReconcil
     /// Implicitly converts a <see cref="PublisherReconciliationResult"/> to a boolean indicating whether reconciliation occurred.
     /// </summary>
     /// <param name="result">The reconciliation result.</param>
-    public static implicit operator bool(PublisherReconciliationResult? result) => result?.Reconciled ?? false;
+    public static implicit operator bool(PublisherReconciliationResult? result) => result?.Reconciled == true;
 
     /// <inheritdoc/>
     public bool Equals(PublisherReconciliationResult? other)

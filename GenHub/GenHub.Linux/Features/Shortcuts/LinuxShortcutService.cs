@@ -395,7 +395,11 @@ public class LinuxShortcutService(ILogger<LinuxShortcutService> logger, Func<str
                 }
             }
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        catch (IOException)
+        {
+            // Best effort XDG resolution
+        }
+        catch (UnauthorizedAccessException)
         {
             // Best effort XDG resolution
         }

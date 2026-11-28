@@ -396,7 +396,7 @@ public sealed class DownloadNotificationScope : IProgress<ContentAcquisitionProg
 
     private string Localize(string key, string fallback, params object?[] args)
     {
-        if (_localization != null && _localization.TryGetString(key, out var localized, args))
+        if (_localization?.TryGetString(key, out var localized, args) == true)
         {
             return localized;
         }

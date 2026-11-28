@@ -53,23 +53,10 @@ public abstract class PublisherProfileReconcilerBase(
             // Step 1: Check for updates
             var updateResult = await contentServices.UpdateService.CheckForUpdatesAsync(cancellationToken);
 
-            if (!updateResult.Success)
+            var earlyExit = EvaluateUpdateCheck(updateResult);
+            if (earlyExit != null)
             {
-                logger.LogWarning(
-                    "{Prefix} Update check failed: {Error}",
-                    text.LogPrefix,
-                    updateResult.FirstError);
-                return OperationResult<PublisherReconciliationResult>.CreateFailure(
-                    $"Failed to check for {text.PublisherDisplayName} updates: {updateResult.FirstError}");
-            }
-
-            if (!updateResult.IsUpdateAvailable)
-            {
-                logger.LogInformation(
-                    "{Prefix} No update available. Current version: {Version}",
-                    text.LogPrefix,
-                    updateResult.CurrentVersion);
-                return OperationResult<PublisherReconciliationResult>.CreateSuccess(PublisherReconciliationResult.None);
+                return earlyExit;
             }
 
             logger.LogInformation(
@@ -96,17 +83,7 @@ public abstract class PublisherProfileReconcilerBase(
             var strategy = promptResult.Strategy;
             var shouldDeleteOldVersions = promptResult.ShouldDeleteOldVersions;
 
-            var progressNotificationId = Guid.NewGuid();
-            var progressNotification = new NotificationMessage(
-                NotificationType.Info,
-                interactionServices.LocalizationService.GetLocalizedString(text.ProgressTitleKey, text.ProgressTitleFallback),
-                interactionServices.LocalizationService.GetLocalizedString(text.ProgressBodyKey, text.ProgressBodyFallback, text.ContextDisplayName, updateResult.LatestVersion),
-                autoDismissMilliseconds: null,
-                isPersistent: true)
-            {
-                Id = progressNotificationId,
-            };
-            interactionServices.NotificationService.Show(progressNotification);
+            var progressNotificationId = ShowProgressNotification(updateResult.LatestVersion);
 
             try
             {
@@ -114,19 +91,7 @@ public abstract class PublisherProfileReconcilerBase(
                 var oldManifestsResult = await FindPublisherManifestsAsync(cancellationToken);
                 if (!oldManifestsResult.Success || oldManifestsResult.Data == null)
                 {
-                    var loadError = oldManifestsResult.FirstError ?? "Failed to load manifests from pool.";
-
-                    return FailUpdate(
-                        updateResult,
-                        strategy,
-                        interactionServices.LocalizationService.GetLocalizedString(text.ErrorTitleKey, text.ErrorTitleFallback),
-                        interactionServices.LocalizationService.GetLocalizedString(
-                            "Content.Notification.ManifestLoadFailed.Message",
-                            $"Failed to load installed {text.ContextDisplayName} manifests: {loadError}",
-                            text.ContextDisplayName,
-                            loadError),
-                        $"Failed to load installed {text.ContextDisplayName} manifests: {loadError}",
-                        loadError);
+                    return FailManifestLoad(updateResult, strategy, oldManifestsResult.FirstError ?? "Failed to load manifests from pool.");
                 }
 
                 var oldManifests = oldManifestsResult.Data;
@@ -189,17 +154,9 @@ public abstract class PublisherProfileReconcilerBase(
 
                 if (!updateOutcome.Proceed)
                 {
-                    telemetryService?.TrackEvent(TelemetryConstants.Events.ContentUpdateFailed, new Dictionary<string, object?>
-                    {
-                        [TelemetryConstants.Properties.PublisherId] = text.PublisherType,
-                        [TelemetryConstants.Properties.ContentName] = text.TelemetryContentName,
-                        [TelemetryConstants.Properties.ContentId] = newManifests.FirstOrDefault()?.Id.Value ?? string.Empty,
-                        [TelemetryConstants.Properties.Author] = text.PublisherDisplayName,
-                        [TelemetryConstants.Properties.FromVersion] = updateResult.CurrentVersion ?? string.Empty,
-                        [TelemetryConstants.Properties.ToVersion] = updateResult.LatestVersion ?? string.Empty,
-                        [TelemetryConstants.Properties.Strategy] = strategy.ToString(),
-                        [TelemetryConstants.Properties.ErrorMessage] = updateOutcome.Error ?? "Update strategy execution failed",
-                    });
+                    var failedProperties = BuildUpdateTelemetry(updateResult, strategy, newManifests);
+                    failedProperties[TelemetryConstants.Properties.ErrorMessage] = updateOutcome.Error ?? "Update strategy execution failed";
+                    telemetryService?.TrackEvent(TelemetryConstants.Events.ContentUpdateFailed, failedProperties);
 
                     return OperationResult<PublisherReconciliationResult>.CreateFailure(updateOutcome.Error ?? "Update strategy execution failed");
                 }
@@ -209,28 +166,12 @@ public abstract class PublisherProfileReconcilerBase(
                 shouldDeleteOldVersions = updateOutcome.ShouldDeleteOldVersions;
 
                 // Step 6: Run garbage collection (only if old versions were deleted AND no failures occurred)
-                if (shouldDeleteOldVersions && !anyFailure)
-                {
-                    await contentServices.ReconciliationService.ScheduleGarbageCollectionAsync(false, cancellationToken);
-                }
-                else if (shouldDeleteOldVersions)
-                {
-                    // Reaching here with deletion requested implies a partial failure; otherwise GC would have run above.
-                    logger.LogWarning("{Prefix} Skipping scheduled GC due to partial update failure to avoid deleting referenced content.", text.LogPrefix);
-                }
+                await ScheduleGarbageCollectionIfSafeAsync(shouldDeleteOldVersions, anyFailure, cancellationToken);
 
-                telemetryService?.TrackEvent(TelemetryConstants.Events.ContentUpdateApplied, new Dictionary<string, object?>
-                {
-                    [TelemetryConstants.Properties.PublisherId] = text.PublisherType,
-                    [TelemetryConstants.Properties.ContentName] = text.TelemetryContentName,
-                    [TelemetryConstants.Properties.ContentId] = newManifests.FirstOrDefault()?.Id.Value ?? string.Empty,
-                    [TelemetryConstants.Properties.Author] = text.PublisherDisplayName,
-                    [TelemetryConstants.Properties.FromVersion] = updateResult.CurrentVersion ?? string.Empty,
-                    [TelemetryConstants.Properties.ToVersion] = updateResult.LatestVersion ?? string.Empty,
-                    [TelemetryConstants.Properties.Strategy] = strategy.ToString(),
-                    [TelemetryConstants.Properties.ProfilesUpdated] = profilesUpdated,
-                    [TelemetryConstants.Properties.Success] = !anyFailure,
-                });
+                var appliedProperties = BuildUpdateTelemetry(updateResult, strategy, newManifests);
+                appliedProperties[TelemetryConstants.Properties.ProfilesUpdated] = profilesUpdated;
+                appliedProperties[TelemetryConstants.Properties.Success] = !anyFailure;
+                telemetryService?.TrackEvent(TelemetryConstants.Events.ContentUpdateApplied, appliedProperties);
 
                 // Step 7: Show completion notification. Partial failures warn instead of
                 // claiming success, mirroring GeneralsOnlineProfileReconciler.
@@ -298,6 +239,90 @@ public abstract class PublisherProfileReconcilerBase(
         }
 
         return mapping;
+    }
+
+    private OperationResult<PublisherReconciliationResult>? EvaluateUpdateCheck(ContentUpdateCheckResult updateResult)
+    {
+        if (!updateResult.Success)
+        {
+            logger.LogWarning(
+                "{Prefix} Update check failed: {Error}",
+                text.LogPrefix,
+                updateResult.FirstError);
+            return OperationResult<PublisherReconciliationResult>.CreateFailure(
+                $"Failed to check for {text.PublisherDisplayName} updates: {updateResult.FirstError}");
+        }
+
+        if (!updateResult.IsUpdateAvailable)
+        {
+            logger.LogInformation(
+                "{Prefix} No update available. Current version: {Version}",
+                text.LogPrefix,
+                updateResult.CurrentVersion);
+            return OperationResult<PublisherReconciliationResult>.CreateSuccess(PublisherReconciliationResult.None);
+        }
+
+        return null;
+    }
+
+    private Guid ShowProgressNotification(string? latestVersion)
+    {
+        var progressNotificationId = Guid.NewGuid();
+        var progressNotification = new NotificationMessage(
+            NotificationType.Info,
+            interactionServices.LocalizationService.GetLocalizedString(text.ProgressTitleKey, text.ProgressTitleFallback),
+            interactionServices.LocalizationService.GetLocalizedString(text.ProgressBodyKey, text.ProgressBodyFallback, text.ContextDisplayName, latestVersion),
+            autoDismissMilliseconds: null,
+            isPersistent: true)
+        {
+            Id = progressNotificationId,
+        };
+        interactionServices.NotificationService.Show(progressNotification);
+        return progressNotificationId;
+    }
+
+    private OperationResult<PublisherReconciliationResult> FailManifestLoad(
+        ContentUpdateCheckResult updateResult,
+        UpdateStrategy strategy,
+        string loadError) =>
+        FailUpdate(
+            updateResult,
+            strategy,
+            interactionServices.LocalizationService.GetLocalizedString(text.ErrorTitleKey, text.ErrorTitleFallback),
+            interactionServices.LocalizationService.GetLocalizedString(
+                "Content.Notification.ManifestLoadFailed.Message",
+                $"Failed to load installed {text.ContextDisplayName} manifests: {loadError}",
+                text.ContextDisplayName,
+                loadError),
+            $"Failed to load installed {text.ContextDisplayName} manifests: {loadError}",
+            loadError);
+
+    private Dictionary<string, object?> BuildUpdateTelemetry(
+        ContentUpdateCheckResult updateResult,
+        UpdateStrategy strategy,
+        IReadOnlyList<ContentManifest> newManifests) =>
+        new()
+        {
+            [TelemetryConstants.Properties.PublisherId] = text.PublisherType,
+            [TelemetryConstants.Properties.ContentName] = text.TelemetryContentName,
+            [TelemetryConstants.Properties.ContentId] = newManifests.FirstOrDefault()?.Id.Value ?? string.Empty,
+            [TelemetryConstants.Properties.Author] = text.PublisherDisplayName,
+            [TelemetryConstants.Properties.FromVersion] = updateResult.CurrentVersion ?? string.Empty,
+            [TelemetryConstants.Properties.ToVersion] = updateResult.LatestVersion ?? string.Empty,
+            [TelemetryConstants.Properties.Strategy] = strategy.ToString(),
+        };
+
+    private async Task ScheduleGarbageCollectionIfSafeAsync(bool shouldDeleteOldVersions, bool anyFailure, CancellationToken cancellationToken)
+    {
+        if (shouldDeleteOldVersions && !anyFailure)
+        {
+            await contentServices.ReconciliationService.ScheduleGarbageCollectionAsync(false, cancellationToken);
+        }
+        else if (shouldDeleteOldVersions)
+        {
+            // Reaching here with deletion requested implies a partial failure; otherwise GC would have run above.
+            logger.LogWarning("{Prefix} Skipping scheduled GC due to partial update failure to avoid deleting referenced content.", text.LogPrefix);
+        }
     }
 
     private void ShowCompletionNotification(UpdateStrategy strategy, string? latestVersion, int profilesUpdated, bool anyFailure)

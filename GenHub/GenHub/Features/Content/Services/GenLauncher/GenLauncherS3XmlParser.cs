@@ -119,14 +119,9 @@ public static class GenLauncherS3XmlParser
             return OperationResult<List<GenLauncherS3FileEntry>>.CreateSuccess(entries);
         }
 
-        XDocument doc;
-        try
+        if (!TryParseXml(xmlContent, out var doc, out var parseError))
         {
-            doc = XDocument.Parse(xmlContent);
-        }
-        catch (XmlException ex)
-        {
-            return OperationResult<List<GenLauncherS3FileEntry>>.CreateFailure($"Invalid S3 XML response: {ex.Message}");
+            return OperationResult<List<GenLauncherS3FileEntry>>.CreateFailure($"Invalid S3 XML response: {parseError}");
         }
 
         var errorEl = doc.Root != null && doc.Root.Name.LocalName == "Error"
@@ -243,6 +238,25 @@ public static class GenLauncherS3XmlParser
             extraQueryParams: extraParams,
             forceUnsigned: !useAuth,
             region: region);
+    }
+
+    private static bool TryParseXml(
+        string xmlContent,
+        [NotNullWhen(true)] out XDocument? document,
+        [NotNullWhen(false)] out string? error)
+    {
+        try
+        {
+            document = XDocument.Parse(xmlContent);
+            error = null;
+            return true;
+        }
+        catch (XmlException ex)
+        {
+            document = null;
+            error = ex.Message;
+            return false;
+        }
     }
 
     private static GenLauncherS3FileEntry? TryParseContentEntry(

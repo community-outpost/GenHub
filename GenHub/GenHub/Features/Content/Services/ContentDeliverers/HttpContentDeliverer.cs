@@ -183,8 +183,8 @@ public class HttpContentDeliverer(
         IEnumerable<ManifestFile> filesToDownload,
         string targetDirectory,
         IProgress<ContentAcquisitionProgress>? progress,
-        CancellationToken cancellationToken,
-        ILogger logger)
+        ILogger logger,
+        CancellationToken cancellationToken)
     {
         foreach (var relativePath in filesToDownload.Select(file => file.RelativePath))
         {
@@ -344,7 +344,7 @@ public class HttpContentDeliverer(
             return;
         }
 
-        ExtractArchivesFallback(filesToDownload, targetDirectory, progress, cancellationToken, logger);
+        ExtractArchivesFallback(filesToDownload, targetDirectory, progress, logger, cancellationToken);
     }
 
     private async Task<DownloadResult> DownloadFileAsync(

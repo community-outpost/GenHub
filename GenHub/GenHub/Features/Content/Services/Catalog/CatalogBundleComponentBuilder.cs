@@ -39,7 +39,7 @@ public static class CatalogBundleComponentBuilder
 
         var components = new List<CatalogBundleComponentDescriptor>();
 
-        var dependencies = (release.Dependencies != null && release.Dependencies.Count > 0)
+        var dependencies = release.Dependencies?.Count > 0
             ? release.Dependencies
             : parent.BundledItems;
 
@@ -308,7 +308,7 @@ public static class CatalogBundleComponentBuilder
             return BuildUnavailableReleaseDescriptor(dependency, parent, sibling, itemsById);
         }
 
-        var hasDownloadableArtifacts = siblingRelease.Artifacts != null && siblingRelease.Artifacts.Any(a => !string.IsNullOrWhiteSpace(a.DownloadUrl));
+        var hasDownloadableArtifacts = siblingRelease.Artifacts?.Any(a => !string.IsNullOrWhiteSpace(a.DownloadUrl)) == true;
         var hasAssetRules = sibling.UpstreamSync?.AssetRules is { Count: > 0 };
         var hasUpstreamSource = HasConcreteUpstreamSource(sibling);
         var isComponentAvailable = !isSyntheticPlaceholder || hasDownloadableArtifacts || hasAssetRules || hasUpstreamSource;

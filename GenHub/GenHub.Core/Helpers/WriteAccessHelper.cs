@@ -96,7 +96,11 @@ public static class WriteAccessHelper
                     entry.UnixFileMode = change.OriginalMode;
                 }
             }
-            catch (Exception ex) when (ex is UnauthorizedAccessException or IOException)
+            catch (UnauthorizedAccessException)
+            {
+                // Best effort: the entry keeps the write access it was given.
+            }
+            catch (IOException)
             {
                 // Best effort: the entry keeps the write access it was given.
             }

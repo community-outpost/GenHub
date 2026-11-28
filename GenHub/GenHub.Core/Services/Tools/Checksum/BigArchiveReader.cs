@@ -77,7 +77,22 @@ public static class BigArchiveReader
             entries = ReadIndex(archivePath);
             return true;
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or NotSupportedException)
+        catch (IOException)
+        {
+            entries = null;
+            return false;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            entries = null;
+            return false;
+        }
+        catch (InvalidDataException)
+        {
+            entries = null;
+            return false;
+        }
+        catch (NotSupportedException)
         {
             entries = null;
             return false;

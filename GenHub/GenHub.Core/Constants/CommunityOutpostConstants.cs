@@ -394,15 +394,15 @@ public static class CommunityOutpostConstants
         }
 
         if (IsBaseGameIdentifier(result.Id) || IsBaseGameIdentifier(result.Name) ||
-            (result.Tags != null && result.Tags.Any(IsBaseGameIdentifier)))
+            result.Tags?.Any(IsBaseGameIdentifier) == true)
         {
             return false;
         }
 
         return IsCommunityPatchIdentifier(result.Id) ||
                IsCommunityPatchIdentifier(result.Name) ||
-               (result.Tags != null && result.Tags.Any(IsCommunityPatchIdentifier)) ||
-               (result.ResolverMetadata != null && result.ResolverMetadata.TryGetValue("category", out var cat) &&
+               result.Tags?.Any(IsCommunityPatchIdentifier) == true ||
+               (result.ResolverMetadata?.TryGetValue("category", out var cat) == true &&
                 string.Equals(cat, "CommunityPatch", System.StringComparison.OrdinalIgnoreCase));
     }
 

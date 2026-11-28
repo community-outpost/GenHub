@@ -17,10 +17,10 @@ public class CasValidationResult : ResultBase
         int objectsValidated,
         TimeSpan elapsed = default)
         : base(
-            !issues.Any(i => i.IssueType == CasValidationIssueType.HashMismatch ||
-                             i.IssueType == CasValidationIssueType.CorruptedObject ||
-                             i.IssueType == CasValidationIssueType.MissingObject ||
-                             i.IssueType == CasValidationIssueType.Critical),
+            issues.All(i => i.IssueType != CasValidationIssueType.HashMismatch &&
+                            i.IssueType != CasValidationIssueType.CorruptedObject &&
+                            i.IssueType != CasValidationIssueType.MissingObject &&
+                            i.IssueType != CasValidationIssueType.Critical),
             issues.Where(i => i.IssueType == CasValidationIssueType.HashMismatch ||
                               i.IssueType == CasValidationIssueType.CorruptedObject ||
                               i.IssueType == CasValidationIssueType.MissingObject ||

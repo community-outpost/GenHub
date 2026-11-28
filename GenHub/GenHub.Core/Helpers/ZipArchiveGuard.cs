@@ -68,24 +68,22 @@ public static class ZipArchiveGuard
         long entryBytes = 0;
         try
         {
-            using (var source = entry.Open())
-            using (var destination = File.Create(targetPath))
+            using var source = entry.Open();
+            using var destination = File.Create(targetPath);
+            var buffer = new byte[ValidationLimits.ZipCopyBufferSize];
+            int read = 0;
+            while ((read = source.Read(buffer, 0, buffer.Length)) > 0)
             {
-                var buffer = new byte[ValidationLimits.ZipCopyBufferSize];
-                int read = 0;
-                while ((read = source.Read(buffer, 0, buffer.Length)) > 0)
+                cancellationToken.ThrowIfCancellationRequested();
+                entryBytes += read;
+                totalBytes += read;
+                if (entryBytes > ValidationLimits.MaxZipArchiveEntryBytes || totalBytes > ValidationLimits.MaxZipArchiveTotalBytes)
                 {
-                    cancellationToken.ThrowIfCancellationRequested();
-                    entryBytes += read;
-                    totalBytes += read;
-                    if (entryBytes > ValidationLimits.MaxZipArchiveEntryBytes || totalBytes > ValidationLimits.MaxZipArchiveTotalBytes)
-                    {
-                        exceeded = true;
-                        break;
-                    }
-
-                    destination.Write(buffer, 0, read);
+                    exceeded = true;
+                    break;
                 }
+
+                destination.Write(buffer, 0, read);
             }
         }
         catch (OperationCanceledException)
