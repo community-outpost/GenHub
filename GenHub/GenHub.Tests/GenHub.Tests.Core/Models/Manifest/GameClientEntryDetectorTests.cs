@@ -84,6 +84,47 @@ public sealed class GameClientEntryDetectorTests : IDisposable
     }
 
     /// <summary>
+    /// The plist parser must not load an external DTD, so an entity it defines cannot name the executable.
+    /// </summary>
+    [Fact]
+    public void DetectEntryPoint_PlistEntityFromExternalDtd_IsNotResolved()
+    {
+        var macOs = CreateBundle("Entity.app", declaredExecutable: null);
+        var contents = Path.GetDirectoryName(macOs)!;
+        File.WriteAllText(Path.Combine(contents, "entity.dtd"), "<!ENTITY exe \"Injected\">");
+        var plist = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n" +
+            "<!DOCTYPE plist SYSTEM \"entity.dtd\">\n" +
+            "<plist version=\"1.0\"><dict><key>CFBundleExecutable</key><string>&exe;</string></dict></plist>\n";
+        File.WriteAllText(Path.Combine(contents, "Info.plist"), plist);
+        WriteBinary(Path.Combine(macOs, "Injected"), MachOHeader);
+        WriteBinary(Path.Combine(macOs, "OtherClient"), MachOHeader);
+
+        var resolution = GameClientEntryDetector.DetectEntryPoint(_payload);
+
+        Assert.NotEqual(Path.Combine("Entity.app", "Contents", "MacOS", "Injected"), resolution.RelativePath);
+    }
+
+    /// <summary>
+    /// A plist with Apple's public DOCTYPE still resolves its declared executable without fetching the DTD.
+    /// </summary>
+    [Fact]
+    public void DetectEntryPoint_PlistWithApplePublicDoctype_UsesDeclaredBinary()
+    {
+        var macOs = CreateBundle("Doctype.app", declaredExecutable: null);
+        var plist = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n" +
+            "<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n" +
+            "<plist version=\"1.0\"><dict><key>CFBundleExecutable</key><string>DeclaredClient</string></dict></plist>\n";
+        File.WriteAllText(Path.Combine(Path.GetDirectoryName(macOs)!, "Info.plist"), plist);
+        WriteBinary(Path.Combine(macOs, "DeclaredClient"), MachOHeader);
+        WriteBinary(Path.Combine(macOs, "OtherClient"), MachOHeader);
+
+        var resolution = GameClientEntryDetector.DetectEntryPoint(_payload);
+
+        Assert.True(resolution.Success);
+        Assert.Equal(Path.Combine("Doctype.app", "Contents", "MacOS", "DeclaredClient"), resolution.RelativePath);
+    }
+
+    /// <summary>
     /// Wrapper-stripping may remove the .app level, leaving a bare Contents tree that must
     /// still resolve.
     /// </summary>

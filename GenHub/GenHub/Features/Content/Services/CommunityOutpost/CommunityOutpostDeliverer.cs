@@ -597,8 +597,9 @@ public class CommunityOutpostDeliverer(
     }
 
     /// <summary>
-    /// Cleans up temporary files after extraction.
+    /// Registers each manifest and rolls back on the first failure.
     /// </summary>
+    /// <returns>The failure message, or null when every manifest registered.</returns>
     private async Task<string?> RegisterManifestsAsync(
         List<ContentManifest> manifests,
         string archivePath,
@@ -645,6 +646,9 @@ public class CommunityOutpostDeliverer(
         return null;
     }
 
+    /// <summary>
+    /// Cleans up temporary files after extraction.
+    /// </summary>
     private async Task CleanupTemporaryFilesAsync(string archivePath, string extractPath)
     {
         await Task.Run(() =>
