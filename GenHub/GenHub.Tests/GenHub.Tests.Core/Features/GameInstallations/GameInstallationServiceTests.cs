@@ -1278,8 +1278,10 @@ public class GameInstallationServiceTests : IDisposable
                     It.IsAny<string>(), It.IsAny<GameType>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<PublisherInfo?>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(clientBuilderMock.Object);
 
+            using var cts = new CancellationTokenSource();
+
             // Act
-            await _service.CreateAndRegisterInstallationManifestsAsync(installation);
+            await _service.CreateAndRegisterInstallationManifestsAsync(installation, cts.Token);
 
             // Assert
             _manifestServiceMock.Verify(
@@ -1290,7 +1292,7 @@ public class GameInstallationServiceTests : IDisposable
                     It.IsAny<string>(),
                     It.Is<string>(p => p.EndsWith("Game.dat", StringComparison.OrdinalIgnoreCase)),
                     It.IsAny<PublisherInfo?>(),
-                    It.IsAny<CancellationToken>()),
+                    cts.Token),
                 Times.Once);
         }
         finally
