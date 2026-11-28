@@ -172,7 +172,7 @@ public class ProfileSharingCompressionHelperTests
         var dangerousArgs = "-win \"-mod\" %APPDATA% & rm -rf / \t";
 
         // Act
-        var sanitized = ProfileSharingCompressionHelper.SanitizeCommandLineArguments(
+        _ = ProfileSharingCompressionHelper.SanitizeCommandLineArguments(
             dangerousArgs,
             out var warnings,
             out var codes);

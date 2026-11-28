@@ -590,13 +590,11 @@ public class GameProfileManagerLiveSyncTests
             .Returns(async () =>
             {
                 var current = Interlocked.Increment(ref activeExecutions);
-                int initialMax;
-                do
+                var initialMax = maxConcurrentExecutions;
+                while (current > initialMax && Interlocked.CompareExchange(ref maxConcurrentExecutions, current, initialMax) != initialMax)
                 {
                     initialMax = maxConcurrentExecutions;
-                    if (current <= initialMax) break;
                 }
-                while (Interlocked.CompareExchange(ref maxConcurrentExecutions, current, initialMax) != initialMax);
 
                 await Task.Delay(50);
                 return ProfileOperationResult<GameProfile>.CreateSuccess(profile);

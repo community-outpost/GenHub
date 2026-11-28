@@ -416,10 +416,8 @@ public sealed class GameClientEntryDetectorTests : IDisposable
             }
 
             var entry2 = archive.CreateEntry("/generals.exe");
-            using (var stream2 = entry2.Open())
-            {
-                stream2.Write([0x4D, 0x5A]);
-            }
+            using var stream2 = entry2.Open();
+            stream2.Write([0x4D, 0x5A]);
         }
 
         var entryPoint = GameClientEntryDetector.DetectEntryPointFromArchive(zipPath);
@@ -443,7 +441,7 @@ public sealed class GameClientEntryDetectorTests : IDisposable
     private static void WriteBinary(string path, byte[] header)
     {
         var payload = new byte[64];
-        Buffer.BlockCopy(header, 0, payload, 0, header.Length);
+        header.CopyTo(payload, 0);
         File.WriteAllBytes(path, payload);
     }
 

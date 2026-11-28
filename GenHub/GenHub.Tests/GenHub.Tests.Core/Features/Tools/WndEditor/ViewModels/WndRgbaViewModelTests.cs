@@ -54,7 +54,7 @@ public sealed class WndRgbaViewModelTests
     {
         // Arrange
         var commits = 0;
-        var viewModel = new WndRgbaViewModel(WndRgbaColor.White, () => commits++);
+        var viewModel = new WndRgbaViewModel(WndRgbaColor.White, () => commits++); // skipcq: CS-R1048
 
         // Act
         viewModel.SelectedColor = Color.FromArgb(255, 255, 255, 255);

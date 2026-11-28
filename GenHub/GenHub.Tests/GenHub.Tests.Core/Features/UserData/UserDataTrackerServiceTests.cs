@@ -562,7 +562,11 @@ public sealed class UserDataTrackerServiceTests : IDisposable
                 Directory.Delete(_tempDir, recursive: true);
             }
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        catch (IOException)
+        {
+            // Ignore test cleanup errors
+        }
+        catch (UnauthorizedAccessException)
         {
             // Ignore test cleanup errors
         }

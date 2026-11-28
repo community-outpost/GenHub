@@ -66,7 +66,7 @@ public sealed class RemoteFileSizeProbeTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task TryProbeSizeAsync_DirectDownload_ReturnsContentLength()
+    public async Task TryProbeSizeAsync_DirectDownload_ReturnsContentLengthAsync()
     {
         using var client = CreateClient(new HeadResponse(HttpStatusCode.OK, 211647919, "application/zip"));
 
@@ -80,7 +80,7 @@ public sealed class RemoteFileSizeProbeTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task TryProbeSizeAsync_RedirectToHttps_FollowsRedirect()
+    public async Task TryProbeSizeAsync_RedirectToHttps_FollowsRedirectAsync()
     {
         using var client = new HttpClient(new QueueHandler(
         [
@@ -98,7 +98,7 @@ public sealed class RemoteFileSizeProbeTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task TryProbeSizeAsync_RelativeRedirect_ResolvesAgainstRequestUri()
+    public async Task TryProbeSizeAsync_RelativeRedirect_ResolvesAgainstRequestUriAsync()
     {
         using var client = new HttpClient(new QueueHandler(
         [
@@ -122,7 +122,7 @@ public sealed class RemoteFileSizeProbeTests
     [InlineData("https://example.com/manifest.txt")]
     [InlineData("https://example.com/manifest.json")]
     [InlineData("https://example.com/manifest.xml")]
-    public async Task TryProbeSizeAsync_DescriptorUrl_ReturnsNullWithoutRequest(string url)
+    public async Task TryProbeSizeAsync_DescriptorUrl_ReturnsNullWithoutRequestAsync(string url)
     {
         var handler = new QueueHandler([new HeadResponse(HttpStatusCode.OK, 552, "text/plain")]);
         using var client = new HttpClient(handler);
@@ -148,7 +148,7 @@ public sealed class RemoteFileSizeProbeTests
     [InlineData("application/x-yaml")]
     [InlineData("application/hal+json")]
     [InlineData("application/atom+xml")]
-    public async Task TryProbeSizeAsync_NonPayloadMediaType_ReturnsNull(string mediaType)
+    public async Task TryProbeSizeAsync_NonPayloadMediaType_ReturnsNullAsync(string mediaType)
     {
         using var client = CreateClient(new HeadResponse(HttpStatusCode.OK, 552, mediaType));
 
@@ -162,7 +162,7 @@ public sealed class RemoteFileSizeProbeTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task TryProbeSizeAsync_RedirectLoop_ReturnsNull()
+    public async Task TryProbeSizeAsync_RedirectLoop_ReturnsNullAsync()
     {
         var redirects = new List<HeadResponse>();
         for (var i = 0; i <= ContentConstants.MaxSizeProbeRedirects + 1; i++)
@@ -182,7 +182,7 @@ public sealed class RemoteFileSizeProbeTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task TryProbeSizeAsync_RedirectToUnsafeHost_ReturnsNull()
+    public async Task TryProbeSizeAsync_RedirectToUnsafeHost_ReturnsNullAsync()
     {
         using var client = new HttpClient(new QueueHandler(
         [
@@ -206,7 +206,7 @@ public sealed class RemoteFileSizeProbeTests
     [InlineData("ftp://cdn.example.com/mod.zip")]
     [InlineData("http://localhost/mod.zip")]
     [InlineData("http://127.0.0.1/mod.zip")]
-    public async Task TryProbeSizeAsync_UnsafeUrl_ReturnsNull(string? url)
+    public async Task TryProbeSizeAsync_UnsafeUrl_ReturnsNullAsync(string? url)
     {
         var handler = new QueueHandler([new HeadResponse(HttpStatusCode.OK, 1024, "application/zip")]);
         using var client = new HttpClient(handler);
@@ -222,7 +222,7 @@ public sealed class RemoteFileSizeProbeTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task TryProbeSizeAsync_CancelledToken_ThrowsOperationCanceledException()
+    public async Task TryProbeSizeAsync_CancelledToken_ThrowsOperationCanceledExceptionAsync()
     {
         using var client = CreateClient(new HeadResponse(HttpStatusCode.OK, 1024, "application/zip"));
         using var cts = new CancellationTokenSource();

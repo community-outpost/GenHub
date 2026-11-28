@@ -103,7 +103,7 @@ public class DownloadConfigurationTests
     public void BufferSize_AcceptsValidValues(int bufferSize)
     {
         // Arrange
-        var config = new DownloadConfiguration();
+        var config = new DownloadConfiguration(); // skipcq: CS-R1048
 
         // Act
         config.BufferSize = bufferSize;

@@ -51,7 +51,7 @@ public class ConfigEditorViewModelTests
             .Returns<string, object?[]>((key, args) =>
             {
                 var val = resourceManager.GetString(key, CultureInfo.InvariantCulture) ?? key;
-                return args != null && args.Length > 0 ? string.Format(CultureInfo.InvariantCulture, val, args) : val;
+                return args?.Length > 0 ? string.Format(CultureInfo.InvariantCulture, val, args) : val;
             });
         return mock.Object;
     }
@@ -421,7 +421,7 @@ public class ConfigEditorViewModelTests
     }
 
     [Fact]
-    public async Task SaveAsync_DeduplicatesBundleItemsAndPacksByNameCaseInsensitively()
+    public async Task SaveAsync_DeduplicatesBundleItemsAndPacksByNameCaseInsensitivelyAsync()
     {
         var projectDir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
         Directory.CreateDirectory(projectDir);

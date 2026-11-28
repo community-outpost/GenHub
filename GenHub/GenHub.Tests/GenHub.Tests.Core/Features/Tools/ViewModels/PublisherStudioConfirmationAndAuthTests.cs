@@ -319,9 +319,10 @@ public class PublisherStudioConfirmationAndAuthTests
             _mockPublishLogger.Object,
             null,
             _mockHostingStateManager.Object,
-            _mockNotificationService.Object);
-
-        vm.SelectedHostingProvider = null;
+            _mockNotificationService.Object)
+        {
+            SelectedHostingProvider = null,
+        };
 
         // Act
         await vm.PublishAllCatalogsCommand.ExecuteAsync(null);
@@ -347,9 +348,10 @@ public class PublisherStudioConfirmationAndAuthTests
             _mockPublishLogger.Object,
             null,
             _mockHostingStateManager.Object,
-            _mockNotificationService.Object);
-
-        vm.SubscriptionUrl = "Please publish to generate subscription URL";
+            _mockNotificationService.Object)
+        {
+            SubscriptionUrl = "Please publish to generate subscription URL",
+        };
 
         // Act
         await vm.CopySubscriptionUrlCommand.ExecuteAsync(null);

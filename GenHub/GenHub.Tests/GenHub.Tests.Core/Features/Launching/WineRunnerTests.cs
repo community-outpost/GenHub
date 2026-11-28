@@ -1216,7 +1216,15 @@ public sealed class WineRunnerTests : IDisposable
         {
             Directory.CreateSymbolicLink(loopLink, regularDir);
         }
-        catch (Exception ex) when (ex is UnauthorizedAccessException or PlatformNotSupportedException or IOException)
+        catch (UnauthorizedAccessException)
+        {
+            // If symlinks cannot be created, skip symlink assertion
+        }
+        catch (PlatformNotSupportedException)
+        {
+            // If symlinks cannot be created, skip symlink assertion
+        }
+        catch (IOException)
         {
             // If symlinks cannot be created, skip symlink assertion
         }

@@ -846,10 +846,7 @@ public sealed class BuildEngineServiceTests : IDisposable
                 It.IsAny<string?>(),
                 It.IsAny<string>()))
             .Callback<string, string, GenHub.Core.Models.Enums.ContentType, GameType, string?, IProgress<ContentStorageProgress>?, CancellationToken, string?, string?, string>(
-                (stagingDir, _, _, _, _, _, _, _, _, _) =>
-                {
-                    stagedBigExists = File.Exists(Path.Combine(stagingDir, "BigPack.big"));
-                })
+                (stagingDir, _, _, _, _, _, _, _, _, _) => stagedBigExists = File.Exists(Path.Combine(stagingDir, "BigPack.big")))
             .ReturnsAsync(OperationResult<GenHub.Core.Models.Manifest.ContentManifest>.CreateSuccess(new GenHub.Core.Models.Manifest.ContentManifest { Id = "1.0.test.mod.bigpackproject", Name = "BigPackProject" }));
 
         // Act
@@ -1481,6 +1478,7 @@ public sealed class BuildEngineServiceTests : IDisposable
         progressMock.Setup(p => p.Report(It.IsAny<BuildProgress>()))
             .Callback<BuildProgress>(p =>
             {
+                // skipcq: CS-W1094
                 lock (progressLock)
                 {
                     reportedProgress.Add(p);
@@ -1588,6 +1586,7 @@ public sealed class BuildEngineServiceTests : IDisposable
         progressMock.Setup(p => p.Report(It.IsAny<BuildProgress>()))
             .Callback<BuildProgress>(p =>
             {
+                // skipcq: CS-W1094
                 lock (progressLock)
                 {
                     reportedProgress.Add(p);
@@ -1610,6 +1609,7 @@ public sealed class BuildEngineServiceTests : IDisposable
         var deadline = DateTime.UtcNow.AddSeconds(10);
         while (DateTime.UtcNow < deadline)
         {
+            // skipcq: CS-W1094
             lock (progressLock)
             {
                 packingReports = reportedProgress
@@ -1625,13 +1625,12 @@ public sealed class BuildEngineServiceTests : IDisposable
             await Task.Delay(50);
         }
 
-        List<string> reportedSteps;
+        // skipcq: CS-W1094
         lock (progressLock)
         {
-            reportedSteps = reportedProgress.Select(p => p.CurrentStep).ToList();
+            reportedProgress.Select(p => p.CurrentStep).Should().Contain(s => s.StartsWith("Staging release CommunityPatch", StringComparison.Ordinal));
         }
 
-        reportedSteps.Should().Contain(s => s.StartsWith("Staging release CommunityPatch", StringComparison.Ordinal));
         packingReports.Should().NotBeEmpty("release packing progress must be reported");
         packingReports.Should().Contain(p => p.PercentComplete == 100);
     }

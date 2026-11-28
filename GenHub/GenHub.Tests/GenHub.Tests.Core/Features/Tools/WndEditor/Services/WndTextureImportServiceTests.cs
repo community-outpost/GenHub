@@ -434,8 +434,10 @@ public sealed class WndTextureImportServiceTests : IDisposable
 
     private static byte[] CreateImageBytes(uint width, uint height, MagickFormat format)
     {
-        using var image = new MagickImage(MagickColors.Crimson, width, height);
-        image.Format = format;
+        using var image = new MagickImage(MagickColors.Crimson, width, height)
+        {
+            Format = format,
+        };
         using var ms = new MemoryStream();
         image.Write(ms);
         return ms.ToArray();
@@ -443,8 +445,10 @@ public sealed class WndTextureImportServiceTests : IDisposable
 
     private static byte[] CreateDibBytes(uint width, uint height)
     {
-        using var image = new MagickImage(MagickColors.ForestGreen, width, height);
-        image.Format = MagickFormat.Bmp;
+        using var image = new MagickImage(MagickColors.ForestGreen, width, height)
+        {
+            Format = MagickFormat.Bmp,
+        };
         using var ms = new MemoryStream();
         image.Write(ms);
         var bmpBytes = ms.ToArray();
@@ -454,8 +458,10 @@ public sealed class WndTextureImportServiceTests : IDisposable
     private string WriteSource(string fileName, uint width, uint height, MagickFormat format)
     {
         var path = Path.Combine(_sourceDir, fileName);
-        using var image = new MagickImage(MagickColors.DodgerBlue, width, height);
-        image.Format = format;
+        using var image = new MagickImage(MagickColors.DodgerBlue, width, height)
+        {
+            Format = format,
+        };
         image.Write(path);
         return path;
     }

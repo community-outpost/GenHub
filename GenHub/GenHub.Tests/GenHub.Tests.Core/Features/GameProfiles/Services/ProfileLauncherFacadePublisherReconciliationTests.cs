@@ -207,10 +207,7 @@ public sealed class ProfileLauncherFacadePublisherReconciliationTests
                 It.IsAny<bool>(),
                 It.IsAny<IReadOnlyDictionary<string, string>?>(),
                 It.IsAny<CancellationToken>()))
-            .Callback<GameProfile, IProgress<LaunchProgress>?, bool, IReadOnlyDictionary<string, string>?, CancellationToken>((p, _, _, _, _) =>
-            {
-                launchedProfile = p;
-            })
+            .Callback<GameProfile, IProgress<LaunchProgress>?, bool, IReadOnlyDictionary<string, string>?, CancellationToken>((p, _, _, _, _) => launchedProfile = p)
             .ReturnsAsync(LaunchOperationResult<GameLaunchInfo>.CreateSuccess(launchInfo, profileId: newProfileId));
 
         var facade = CreateFacade();

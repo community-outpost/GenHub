@@ -93,14 +93,15 @@ public sealed class AppSubscriptionProtocolTests : IDisposable
         services.AddLogging();
 
         var serviceProvider = services.BuildServiceProvider();
-        var app = new global::GenHub.App(serviceProvider);
-
-        // Inject headless dialog handler simulating confirmation
-        app.ShowSubscriptionDialogAsync = async (vm, _) =>
+        var app = new global::GenHub.App(serviceProvider)
         {
-            await vm.InitializeAsync();
-            await vm.ConfirmCommand.ExecuteAsync(null);
-            return true;
+            // Inject headless dialog handler simulating confirmation
+            ShowSubscriptionDialogAsync = async (vm, _) =>
+            {
+                await vm.InitializeAsync();
+                await vm.ConfirmCommand.ExecuteAsync(null);
+                return true;
+            },
         };
 
         // Act
@@ -161,13 +162,14 @@ public sealed class AppSubscriptionProtocolTests : IDisposable
         services.AddLogging();
 
         var serviceProvider = services.BuildServiceProvider();
-        var app = new global::GenHub.App(serviceProvider);
-
-        // Inject headless dialog handler simulating cancellation
-        app.ShowSubscriptionDialogAsync = async (vm, _) =>
+        var app = new global::GenHub.App(serviceProvider)
         {
-            await vm.InitializeAsync();
-            return false;
+            // Inject headless dialog handler simulating cancellation
+            ShowSubscriptionDialogAsync = async (vm, _) =>
+            {
+                await vm.InitializeAsync();
+                return false;
+            },
         };
 
         // Act
@@ -238,13 +240,14 @@ public sealed class AppSubscriptionProtocolTests : IDisposable
             services.AddSingleton<ILoggerFactory>(NullLoggerFactory.Instance);
             services.AddLogging();
 
-            var app = new global::GenHub.App(services.BuildServiceProvider());
-
-            app.ShowSubscriptionDialogAsync = async (vm, _) =>
+            var app = new global::GenHub.App(services.BuildServiceProvider())
             {
-                await vm.InitializeAsync();
-                await vm.ConfirmCommand.ExecuteAsync(null);
-                return true;
+                ShowSubscriptionDialogAsync = async (vm, _) =>
+                {
+                    await vm.InitializeAsync();
+                    await vm.ConfirmCommand.ExecuteAsync(null);
+                    return true;
+                },
             };
 
             var fileUri = new Uri(tempFile).AbsoluteUri;

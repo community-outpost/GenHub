@@ -34,7 +34,7 @@ public sealed class WndEditorPanTests
     /// </summary>
     /// <returns>A task representing the asynchronous test operation.</returns>
     [AvaloniaFact]
-    public async Task Canvas_MiddleDrag_PansScrollViewer()
+    public async Task Canvas_MiddleDrag_PansScrollViewerAsync()
     {
         // Arrange
         var viewModel = CreateEditorViewModel();
@@ -79,7 +79,7 @@ public sealed class WndEditorPanTests
     /// </summary>
     /// <returns>A task representing the asynchronous test operation.</returns>
     [AvaloniaFact]
-    public async Task Canvas_PanModeLeftDrag_PansScrollViewer()
+    public async Task Canvas_PanModeLeftDrag_PansScrollViewerAsync()
     {
         // Arrange
         var viewModel = CreateEditorViewModel();
@@ -125,7 +125,7 @@ public sealed class WndEditorPanTests
     /// </summary>
     /// <returns>A task representing the asynchronous test operation.</returns>
     [AvaloniaFact]
-    public async Task Canvas_ZoomIn_GrowsCanvasVisual()
+    public async Task Canvas_ZoomIn_GrowsCanvasVisualAsync()
     {
         // Arrange
         var viewModel = CreateEditorViewModel();
@@ -165,7 +165,7 @@ public sealed class WndEditorPanTests
     /// </summary>
     /// <returns>A task representing the asynchronous test operation.</returns>
     [AvaloniaFact]
-    public async Task Canvas_FittingDocument_RemainsPannable()
+    public async Task Canvas_FittingDocument_RemainsPannableAsync()
     {
         // Arrange
         var viewModel = CreateEditorViewModel();
@@ -212,7 +212,7 @@ public sealed class WndEditorPanTests
     /// </summary>
     /// <returns>A task representing the asynchronous test operation.</returns>
     [AvaloniaFact]
-    public async Task Canvas_CtrlZUndoRedo_RestoresDraggedPosition()
+    public async Task Canvas_CtrlZUndoRedo_RestoresDraggedPositionAsync()
     {
         // Arrange
         var viewModel = CreateEditorViewModel();

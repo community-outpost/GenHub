@@ -1023,6 +1023,12 @@ public class ProfileSharingServiceTests
     [InlineData(false, false)]
     public async Task InspectSharedProfileAsync_WithDependencyForOtherPlatform_WarnsAndExcludesSizeAsync(bool local, bool curated)
     {
+        var (manifestId, publisherType) = (local, curated) switch
+        {
+            (true, _) => ("1.0.local.mod.crossplatform", PublisherTypeConstants.Local),
+            (false, true) => ("1.0.moddb.mod.crossplatform", PublisherTypeConstants.ModDB),
+            _ => ("1.0.other.mod.crossplatform", "Other"),
+        };
         var package = new SharedGameProfilePackage
         {
             SchemaVersion = ProfileSharingConstants.PlatformSpecificSchemaVersion,
@@ -1031,11 +1037,11 @@ public class ProfileSharingServiceTests
             [
                 new SharedManifestDependency
                 {
-                    ManifestId = local ? "1.0.local.mod.crossplatform" : (curated ? "1.0.moddb.mod.crossplatform" : "1.0.other.mod.crossplatform"),
+                    ManifestId = manifestId,
                     DisplayName = "Local Cross Platform Mod",
                     Version = "1.0",
                     ContentType = ContentType.Mod,
-                    PublisherType = local ? PublisherTypeConstants.Local : (curated ? PublisherTypeConstants.ModDB : "Other"),
+                    PublisherType = publisherType,
                     PackageUrl = "https://utfs.io/f/foreign-local.zip",
                     DownloadSize = 5_000_000,
                     Files = [new ManifestFile { RelativePath = "mod.big", Hash = "foreign-hash", Size = 5_000_000, DownloadUrl = "https://utfs.io/f/foreign-local.zip" }],
@@ -3388,7 +3394,7 @@ public class ProfileSharingServiceTests
     [InlineData("https://app.internal/profile.ghprofile", false)]
     [InlineData("https://93.184.216.34/profile.ghprofile", true)]
     [InlineData("https://8.8.8.8/profile.ghprofile", true)]
-    public async Task IsSafeRemoteUriAsync_Should_ValidateIpLiteralsCorrectly(string url, bool expectedSafe)
+    public async Task IsSafeRemoteUriAsync_Should_ValidateIpLiteralsCorrectlyAsync(string url, bool expectedSafe)
     {
         var method = typeof(ProfileSharingService).GetMethod(
             "IsSafeRemoteUriAsync",

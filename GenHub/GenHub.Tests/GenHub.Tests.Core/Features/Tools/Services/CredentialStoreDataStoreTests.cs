@@ -28,7 +28,7 @@ public sealed class CredentialStoreDataStoreTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task StoreAsync_SerializesAndSavesWithKeyPrefix()
+    public async Task StoreAsync_SerializesAndSavesWithKeyPrefixAsync()
     {
         const string key = "user";
         var sampleToken = new TestToken { AccessToken = "abc123xyz", TokenType = "Bearer" };
@@ -48,7 +48,7 @@ public sealed class CredentialStoreDataStoreTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task GetAsync_WhenCredentialExists_DeserializesJson()
+    public async Task GetAsync_WhenCredentialExists_DeserializesJsonAsync()
     {
         const string json = "{\"AccessToken\":\"test_token\",\"TokenType\":\"Bearer\"}";
         _credentialStoreMock
@@ -67,7 +67,7 @@ public sealed class CredentialStoreDataStoreTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task GetAsync_WhenNotFoundOrEmpty_ReturnsDefault()
+    public async Task GetAsync_WhenNotFoundOrEmpty_ReturnsDefaultAsync()
     {
         _credentialStoreMock
             .Setup(s => s.GetCredentialAsync("GoogleDrive.nonexistent", It.IsAny<CancellationToken>()))
@@ -83,7 +83,7 @@ public sealed class CredentialStoreDataStoreTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task DeleteAsync_InvokesDeleteCredentialWithPrefix()
+    public async Task DeleteAsync_InvokesDeleteCredentialWithPrefixAsync()
     {
         await _dataStore.DeleteAsync<TestToken>("user");
 
@@ -97,7 +97,7 @@ public sealed class CredentialStoreDataStoreTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task ClearAsync_DeletesBrokerUserKey()
+    public async Task ClearAsync_DeletesBrokerUserKeyAsync()
     {
         await _dataStore.ClearAsync();
 

@@ -81,24 +81,30 @@ public sealed class MarkdownScrollViewerRenderTests
 
     private static MarkdownScrollViewer CreateViewer()
     {
-        var viewer = new MarkdownScrollViewer { Width = 900, Height = 1200 };
-        viewer.Plugins = new MdAvPlugins
+        return new MarkdownScrollViewer
         {
-            HyperlinkCommand = new SafeMarkdownHyperlinkCommand(),
-            PathResolver = new SafeMarkdownPathResolver(),
+            Width = 900,
+            Height = 1200,
+            Plugins = new MdAvPlugins
+            {
+                HyperlinkCommand = new SafeMarkdownHyperlinkCommand(),
+                PathResolver = new SafeMarkdownPathResolver(),
+            },
         };
-        return viewer;
     }
 
     private static MarkdownScrollViewer CreateFullViewer()
     {
-        var viewer = new MarkdownScrollViewer { Width = 900, Height = 1200 };
-        viewer.Plugins = new global::Markdown.Avalonia.Full.MdAvPlugins
+        return new MarkdownScrollViewer
         {
-            HyperlinkCommand = new SafeMarkdownHyperlinkCommand(),
-            PathResolver = new StubPathResolver(),
+            Width = 900,
+            Height = 1200,
+            Plugins = new global::Markdown.Avalonia.Full.MdAvPlugins
+            {
+                HyperlinkCommand = new SafeMarkdownHyperlinkCommand(),
+                PathResolver = new StubPathResolver(),
+            },
         };
-        return viewer;
     }
 
     private static async Task<string> WaitForRenderedTextAsync(MarkdownScrollViewer viewer, string[] markers, TimeSpan timeout)

@@ -119,7 +119,7 @@ public class ReplayCrcMatchingHelperTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task GetOrCalculateProfileIniCrcAsync_DelegatesToCalculator()
+    public async Task GetOrCalculateProfileIniCrcAsync_DelegatesToCalculatorAsync()
     {
         var tempDir = Path.Combine(Path.GetTempPath(), "ReplayCrcHelperTest_" + Path.GetRandomFileName());
         Directory.CreateDirectory(tempDir);
@@ -226,7 +226,7 @@ public class ReplayCrcMatchingHelperTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task PreloadProfileCrcsAsync_WhenProfilesOrCalculatorNull_CompletesWithoutError()
+    public async Task PreloadProfileCrcsAsync_WhenProfilesOrCalculatorNull_CompletesWithoutErrorAsync()
     {
         var mockCalculator = new Mock<IGameCrcCalculatorService>();
 
@@ -242,7 +242,7 @@ public class ReplayCrcMatchingHelperTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task PreloadProfileCrcsAsync_WhenValidProfilesProvided_PreloadsCrcs()
+    public async Task PreloadProfileCrcsAsync_WhenValidProfilesProvided_PreloadsCrcsAsync()
     {
         var tempDir = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
         Directory.CreateDirectory(tempDir);
@@ -661,7 +661,7 @@ public class ReplayCrcMatchingHelperTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task IsRetailCompatibleAsync_WhenRootIniDirty_ReturnsFalse()
+    public async Task IsRetailCompatibleAsync_WhenRootIniDirty_ReturnsFalseAsync()
     {
         await RunProfileIniCompatibilityScenarioAsync(
             "1.104.steam.gameclient.zerohour",
@@ -676,7 +676,7 @@ public class ReplayCrcMatchingHelperTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task IsRetailCompatibleAsync_SteamZeroHour105WithGameDat_ReturnsTrue()
+    public async Task IsRetailCompatibleAsync_SteamZeroHour105WithGameDat_ReturnsTrueAsync()
     {
         var tempDir = Path.Combine(Path.GetTempPath(), "GenHub_AsyncTest_" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(tempDir);
@@ -729,7 +729,7 @@ public class ReplayCrcMatchingHelperTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task IsRetailCompatibleAsync_WhenCustomModAndIniCrcNonRetail_ReturnsFalse()
+    public async Task IsRetailCompatibleAsync_WhenCustomModAndIniCrcNonRetail_ReturnsFalseAsync()
     {
         await RunProfileIniCompatibilityScenarioAsync(
             "custom.mod.client",
@@ -744,7 +744,7 @@ public class ReplayCrcMatchingHelperTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task IsRetailCompatibleAsync_WhenIniCrcRetail_ReturnsTrue()
+    public async Task IsRetailCompatibleAsync_WhenIniCrcRetail_ReturnsTrueAsync()
     {
         await RunProfileIniCompatibilityScenarioAsync(
             "1.104.custom.gameclient.zerohour",
@@ -770,7 +770,7 @@ public class ReplayCrcMatchingHelperTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task IsRetailCompatible_WithModEnabledInProfile_ReturnsFalse()
+    public async Task IsRetailCompatible_WithModEnabledInProfile_ReturnsFalseAsync()
     {
         var client = new GameClient
         {
@@ -812,7 +812,7 @@ public class ReplayCrcMatchingHelperTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task IsRetailCompatible_WithUploadedCustomNonRetailExe_ReturnsFalse()
+    public async Task IsRetailCompatible_WithUploadedCustomNonRetailExe_ReturnsFalseAsync()
     {
         var tempDir = Path.Combine(Path.GetTempPath(), "GenHub_CustomExeTest_" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(tempDir);
@@ -878,7 +878,7 @@ public class ReplayCrcMatchingHelperTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task IsRetailCompatible_WithUnresolvedCustomExecutable_ReturnsFalse()
+    public async Task IsRetailCompatible_WithUnresolvedCustomExecutable_ReturnsFalseAsync()
     {
         var nonExistentPath = Path.Combine(Path.GetTempPath(), "GenHub_NonExistent_" + Guid.NewGuid().ToString("N"), "generals.exe");
         var client = new GameClient
@@ -1004,7 +1004,7 @@ public class ReplayCrcMatchingHelperTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task IsRetailCompatibleAsync_WithMissingVerificationDirectory_ReturnsFalse()
+    public async Task IsRetailCompatibleAsync_WithMissingVerificationDirectory_ReturnsFalseAsync()
     {
         var missingDir = Path.Combine(Path.GetTempPath(), "GenHub_Missing_" + Guid.NewGuid().ToString("N"));
         var client = new GameClient
@@ -1056,7 +1056,7 @@ public class ReplayCrcMatchingHelperTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task IsRetailCompatibleAsync_OfficialClientEmptyVersionWithRetailIniCrc_ReturnsTrue()
+    public async Task IsRetailCompatibleAsync_OfficialClientEmptyVersionWithRetailIniCrc_ReturnsTrueAsync()
     {
         var tempDir = Path.Combine(Path.GetTempPath(), "GenHub_AsyncEmptyVer_" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(tempDir);
@@ -1145,7 +1145,7 @@ public class ReplayCrcMatchingHelperTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task IsRetailCompatibleAsync_WithFileSet_ForwardsScopingToCalculator()
+    public async Task IsRetailCompatibleAsync_WithFileSet_ForwardsScopingToCalculatorAsync()
     {
         var tempDir = Path.Combine(Path.GetTempPath(), "GenHub_AsyncFileSet_" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(tempDir);

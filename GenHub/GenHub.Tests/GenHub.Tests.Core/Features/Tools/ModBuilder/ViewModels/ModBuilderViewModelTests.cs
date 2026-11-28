@@ -267,7 +267,7 @@ public class ModBuilderViewModelTests : IDisposable
             .Returns<string, object?[]>((key, args) =>
             {
                 var val = resourceManager.GetString(key, CultureInfo.InvariantCulture) ?? key;
-                return args != null && args.Length > 0 ? string.Format(CultureInfo.InvariantCulture, val, args) : val;
+                return args?.Length > 0 ? string.Format(CultureInfo.InvariantCulture, val, args) : val;
             });
         mock.Setup(m => m[It.IsAny<string>()])
             .Returns<string>(key => resourceManager.GetString(key, CultureInfo.InvariantCulture) ?? key);

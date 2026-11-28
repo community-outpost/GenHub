@@ -76,7 +76,7 @@ public class CasWriteFenceTests
     {
         // Arrange
         var fence = new CasWriteFence();
-        using var write = await fence.TrackWriteAsync();
+        using var write = await fence.TrackWriteAsync(); // skipcq: CS-W1100
 
         // Act
         var acquired = fence.TryAcquireCollectionLease(TimeSpan.Zero, out var lease);
@@ -107,7 +107,7 @@ public class CasWriteFenceTests
         collection.Dispose();
 
         // Act - released, the waiting write proceeds
-        using var write = await writeTask.WaitAsync(TimeSpan.FromSeconds(5));
+        using var write = await writeTask.WaitAsync(TimeSpan.FromSeconds(5)); // skipcq: CS-W1100
 
         // Assert
         Assert.True(fence.HasActiveWrites);

@@ -669,7 +669,7 @@ public class FileOperationsServiceTests : IDisposable
         var destinationPath = Path.Combine(_tempDir, "blocked-destination.bin");
         await File.WriteAllTextAsync(sourcePath, "new");
         await File.WriteAllTextAsync(destinationPath, "old");
-        using var holder = new FileStream(destinationPath, System.IO.FileMode.Open, System.IO.FileAccess.Read, System.IO.FileShare.Read);
+        using var holder = new FileStream(destinationPath, System.IO.FileMode.Open, System.IO.FileAccess.Read, System.IO.FileShare.Read); // skipcq: CS-W1100
 
         await Assert.ThrowsAsync<UnauthorizedAccessException>(
             () => FileOperationsService.MoveFileWithRetryAsync(sourcePath, destinationPath));

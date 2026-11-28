@@ -217,7 +217,7 @@ public class IniEditorViewTests
         viewModel.NewBlockName = "Edited";
         viewModel.AddBlockCommand.Execute(null);
 
-        viewModel.FieldRows.First(row => row.Key == "Health").Value = "150.0";
+        viewModel.FieldRows.First(row => row.Key == "Health").Value = "150.0"; // skipcq: CS-W1082
         viewModel.FieldRows.First(row => row.Key == "Health").Value = "200.0";
 
         Assert.Equal("200.0", viewModel.FieldRows.First(row => row.Key == "Health").Value);

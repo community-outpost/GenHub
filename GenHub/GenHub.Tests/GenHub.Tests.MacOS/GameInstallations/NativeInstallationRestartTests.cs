@@ -35,7 +35,7 @@ public class NativeInstallationRestartTests
     [Fact]
     public async Task NativeFlatInstall_AfterRestart_ReloadsClientsFromFirstDetectionAsync()
     {
-        using var testEnvironment = new TemporaryApplicationEnvironment();
+        using var testEnvironment = new TemporaryApplicationEnvironment(); // skipcq: CS-W1100
         var home = Environment.GetEnvironmentVariable("HOME")!;
         Directory.CreateDirectory(Path.Combine(home, "Documents"));
         Directory.CreateDirectory(Path.Combine(home, "Library", "Application Support"));

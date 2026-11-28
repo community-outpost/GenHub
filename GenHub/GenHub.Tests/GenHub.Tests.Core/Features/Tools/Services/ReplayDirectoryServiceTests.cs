@@ -4368,7 +4368,7 @@ public sealed class ReplayDirectoryServiceTests
     /// </summary>
     /// <returns>A task representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task ResolveCompatibilityAsync_WhenRetailReplayAndRecoveryProfileExists_SetsSupportsCheckpointsAndRecoveryProfile()
+    public async Task ResolveCompatibilityAsync_WhenRetailReplayAndRecoveryProfileExists_SetsSupportsCheckpointsAndRecoveryProfileAsync()
     {
         var replay = new ReplayFile
         {
@@ -4512,7 +4512,7 @@ public sealed class ReplayDirectoryServiceTests
     /// </summary>
     /// <returns>A task representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task ResolveCompatibilityAsync_WhenNoMatchingRecoveryProfile_DoesNotSupportCheckpoints()
+    public async Task ResolveCompatibilityAsync_WhenNoMatchingRecoveryProfile_DoesNotSupportCheckpointsAsync()
     {
         var replay = new ReplayFile
         {

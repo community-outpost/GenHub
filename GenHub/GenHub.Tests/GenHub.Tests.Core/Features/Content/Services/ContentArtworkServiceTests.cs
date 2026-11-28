@@ -250,10 +250,7 @@ public sealed class ContentArtworkServiceTests
             var service = CreateService(root, handler);
 
             var manifest = CreateManifest();
-            await Assert.ThrowsAnyAsync<OperationCanceledException>(async () =>
-            {
-                await service.PrefetchArtworkAsync(manifest, cts.Token);
-            });
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() => service.PrefetchArtworkAsync(manifest, cts.Token));
 
             var manifestDir = Path.Combine(root, ContentArtworkConstants.ArtworkDirectoryName, manifest.Id.Value);
             if (Directory.Exists(manifestDir))

@@ -30,10 +30,12 @@ public sealed class AddArtifactDialogVariantTests
     public void CreateArtifact_BundleMode_StripsVariantFields()
     {
         ReleaseArtifact? created = null;
-        using var vm = new AddArtifactDialogViewModel(a => created = a, null, allowVariants: false);
-        vm.UseLocalFile = false;
-        vm.DownloadUrl = "https://example.com/mod.zip";
-        vm.Filename = "mod.zip";
+        using var vm = new AddArtifactDialogViewModel(a => created = a, null, allowVariants: false)
+        {
+            UseLocalFile = false,
+            DownloadUrl = "https://example.com/mod.zip",
+            Filename = "mod.zip",
+        };
         vm.VariantAxisSelector.SetValue("resolution");
         vm.Variant = "1080p";
         vm.IsDefaultVariant = true;
@@ -53,10 +55,12 @@ public sealed class AddArtifactDialogVariantTests
     public void CreateArtifact_VariantsMode_PreservesVariantFields()
     {
         ReleaseArtifact? created = null;
-        using var vm = new AddArtifactDialogViewModel(a => created = a);
-        vm.UseLocalFile = false;
-        vm.DownloadUrl = "https://example.com/mod-1080p.zip";
-        vm.Filename = "mod-1080p.zip";
+        using var vm = new AddArtifactDialogViewModel(a => created = a)
+        {
+            UseLocalFile = false,
+            DownloadUrl = "https://example.com/mod-1080p.zip",
+            Filename = "mod-1080p.zip",
+        };
         vm.VariantAxisSelector.SetValue("resolution");
         vm.Variant = "1080p";
         vm.IsDefaultVariant = true;

@@ -40,7 +40,11 @@ public sealed class HostingCredentialStoreTests : IDisposable
             {
                 Directory.Delete(_testBaseDir, true);
             }
-            catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException)
+            catch (IOException)
+            {
+                // Best effort cleanup
+            }
+            catch (UnauthorizedAccessException)
             {
                 // Best effort cleanup
             }

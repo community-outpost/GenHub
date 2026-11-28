@@ -1216,8 +1216,10 @@ public class GameSettingsViewModelTests
         _gameSettingsServiceMock.Setup(x => x.LoadOptionsAsync(GameType.Generals))
             .ReturnsAsync(OperationResult<IniOptions>.CreateFailure("File corrupt"));
 
-        var vm = new GameSettingsViewModel(_gameSettingsServiceMock.Object, _loggerMock.Object, notificationMock.Object, localizationMock.Object);
-        vm.SelectedGameType = GameType.Generals;
+        var vm = new GameSettingsViewModel(_gameSettingsServiceMock.Object, _loggerMock.Object, notificationMock.Object, localizationMock.Object)
+        {
+            SelectedGameType = GameType.Generals,
+        };
 
         // Act
         await vm.LoadSettingsCommand.ExecuteAsync(null);
@@ -1241,8 +1243,10 @@ public class GameSettingsViewModelTests
         _gameSettingsServiceMock.Setup(x => x.SaveOptionsAsync(GameType.Generals, It.IsAny<IniOptions>()))
             .ReturnsAsync(OperationResult<bool>.CreateFailure("Disk full"));
 
-        var vm = new GameSettingsViewModel(_gameSettingsServiceMock.Object, _loggerMock.Object, notificationMock.Object, localizationMock.Object);
-        vm.SelectedGameType = GameType.Generals;
+        var vm = new GameSettingsViewModel(_gameSettingsServiceMock.Object, _loggerMock.Object, notificationMock.Object, localizationMock.Object)
+        {
+            SelectedGameType = GameType.Generals,
+        };
 
         // Act
         await vm.SaveSettingsCommand.ExecuteAsync(null);
@@ -1267,8 +1271,10 @@ public class GameSettingsViewModelTests
         _gameSettingsServiceMock.Setup(x => x.SaveOptionsAsync(GameType.Generals, It.IsAny<IniOptions>()))
             .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
 
-        var vm = new GameSettingsViewModel(_gameSettingsServiceMock.Object, _loggerMock.Object, notificationMock.Object, localizationMock.Object);
-        vm.SelectedGameType = GameType.Generals;
+        var vm = new GameSettingsViewModel(_gameSettingsServiceMock.Object, _loggerMock.Object, notificationMock.Object, localizationMock.Object)
+        {
+            SelectedGameType = GameType.Generals,
+        };
 
         // Act
         await vm.SaveSettingsCommand.ExecuteAsync(null);
@@ -1365,7 +1371,7 @@ public class GameSettingsViewModelTests
         localizationMock.Setup(l => l.GetString("GameProfiles.Settings.Notification.ResolutionSetTitle")).Returns("Resolution Updated");
         localizationMock.Setup(l => l.GetString("GameProfiles.Settings.Notification.ResolutionSetMessage")).Returns("Resolution set to {0}x{1}");
 
-        var vm = new GameSettingsViewModel(_gameSettingsServiceMock.Object, _loggerMock.Object, notificationMock.Object, localizationMock.Object);
+        var vm = new GameSettingsViewModel(_gameSettingsServiceMock.Object, _loggerMock.Object, notificationMock.Object, localizationMock.Object); // skipcq: CS-R1048
 
         // Act
         vm.SelectedResolutionPreset = "1920x1080";
@@ -1381,7 +1387,7 @@ public class GameSettingsViewModelTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [Fact]
-    public async Task InitializeForProfileAsync_Should_NotShowResolutionNotification()
+    public async Task InitializeForProfileAsync_Should_NotShowResolutionNotificationAsync()
     {
         // Arrange
         var notificationMock = new Mock<INotificationService>();

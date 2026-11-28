@@ -43,7 +43,7 @@ public class MacOSCompositionRootTests
     [Fact]
     public void MacOSHost_RegistersMacOSGitHubTokenStorage()
     {
-        using var testEnvironment = new TemporaryApplicationEnvironment();
+        using var testEnvironment = new TemporaryApplicationEnvironment(); // skipcq: CS-W1100
         var services = new ServiceCollection();
         services.ConfigureApplicationServices(platformServices => platformServices.AddMacOSServices());
 
@@ -68,7 +68,7 @@ public class MacOSCompositionRootTests
     [Fact]
     public void MacOSHost_RegistersMacOSInstallationSearchPathProvider()
     {
-        using var testEnvironment = new TemporaryApplicationEnvironment();
+        using var testEnvironment = new TemporaryApplicationEnvironment(); // skipcq: CS-W1100
         var services = new ServiceCollection();
         services.ConfigureApplicationServices(platformServices => platformServices.AddMacOSServices());
 
@@ -85,7 +85,7 @@ public class MacOSCompositionRootTests
     [Fact]
     public void MacOSHost_RegistersWineRunnerWithMacOSOptions()
     {
-        using var testEnvironment = new TemporaryApplicationEnvironment();
+        using var testEnvironment = new TemporaryApplicationEnvironment(); // skipcq: CS-W1100
         var services = new ServiceCollection();
         services.ConfigureApplicationServices(platformServices => platformServices.AddMacOSServices());
 

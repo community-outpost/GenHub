@@ -326,7 +326,7 @@ public class GameProfileSettingsViewModelHotswapTests
         _gameProfileManagerMock.Verify(
             m => m.UpdateProfileAsync(
                 profileId,
-                It.Is<UpdateProfileRequest>(r => r.EnabledContentIds != null && r.EnabledContentIds.Contains(mapId) && r.EnabledContentIds.Contains(installId)),
+                It.Is<UpdateProfileRequest>(r => r.EnabledContentIds != null && r.EnabledContentIds.Contains(mapId) && r.EnabledContentIds.Contains(installId)), // skipcq: CS-R1136
                 It.IsAny<CancellationToken>()),
             Times.Once);
         _profileContentLinkerMock.Verify(

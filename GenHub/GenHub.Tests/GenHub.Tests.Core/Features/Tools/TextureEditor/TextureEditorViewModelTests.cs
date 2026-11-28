@@ -102,7 +102,7 @@ public sealed class TextureEditorViewModelTests
     {
         var notifications = new Mock<INotificationService>();
         var viewModel = CreateViewModel(notifications: notifications);
-        using var bitmap = OpenAtlas(viewModel, "atlas.tga");
+        using var bitmap = OpenAtlas(viewModel, "atlas.tga"); // skipcq: CS-W1100
 
         await viewModel.LoadRegistryEntryAsync(new MappedImageDefinition("Foreign", "other.tga", 64, 64, 0, 0, 32, 32));
 
@@ -120,7 +120,7 @@ public sealed class TextureEditorViewModelTests
     public async Task LoadRegistryEntry_MatchingTexture_AddsSliceAsync()
     {
         var viewModel = CreateViewModel();
-        using var bitmap = OpenAtlas(viewModel, "atlas.tga");
+        using var bitmap = OpenAtlas(viewModel, "atlas.tga"); // skipcq: CS-W1100
 
         await viewModel.LoadRegistryEntryAsync(new MappedImageDefinition("Local", "atlas.tga", 1, 1, 0, 0, 1, 1));
 
@@ -138,7 +138,7 @@ public sealed class TextureEditorViewModelTests
     {
         var notifications = new Mock<INotificationService>();
         var viewModel = CreateViewModel(notifications: notifications);
-        using var bitmap = OpenAtlas(viewModel, "atlas.tga");
+        using var bitmap = OpenAtlas(viewModel, "atlas.tga"); // skipcq: CS-W1100
         string foreignIni = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString(), "icons.ini");
 
         await viewModel.LoadRegistryEntryAsync(new MappedImageDefinition("Stale", "atlas.tga", 1, 1, 0, 0, 1, 1, SourcePath: foreignIni));
@@ -157,7 +157,7 @@ public sealed class TextureEditorViewModelTests
     public async Task LoadRegistryEntry_SameDirectory_AddsSliceAsync()
     {
         var viewModel = CreateViewModel();
-        using var bitmap = OpenAtlas(viewModel, "atlas.tga");
+        using var bitmap = OpenAtlas(viewModel, "atlas.tga"); // skipcq: CS-W1100
         string siblingIni = Path.Combine(Path.GetDirectoryName(viewModel.AtlasPath!)!, "icons.ini");
 
         await viewModel.LoadRegistryEntryAsync(new MappedImageDefinition("Local", "atlas.tga", 1, 1, 0, 0, 1, 1, SourcePath: siblingIni));
@@ -355,7 +355,7 @@ public sealed class TextureEditorViewModelTests
             var notifications = new Mock<INotificationService>();
             var viewModel = CreateViewModel(notifications: notifications, registry: registry);
             viewModel.FileExplorer.Directory = directory;
-            using var bitmap = OpenAtlas(viewModel, "atlas.tga");
+            using var bitmap = OpenAtlas(viewModel, "atlas.tga"); // skipcq: CS-W1100
 
             await viewModel.ScanRegistryCommand.ExecuteAsync(null);
 
@@ -730,7 +730,7 @@ public sealed class TextureEditorViewModelTests
     public void AddSlice_PushesUndo_CanUndoAndRedo()
     {
         var viewModel = CreateViewModel();
-        using var bitmap = OpenAtlas(viewModel, "atlas.tga");
+        using var bitmap = OpenAtlas(viewModel, "atlas.tga"); // skipcq: CS-W1100
 
         Assert.False(viewModel.CanUndo);
         Assert.False(viewModel.CanRedo);
@@ -761,7 +761,7 @@ public sealed class TextureEditorViewModelTests
     public void Delete_PushesUndo_CanUndoAndRedo()
     {
         var viewModel = CreateViewModel();
-        using var bitmap = OpenAtlas(viewModel, "atlas.tga");
+        using var bitmap = OpenAtlas(viewModel, "atlas.tga"); // skipcq: CS-W1100
         var slice = new TextureSliceViewModel(new MappedImageDefinition("Hero", "atlas.tga", 100, 100, 10, 10, 50, 50));
         viewModel.Slices.Add(slice);
         viewModel.SelectedSlice = slice;
@@ -790,7 +790,7 @@ public sealed class TextureEditorViewModelTests
     public void Duplicate_CreatesOffsetSlice_CanUndoAndRedo()
     {
         var viewModel = CreateViewModel();
-        using var bitmap = OpenAtlas(viewModel, "atlas.tga");
+        using var bitmap = OpenAtlas(viewModel, "atlas.tga"); // skipcq: CS-W1100
         var slice = new TextureSliceViewModel(new MappedImageDefinition("Icon", "atlas.tga", 200, 200, 10, 20, 60, 70));
         viewModel.Slices.Add(slice);
         viewModel.SelectedSlice = slice;
@@ -824,7 +824,7 @@ public sealed class TextureEditorViewModelTests
     public async Task CutAndPaste_PastesSlice_CanUndoAndRedoAsync()
     {
         var viewModel = CreateViewModel();
-        using var bitmap = OpenAtlas(viewModel, "atlas.tga");
+        using var bitmap = OpenAtlas(viewModel, "atlas.tga"); // skipcq: CS-W1100
         var slice = new TextureSliceViewModel(new MappedImageDefinition("CutMe", "atlas.tga", 300, 300, 20, 30, 80, 90));
         viewModel.Slices.Add(slice);
         viewModel.SelectedSlice = slice;
@@ -850,7 +850,7 @@ public sealed class TextureEditorViewModelTests
     public void NudgeSelectedSlice_UpdatesCoordinates_AndUndoes()
     {
         var viewModel = CreateViewModel();
-        using var bitmap = OpenAtlas(viewModel, "atlas.tga");
+        using var bitmap = OpenAtlas(viewModel, "atlas.tga"); // skipcq: CS-W1100
         var slice = new TextureSliceViewModel(new MappedImageDefinition("Mover", "atlas.tga", 100, 100, 10, 10, 30, 30));
         viewModel.Slices.Add(slice);
         viewModel.SelectedSlice = slice;
@@ -883,7 +883,7 @@ public sealed class TextureEditorViewModelTests
     public void UndoDelete_RestoresSliceWithChangeTracking()
     {
         var viewModel = CreateViewModel();
-        using var bitmap = OpenAtlas(viewModel, "atlas.tga");
+        using var bitmap = OpenAtlas(viewModel, "atlas.tga"); // skipcq: CS-W1100
         var slice = new TextureSliceViewModel(new MappedImageDefinition("TrackedSlice", "atlas.tga", 100, 100, 10, 10, 30, 30));
         viewModel.Slices.Add(slice);
         viewModel.SelectedSlice = slice;
@@ -908,7 +908,7 @@ public sealed class TextureEditorViewModelTests
     public void PushUndo_CapsHistoryAtMaxHistoryDepth()
     {
         var viewModel = CreateViewModel();
-        using var bitmap = OpenAtlas(viewModel, "atlas.tga");
+        using var bitmap = OpenAtlas(viewModel, "atlas.tga"); // skipcq: CS-W1100
 
         for (int i = 0; i < TextureEditorConstants.MaxHistoryDepth + 20; i++)
         {

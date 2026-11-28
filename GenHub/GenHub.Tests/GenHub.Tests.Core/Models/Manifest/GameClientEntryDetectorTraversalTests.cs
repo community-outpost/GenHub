@@ -48,7 +48,15 @@ public sealed class GameClientEntryDetectorTraversalTests : IDisposable
         {
             Directory.CreateSymbolicLink(Path.Combine(payload, "linkdir"), outside);
         }
-        catch (Exception ex) when (ex is UnauthorizedAccessException or PlatformNotSupportedException or IOException)
+        catch (UnauthorizedAccessException)
+        {
+            return;
+        }
+        catch (PlatformNotSupportedException)
+        {
+            return;
+        }
+        catch (IOException)
         {
             return;
         }
@@ -83,7 +91,15 @@ public sealed class GameClientEntryDetectorTraversalTests : IDisposable
         {
             Directory.CreateSymbolicLink(Path.Combine(Path.GetDirectoryName(versions)!, "Current"), "A");
         }
-        catch (Exception ex) when (ex is UnauthorizedAccessException or PlatformNotSupportedException or IOException)
+        catch (UnauthorizedAccessException)
+        {
+            return;
+        }
+        catch (PlatformNotSupportedException)
+        {
+            return;
+        }
+        catch (IOException)
         {
             return;
         }

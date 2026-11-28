@@ -49,11 +49,13 @@ public class PublisherStudioReviewThreadTests
     [Fact]
     public void AddContentDialog_BundleType_RequiresAtLeastOneComponent()
     {
-        using var vm = new AddContentDialogViewModel(_ => { }, null, null);
-        vm.SelectedContentType = ContentType.ContentBundle;
-        vm.ContentId = "my-bundle";
-        vm.ContentName = "My Bundle";
-        vm.Description = "Bundle Description";
+        using var vm = new AddContentDialogViewModel(_ => { }, null, null)
+        {
+            SelectedContentType = ContentType.ContentBundle,
+            ContentId = "my-bundle",
+            ContentName = "My Bundle",
+            Description = "Bundle Description",
+        };
 
         Assert.DoesNotContain(vm.BundleComponentOptions, o => o.IsSelected);
 
@@ -70,8 +72,10 @@ public class PublisherStudioReviewThreadTests
     [Fact]
     public void AddContentDialog_SwitchingAwayFromBundle_RestoresIncludeInitialRelease()
     {
-        using var vm = new AddContentDialogViewModel(_ => { }, null, null);
-        vm.SelectedContentType = ContentType.ContentBundle;
+        using var vm = new AddContentDialogViewModel(_ => { }, null, null)
+        {
+            SelectedContentType = ContentType.ContentBundle,
+        };
         Assert.False(vm.IncludeInitialRelease);
 
         vm.SelectedContentType = ContentType.Mod;

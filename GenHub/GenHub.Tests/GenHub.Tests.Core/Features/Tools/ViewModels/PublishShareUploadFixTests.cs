@@ -67,8 +67,10 @@ public class PublishShareUploadFixTests
             _mockPublishLogger.Object,
             null,
             _mockHostingStateManager.Object,
-            _mockNotificationService.Object);
-        vm.SelectedHostingProvider = mockProvider.Object;
+            _mockNotificationService.Object)
+        {
+            SelectedHostingProvider = mockProvider.Object,
+        };
 
         await vm.UploadArtifactFromLibraryAsync(artifact);
 

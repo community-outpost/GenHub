@@ -731,6 +731,8 @@ public class GitHubAuthServiceTests : IDisposable
             .Returns(async () =>
             {
                 await deleteGate.Task;
+
+                // skipcq: CS-W1094
                 lock (completionOrder)
                 {
                     completionOrder.Add("delete");
@@ -741,6 +743,7 @@ public class GitHubAuthServiceTests : IDisposable
             .Setup(x => x.SaveTokenAsync(It.IsAny<SecureString>()))
             .Callback(() =>
             {
+                // skipcq: CS-W1094
                 lock (completionOrder)
                 {
                     completionOrder.Add("save");

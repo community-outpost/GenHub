@@ -36,9 +36,11 @@ public class RgbaPixelsTests
     [InlineData(ColorSpace.sRGB, ColorType.TrueColor)]
     public void ToBytes_NonRgbaSource_ExportsOpaqueSrgb(ColorSpace colorSpace, ColorType colorType)
     {
-        using var image = new MagickImage(MagickColors.Red, 2, 1);
-        image.ColorSpace = colorSpace;
-        image.ColorType = colorType;
+        using var image = new MagickImage(MagickColors.Red, 2, 1)
+        {
+            ColorSpace = colorSpace,
+            ColorType = colorType,
+        };
 
         var bytes = RgbaPixels.ToBytes(image);
 
@@ -51,8 +53,10 @@ public class RgbaPixelsTests
     [Fact]
     public void ToBytes_Grayscale_ExpandsToRgb()
     {
-        using var image = new MagickImage(MagickColor.FromRgb(64, 64, 64), 1, 1);
-        image.ColorType = ColorType.Grayscale;
+        using var image = new MagickImage(MagickColor.FromRgb(64, 64, 64), 1, 1)
+        {
+            ColorType = ColorType.Grayscale,
+        };
 
         Assert.Equal(new byte[] { 64, 64, 64, 255 }, RgbaPixels.ToBytes(image));
     }

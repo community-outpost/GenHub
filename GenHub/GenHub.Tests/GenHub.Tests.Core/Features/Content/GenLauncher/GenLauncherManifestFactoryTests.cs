@@ -27,7 +27,7 @@ public sealed class GenLauncherManifestFactoryTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task CreateManifestsFromExtractedContentAsync_HashesFilesAndValidatesEngineChecksums()
+    public async Task CreateManifestsFromExtractedContentAsync_HashesFilesAndValidatesEngineChecksumsAsync()
     {
         var tempDir = Path.Combine(Path.GetTempPath(), "genlauncher_test_" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(tempDir);
@@ -96,7 +96,7 @@ public sealed class GenLauncherManifestFactoryTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task CreateManifestsFromExtractedContentAsync_WithChecksumMismatch_FailsValidation()
+    public async Task CreateManifestsFromExtractedContentAsync_WithChecksumMismatch_FailsValidationAsync()
     {
         var tempDir = Path.Combine(Path.GetTempPath(), "genlauncher_test_" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(tempDir);

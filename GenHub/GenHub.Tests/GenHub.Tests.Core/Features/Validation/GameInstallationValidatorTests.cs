@@ -1135,7 +1135,7 @@ public class GameInstallationValidatorTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [Fact]
-    public async Task ValidateAsync_CombinedInstallation_ValidatesBothGames()
+    public async Task ValidateAsync_CombinedInstallation_ValidatesBothGamesAsync()
     {
         var tempDir = Directory.CreateTempSubdirectory("GenHub.CombinedValidation.");
         try
@@ -1184,7 +1184,7 @@ public class GameInstallationValidatorTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [Fact]
-    public async Task ValidateAsync_CombinedInstallation_DoesNotReportSiblingArchivesAsExtraneous()
+    public async Task ValidateAsync_CombinedInstallation_DoesNotReportSiblingArchivesAsExtraneousAsync()
     {
         var tempDir = Directory.CreateTempSubdirectory("GenHub.CombinedExtraneous.");
         try

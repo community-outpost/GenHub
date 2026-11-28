@@ -287,7 +287,7 @@ public class DownloadServiceTests
     {
         // Arrange
         var fileContent = new byte[1024];
-        new Random().NextBytes(fileContent);
+        new Random().NextBytes(fileContent); // skipcq: CS-A1008
 
         var handler = new Mock<HttpMessageHandler>();
         var response = new HttpResponseMessage(HttpStatusCode.OK)
@@ -1361,6 +1361,7 @@ public class DownloadServiceTests
                     return initialResponse;
                 }
 
+                // skipcq: CS-W1094
                 lock (chunkIfRanges)
                 {
                     chunkIfRanges.Add(request.Headers.IfRange?.EntityTag?.Tag);
@@ -1520,6 +1521,7 @@ public class DownloadServiceTests
                     return initialResponse;
                 }
 
+                // skipcq: CS-W1094
                 lock (chunkAuthorizationHeaders)
                 {
                     chunkAuthorizationHeaders.Add(request.Headers.Authorization?.ToString());

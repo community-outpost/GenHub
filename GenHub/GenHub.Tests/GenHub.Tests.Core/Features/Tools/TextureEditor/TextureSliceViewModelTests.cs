@@ -29,9 +29,10 @@ public sealed class TextureSliceViewModelTests
     [Fact]
     public void Coordinates_OutOfBounds_ReportsInvalid()
     {
-        var slice = new TextureSliceViewModel(new MappedImageDefinition("Solo", "a.tga", 64, 64, 0, 0, 63, 63));
-
-        slice.Right = 80;
+        var slice = new TextureSliceViewModel(new MappedImageDefinition("Solo", "a.tga", 64, 64, 0, 0, 63, 63))
+        {
+            Right = 80,
+        };
 
         Assert.False(slice.IsWithinTexture);
         Assert.False(slice.HasGuardBorder);
@@ -108,12 +109,14 @@ public sealed class TextureSliceViewModelTests
     [Fact]
     public void ToDefinition_AfterEdits_PreservesState()
     {
-        var slice = new TextureSliceViewModel(new MappedImageDefinition("Solo", "a.tga", 64, 64, 0, 0, 31, 31));
-        slice.Name = "Renamed";
-        slice.Left = 4;
-        slice.Top = 4;
-        slice.Right = 35;
-        slice.Bottom = 35;
+        var slice = new TextureSliceViewModel(new MappedImageDefinition("Solo", "a.tga", 64, 64, 0, 0, 31, 31))
+        {
+            Name = "Renamed",
+            Left = 4,
+            Top = 4,
+            Right = 35,
+            Bottom = 35,
+        };
 
         var definition = slice.ToDefinition();
 

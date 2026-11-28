@@ -59,14 +59,14 @@ public sealed class SampleProjectServiceNotificationTests : IDisposable
         var projectDir = Path.Combine(_tempDirectory, "ImprovedMenus");
         Directory.CreateDirectory(projectDir);
 
-        using var cacheGuard = SampleCacheGuard.Create(_tempDirectory);
+        using var cacheGuard = SampleCacheGuard.Create(_tempDirectory); // skipcq: CS-W1100
         var notifications = new NotificationService(new Mock<ILogger<NotificationService>>().Object);
         var shown = new List<NotificationMessage>();
         var updates = new List<(Guid Id, string? Title, string Message)>();
         var dismisses = new List<Guid>();
-        using var shownSubscription = notifications.Notifications.Subscribe(shown.Add);
-        using var updatesSubscription = notifications.UpdateRequests.Subscribe(updates.Add);
-        using var dismissSubscription = notifications.DismissRequests.Subscribe(dismisses.Add);
+        using var shownSubscription = notifications.Notifications.Subscribe(shown.Add); // skipcq: CS-W1100
+        using var updatesSubscription = notifications.UpdateRequests.Subscribe(updates.Add); // skipcq: CS-W1100
+        using var dismissSubscription = notifications.DismissRequests.Subscribe(dismisses.Add); // skipcq: CS-W1100
 
         var service = CreateService(notifications, FakeSuccessfulDownload());
 
@@ -109,7 +109,7 @@ public sealed class SampleProjectServiceNotificationTests : IDisposable
 
         var notifications = new NotificationService(new Mock<ILogger<NotificationService>>().Object);
         var shown = new List<NotificationMessage>();
-        using var shownSubscription = notifications.Notifications.Subscribe(shown.Add);
+        using var shownSubscription = notifications.Notifications.Subscribe(shown.Add); // skipcq: CS-W1100
 
         var mockDownloads = new Mock<IDownloadService>();
         var service = CreateService(notifications, mockDownloads.Object);

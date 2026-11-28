@@ -51,10 +51,7 @@ public class SettingsViewTests
     [AvaloniaFact]
     public async Task ExpandingCollapsedSection_ScrollsItFullyIntoViewAsync()
     {
-        await AssertSectionScrollsIntoViewAsync((_, _, expander) =>
-        {
-            expander.IsExpanded = true;
-        });
+        await AssertSectionScrollsIntoViewAsync((_, _, expander) => expander.IsExpanded = true);
     }
 
     /// <summary>

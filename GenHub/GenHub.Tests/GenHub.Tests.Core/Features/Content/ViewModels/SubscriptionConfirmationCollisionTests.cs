@@ -40,8 +40,8 @@ public sealed class SubscriptionConfirmationCollisionTests : IDisposable
     private readonly CapturingLogger<SubscriptionConfirmationViewModel> _logger = new();
     private readonly RSA _genuineKey = RSA.Create(2048);
     private readonly RSA _attackerKey = RSA.Create(2048);
-    private PublisherSubscription? _added;
-    private PublisherSubscription? _updated;
+    private PublisherSubscription? _added; // skipcq: CS-R1137
+    private PublisherSubscription? _updated; // skipcq: CS-R1137
 
     /// <summary>
     /// Initializes a new instance of the <see cref="SubscriptionConfirmationCollisionTests"/> class.

@@ -34,7 +34,11 @@ internal static class TestDataRootInitializer
         {
             Directory.Delete(DataRoot, recursive: true);
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        catch (IOException)
+        {
+            // An open log file can keep the directory alive; the temp tree is disposable.
+        }
+        catch (UnauthorizedAccessException)
         {
             // An open log file can keep the directory alive; the temp tree is disposable.
         }

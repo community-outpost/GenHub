@@ -317,7 +317,7 @@ public class GameProfileManagerHotswapTests
         Assert.True(result.Success);
         _profileRepositoryMock.Verify(
             r => r.SaveProfileAsync(
-                It.Is<GameProfile>(p => p.GameClient != null && p.GameClient.Id == "client-steam"),
+                It.Is<GameProfile>(p => p.GameClient != null && p.GameClient.Id == "client-steam"), // skipcq: CS-R1136
                 It.IsAny<CancellationToken>()),
             Times.Once);
     }

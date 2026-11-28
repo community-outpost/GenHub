@@ -25,9 +25,10 @@ public sealed class ReleaseDialogBundleModeTests
             new CatalogContentItem { Id = "mod", Name = "Mod" },
             new PublisherCatalog(),
             _ => { },
-            Mock.Of<IPublisherStudioDialogService>());
-
-        vm.IsVariantsMode = true;
+            Mock.Of<IPublisherStudioDialogService>())
+        {
+            IsVariantsMode = true,
+        };
         vm.Artifacts.Add(new ReleaseArtifact
         {
             Filename = "mod-1080p.zip",
@@ -85,9 +86,10 @@ public sealed class ReleaseDialogBundleModeTests
     [Fact]
     public void ContentDialog_ToggleToBundle_StripsReleaseArtifacts()
     {
-        using var vm = new AddContentDialogViewModel(_ => { });
-
-        vm.IsVariantsMode = true;
+        using var vm = new AddContentDialogViewModel(_ => { })
+        {
+            IsVariantsMode = true,
+        };
         vm.ReleaseArtifacts.Add(new ReleaseArtifact
         {
             Filename = "mod-1080p.zip",
@@ -112,10 +114,12 @@ public sealed class ReleaseDialogBundleModeTests
     public void ContentDialog_CreateContent_BundleMode_StripsReleaseArtifacts()
     {
         CatalogContentItem? created = null;
-        using var vm = new AddContentDialogViewModel(item => created = item);
-        vm.ContentId = "test-mod";
-        vm.ContentName = "Test Mod";
-        vm.Description = "A test mod description.";
+        using var vm = new AddContentDialogViewModel(item => created = item)
+        {
+            ContentId = "test-mod",
+            ContentName = "Test Mod",
+            Description = "A test mod description.",
+        };
         vm.ReleaseArtifacts.Add(new ReleaseArtifact
         {
             Filename = "mod.zip",
@@ -209,8 +213,10 @@ public sealed class ReleaseDialogBundleModeTests
             catalog.Content[0],
             catalog,
             r => created = r,
-            Mock.Of<IPublisherStudioDialogService>());
-        vm.Version = "1.1";
+            Mock.Of<IPublisherStudioDialogService>())
+        {
+            Version = "1.1",
+        };
 
         vm.CreateReleaseCommand.Execute(null);
 
